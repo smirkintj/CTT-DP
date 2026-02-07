@@ -2,27 +2,18 @@
 
 import { useRouter } from 'next/navigation';
 import App from '../App';
-import { ViewState, Role, User } from '../types';
-import { MOCK_USERS } from '../constants';
+import { ViewState } from '../types';
 
 interface AppRouteShellProps {
   initialView?: ViewState;
   initialTaskId?: string | null;
-  initialRole?: Role;
 }
 
-const getUserForRole = (role?: Role): User | null => {
-  if (!role) return null;
-  return MOCK_USERS.find((user) => user.role === role) ?? MOCK_USERS[0] ?? null;
-};
-
-export default function AppRouteShell({ initialView, initialTaskId = null, initialRole }: AppRouteShellProps) {
+export default function AppRouteShell({ initialView, initialTaskId = null }: AppRouteShellProps) {
   const router = useRouter();
-  const initialUser = getUserForRole(initialRole);
 
   return (
     <App
-      initialUser={initialUser}
       initialView={initialView}
       initialSelectedTaskId={initialTaskId}
       onRouteChange={(nextView, taskId) => {

@@ -1,0 +1,63 @@
+import { getServerSession } from 'next-auth';
+import type { NextAuthOptions } from 'next-auth';
+import Credentials from 'next-auth/providers/credentials';
+import bcrypt from 'bcrypt';
+import prisma from './prisma';
+
+export const authOptions: NextAuthOptions = {
+  session: {
+    strategy: 'jwt'
+  },
+  providers: [
+    Credentials({
+      name: 'Credentials',
+      credentials: {
+        email: { label: 'Email', type: 'text' },
+        password: { label: 'Password', type: 'password' }
+      },
+      async authorize(credentials) {
+        const email = credentials?.email?.toString().toLowerCase();
+        const password = credentials?.password?.toString();
+
+        if (!email || !password) return null;
+
+        const user = await prisma.user.findUnique({
+          where: { email }
+        });
+
+        if (!user) return null;
+
+        const isValid = await bcrypt.compare(password, user.passwordHash);
+        if (!isValid) return null;
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          countryCode: user.countryCode
+        };
+      }
+    })
+  ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = (user as { role?: string }).role;
+        token.countryCode = (user as { countryCode?: string | null }).countryCode ?? null;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
+        session.user.countryCode = (token.countryCode as string | null) ?? null;
+      }
+      return session;
+    }
+  }
+};
+
+export const getAuthSession = () => getServerSession(authOptions);

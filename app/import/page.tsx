@@ -1,6 +1,5 @@
 import AppRouteShell from '../AppRouteShell';
-import { Role } from '../../types';
 
 export default function Page() {
-  return <AppRouteShell initialRole={Role.ADMIN} initialView="IMPORT_WIZARD" />;
+  return <AppRouteShell initialView="IMPORT_WIZARD" />;
 }

@@ -1,5 +1,7 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { signIn, getSession, useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Layout } from './components/Layout';
 import { StakeholderDashboard } from './views/StakeholderDashboard';
 import { AdminDashboard } from './views/AdminDashboard';
@@ -8,22 +10,22 @@ import { AdminDatabase } from './views/AdminDatabase';
 import { TaskDetail } from './views/TaskDetail';
 import { ImportWizard } from './views/ImportWizard';
 import { User, Task, Role, ViewState, CountryConfig } from './types';
-import { MOCK_TASKS, MOCK_USERS, INITIAL_COUNTRIES, INITIAL_MODULES } from './constants';
+import { MOCK_TASKS, INITIAL_COUNTRIES, INITIAL_MODULES } from './constants';
 
 interface AppProps {
-  initialUser?: User | null;
   initialView?: ViewState;
   initialSelectedTaskId?: string | null;
   onRouteChange?: (nextView: ViewState, taskId?: string | null) => void;
 }
 
-const App: React.FC<AppProps> = ({ initialUser = null, initialView, initialSelectedTaskId = null, onRouteChange }) => {
+const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, onRouteChange }) => {
+  const router = useRouter();
+  const { data: session, status } = useSession();
+
   // State Management
-  const [currentUser, setCurrentUser] = useState<User | null>(initialUser);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
-  const [view, setView] = useState<ViewState>(
-    initialView ?? (initialUser ? (initialUser.role === Role.ADMIN ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER') : 'LOGIN')
-  );
+  const [view, setView] = useState<ViewState>(initialView ?? 'LOGIN');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialSelectedTaskId);
 
   // Global Lists of Values
@@ -33,33 +35,53 @@ const App: React.FC<AppProps> = ({ initialUser = null, initialView, initialSelec
   // Login Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Handlers
-  const handleLoginSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
+  useEffect(() => {
+    if (status === 'loading') return;
 
-    // Determine Role based on email pattern (Simulated logic)
-    const isAdmin = email.toLowerCase().includes('admin');
-    const role = isAdmin ? Role.ADMIN : Role.STAKEHOLDER;
-    
-    // Find mock user or create temp one
-    let user = MOCK_USERS.find(u => u.role === role);
-    if (!user) {
-         user = {
-            id: 'temp',
-            name: email.split('@')[0],
-            email: email,
-            role: role,
-            countryCode: 'SG',
-            avatarUrl: 'https://picsum.photos/100/100'
-         };
+    if (!session?.user) {
+      setCurrentUser(null);
+      setView('LOGIN');
+      return;
     }
 
+    const role = session.user.role === 'ADMIN' ? Role.ADMIN : Role.STAKEHOLDER;
+    const user: User = {
+      id: session.user.id,
+      name: session.user.name || session.user.email || 'User',
+      email: session.user.email || '',
+      role,
+      countryCode: session.user.countryCode || 'SG',
+      avatarUrl: session.user.image || undefined
+    };
+
     setCurrentUser(user);
-    const nextView = role === Role.ADMIN ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER';
-    setView(nextView);
-    onRouteChange?.(nextView);
+    setView(initialView ?? (role === Role.ADMIN ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER'));
+  }, [session, status, initialView]);
+
+  // Handlers
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+
+    setLoginError(null);
+    const result = await signIn('credentials', { email, password, redirect: false });
+
+    if (!result || result.error) {
+      setLoginError('Invalid email or password. Please try again.');
+      return;
+    }
+
+    const updatedSession = await getSession();
+    const role = updatedSession?.user?.role;
+
+    if (role === 'ADMIN') {
+      router.push('/admin/dashboard');
+      return;
+    }
+
+    router.push('/');
   };
 
   const handleLogout = () => {
@@ -134,6 +156,12 @@ const App: React.FC<AppProps> = ({ initialUser = null, initialView, initialSelec
                      onChange={(e) => setPassword(e.target.value)}
                    />
                 </div>
+
+                {loginError && (
+                  <div className="text-sm text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
+                    {loginError}
+                  </div>
+                )}
                 
                 <div>
                    <button 
@@ -152,7 +180,7 @@ const App: React.FC<AppProps> = ({ initialUser = null, initialView, initialSelec
                  </div>
                  <div className="relative flex justify-center text-sm">
                    <span className="px-2 bg-white text-slate-500">
-                     Tip: Use &apos;admin&apos; in email for Admin role
+                     Tip: Use your assigned account to sign in
                    </span>
                  </div>
                </div>

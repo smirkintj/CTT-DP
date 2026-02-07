@@ -1,5 +1,6 @@
 import './globals.css';
 import Script from 'next/script';
+import Providers from './Providers';
 
 export const metadata = {
   title: 'CTT - Cuba Try Test',
@@ -56,7 +57,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }`}
         </Script>
       </head>
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
