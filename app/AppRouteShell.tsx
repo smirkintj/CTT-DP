@@ -32,9 +32,13 @@ export default function AppRouteShell({ initialView, initialTaskId = null, initi
             router.push('/');
             return;
           case 'DASHBOARD_ADMIN':
+            router.push('/admin/dashboard');
+            return;
           case 'ADMIN_TASK_MANAGEMENT':
+            router.push('/admin/tasks');
+            return;
           case 'ADMIN_DATABASE':
-            router.push('/admin');
+            router.push('/admin/database');
             return;
           case 'IMPORT_WIZARD':
             router.push('/import');
