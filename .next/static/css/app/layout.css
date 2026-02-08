@@ -826,6 +826,9 @@ video {
 .max-w-sm {
   max-width: 24rem;
 }
+.max-w-2xl {
+  max-width: 42rem;
+}
 .flex-1 {
   flex: 1 1 0%;
 }
@@ -1007,6 +1010,9 @@ video {
 }
 .rounded-xl {
   border-radius: 0.75rem;
+}
+.rounded-2xl {
+  border-radius: 1rem;
 }
 .rounded-b-xl {
   border-bottom-right-radius: 0.75rem;
@@ -1387,6 +1393,10 @@ video {
 .py-8 {
   padding-top: 2rem;
   padding-bottom: 2rem;
+}
+.py-16 {
+  padding-top: 4rem;
+  padding-bottom: 4rem;
 }
 .pb-20 {
   padding-bottom: 5rem;

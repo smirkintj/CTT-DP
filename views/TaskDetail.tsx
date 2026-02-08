@@ -1,9 +1,11 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Task, Status, User, Role, Priority, TestStep } from '../types';
+import { Task, Status, User, Role, TestStep } from '../types';
 import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
 import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer } from 'lucide-react';
+
+console.log("TaskDetail rendered");
 
 interface TaskDetailProps {
   task: Task;
