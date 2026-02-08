@@ -15,9 +15,25 @@ interface TaskDetailProps {
   onUpdateTask: (task: Task) => void;
 }
 
+// Defensive normalization: API/DB may omit arrays or return null
+const normalizeTask = (t: Task): Task => {
+  const steps = Array.isArray((t as any).steps) ? (t as any).steps : [];
+  return {
+    ...t,
+    steps: steps.map((s: any) => ({
+      ...s,
+      attachments: Array.isArray(s?.attachments) ? s.attachments : [],
+      comments: Array.isArray(s?.comments) ? s.comments : [],
+    })),
+  } as Task;
+};
+
 export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBack, onUpdateTask }) => {
-  const [localTask, setLocalTask] = useState<Task>(task);
-  const [expandedStep, setExpandedStep] = useState<string | null>(task.steps.find(s => s.isPassed === null)?.id || task.steps[0]?.id || null);
+  const [localTask, setLocalTask] = useState<Task>(() => normalizeTask(task));
+  const [expandedStep, setExpandedStep] = useState<string | null>(() => {
+    const safe = normalizeTask(task);
+    return safe.steps.find(s => s.isPassed === null)?.id || safe.steps[0]?.id || null;
+  });
   const [deploymentModalOpen, setDeploymentModalOpen] = useState(false);
   const [releaseVersion, setReleaseVersion] = useState('');
   const [commentInputs, setCommentInputs] = useState<{[key: string]: string}>({});
@@ -40,7 +56,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   const handleStepUpdate = (stepId: string, updates: Partial<TestStep>) => {
     if (isSignedOff) return; // Prevent edits if signed
 
-    const updatedSteps = localTask.steps.map(step => {
+    const updatedSteps = (localTask.steps ?? []).map(step => {
       if (step.id === stepId) {
         return { 
           ...step, 
@@ -85,7 +101,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
 
   const deleteAttachment = (stepId: string, index: number) => {
     if (isSignedOff) return;
-    const currentStep = localTask.steps.find(s => s.id === stepId);
+    const currentStep = (localTask.steps ?? []).find(s => s.id === stepId);
     if (!currentStep || !currentStep.attachments) return;
     
     const newAttachments = [...currentStep.attachments];
@@ -118,7 +134,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
             const reader = new FileReader();
             reader.onload = (event) => {
                 const base64 = event.target?.result as string;
-                const currentStep = localTask.steps.find(s => s.id === stepId);
+                const currentStep = (localTask.steps ?? []).find(s => s.id === stepId);
                 if (currentStep) {
                     const currentAttachments = currentStep.attachments || [];
                     handleStepUpdate(stepId, { attachments: [...currentAttachments, base64] });
@@ -172,8 +188,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     const response = await fetch(`/api/tasks/${taskId}`, { cache: 'no-store' });
     if (!response.ok) return;
     const updated = await response.json();
-    setLocalTask(updated);
-    onUpdateTask(updated);
+    const safeUpdated = normalizeTask(updated as Task);
+    setLocalTask(safeUpdated);
+    onUpdateTask(safeUpdated);
   };
 
   const persistStatus = async (status: Status) => {
@@ -185,8 +202,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   };
 
   useEffect(() => {
-    setLocalTask(task);
-    void refreshTask(task.id);
+    const safe = normalizeTask(task);
+    setLocalTask(safe);
+    void refreshTask(safe.id);
   }, [task.id]);
 
   return (
@@ -286,12 +304,12 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
               <CheckCircle size={18} className="text-slate-400"/> Test Steps
             </h3>
             <div className="text-xs font-medium text-slate-500">
-              {localTask.steps.filter(s => s.isPassed === true).length} / {localTask.steps.length} Steps Completed
+              {(localTask.steps ?? []).filter(s => s.isPassed === true).length} / {(localTask.steps ?? []).length} Steps Completed
             </div>
           </div>
 
           <div className="divide-y divide-slate-100">
-              {localTask.steps.map((step, idx) => {
+              {(localTask.steps ?? []).map((step, idx) => {
                 const isOpen = expandedStep === step.id;
                 const statusColor = step.isPassed === true ? 'bg-emerald-100 border-emerald-200 text-emerald-700' : 
                                   step.isPassed === false ? 'bg-rose-100 border-rose-200 text-rose-700' : 
@@ -326,9 +344,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                                    <ImageIcon size={10}/> {step.attachments.length}
                                </span>
                            )}
-                           {step.comments.length > 0 && (
+                           {(step.comments ?? []).length > 0 && (
                              <span className="flex items-center gap-1 text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full" title="Comments">
-                               <PenTool size={10}/> {step.comments.length}
+                               <PenTool size={10}/> {(step.comments ?? []).length}
                              </span>
                            )}
                            {isOpen ? <ChevronUp size={16} className="text-slate-400"/> : <ChevronDown size={16} className="text-slate-400"/>}
@@ -447,9 +465,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                               )}
 
                               {/* Comments */}
-                              {step.comments.length > 0 && (
+                              {(step.comments ?? []).length > 0 && (
                                  <div className="bg-slate-50 rounded-lg p-3 space-y-2 mt-2 print:bg-white print:border print:border-slate-200">
-                                    {step.comments.map(c => (
+                                    {(step.comments ?? []).map(c => (
                                       <div key={c.id} className="flex gap-2 text-xs">
                                          <span className="font-bold text-slate-800">{c.userId}</span>
                                          <span className="text-slate-600">{c.text}</span>
@@ -532,9 +550,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
 
                <button 
                  onClick={handleSignOff}
-                 disabled={localTask.steps.some(s => s.isPassed === null) || !signatureData || !acknowledged}
+                 disabled={(localTask.steps ?? []).some(s => s.isPassed === null) || !signatureData || !acknowledged}
                  className={`w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors ${
-                   (localTask.steps.some(s => s.isPassed === null) || !signatureData || !acknowledged)
+                   ((localTask.steps ?? []).some(s => s.isPassed === null) || !signatureData || !acknowledged)
                     ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
                     : 'bg-slate-900 text-white hover:bg-slate-800 shadow-md'
                  }`}
@@ -542,7 +560,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                  <PenTool size={16} /> Sign & Complete Task
                </button>
                
-               {localTask.steps.some(s => s.isPassed === null) && (
+               {(localTask.steps ?? []).some(s => s.isPassed === null) && (
                  <p className="text-xs text-rose-500 mt-2">Please complete all test steps before signing.</p>
                )}
              </div>
