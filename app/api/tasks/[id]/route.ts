@@ -4,11 +4,13 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
 import { mapTaskToUi } from '../_mappers';
 
-interface Params {
-  params: { id: string };
-}
+export async function GET(_: Request, ctx: any) {
+  const id = ctx?.params?.id as string | undefined;
 
-export async function GET(_: Request, { params }: Params) {
+  if (!id) {
+    return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+  }
+
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
@@ -16,7 +18,7 @@ export async function GET(_: Request, { params }: Params) {
   }
 
   const task = await prisma.task.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       country: true,
       assignee: {
@@ -49,20 +51,18 @@ export async function GET(_: Request, { params }: Params) {
   }
 
   const isAdmin = session.user.role === 'ADMIN';
+
   if (!isAdmin) {
     const userCountry = session.user.countryCode;
     if (!userCountry || task.countryCode !== userCountry) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-  }
 
-  if (!isAdmin && task.assigneeId !== session.user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  return NextResponse.json(mapTaskToUi(task), {
-    headers: {
-      'Cache-Control': 'no-store'
+    if (task.assigneeId !== session.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-  });
+  }
+
+  return NextResponse.json(mapTaskToUi(task));
+ 
 }

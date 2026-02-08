@@ -3,11 +3,12 @@ import prisma from '../../../../../lib/prisma';
 import { getAuthSession } from '../../../../../lib/auth';
 import { mapUiStatusToDb } from '../../_mappers';
 
-interface Params {
-  params: { id: string };
-}
+export async function POST(req: Request, ctx: any) {
+  const id = ctx?.params?.id as string | undefined;
+  if (!id) {
+    return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+  }
 
-export async function POST(req: Request, { params }: Params) {
   const session = await getAuthSession();
 
   if (!session?.user) {
@@ -22,7 +23,7 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   const task = await prisma.task.findUnique({
-    where: { id: params.id }
+    where: { id }
   });
 
   if (!task) {
@@ -37,7 +38,7 @@ export async function POST(req: Request, { params }: Params) {
   const dbStatus = mapUiStatusToDb(status);
 
   await prisma.task.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       status: dbStatus
     }

@@ -6,8 +6,8 @@ import AppRouteShell from '../../AppRouteShell';
 import ErrorLayout from './ErrorLayout';
 import { Role, User } from '../../../types';
 
-interface PageProps {
-  params: { id: string };
+interface TaskPageProps {
+  params: Promise<{ id: string }>;
 }
 
 type SessionUser = {
@@ -31,15 +31,17 @@ const buildUser = (sessionUser: SessionUser): User => {
   };
 };
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params }: TaskPageProps) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
     redirect('/');
   }
 
+  const { id } = await params;
+
   const task = await prisma.task.findUnique({
-    where: { id: params.id },
+    where: { id },
     select: {
       id: true,
       countryCode: true
@@ -69,7 +71,7 @@ export default async function Page({ params }: PageProps) {
   return (
     <AppRouteShell
       initialView="TASK_DETAIL"
-      initialTaskId={params.id}
+      initialTaskId={id}
     />
   );
 }
