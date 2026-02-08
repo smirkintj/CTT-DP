@@ -18,6 +18,7 @@ export function mapUiStatusToDb(status: string): TaskStatus {
 }
 
 export function mapTaskToUi(task: any): TaskDTO {
+  const comments = Array.isArray(task.comments) ? task.comments : [];
   return {
     id: task.id,
     title: task.title,
@@ -26,7 +27,7 @@ export function mapTaskToUi(task: any): TaskDTO {
     priority: task.priority,
     countryCode: task.countryCode,
     module: task.module,
-    dueDate: task.dueDate.toISOString(),
+    dueDate: task.dueDate ? task.dueDate.toISOString() : '',
 
     assignee: task.assignee
       ? {
@@ -37,7 +38,7 @@ export function mapTaskToUi(task: any): TaskDTO {
         }
       : undefined,
 
-    comments: task.comments.map((c: any) => ({
+    comments: comments.map((c: any) => ({
       id: c.id,
       body: c.body,
       createdAt: c.createdAt.toISOString(),

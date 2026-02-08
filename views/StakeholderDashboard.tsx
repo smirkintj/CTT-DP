@@ -24,7 +24,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
   const completionPercentage = total > 0 ? Math.round((passedCount / total) * 100) : 0;
   
   // KPI: Unread Comments (Simulated)
-  const totalComments = myTasks.reduce((acc, t) => acc + t.steps.reduce((sAcc, s) => sAcc + s.comments.length, 0), 0);
+  const totalComments = myTasks.reduce((acc, t) => acc + (t.steps ?? []).reduce((sAcc, s) => sAcc + (s.comments?.length ?? 0), 0), 0);
   const unreadComments = Math.round(totalComments * 0.2); // Mock 20% unread
 
   // Identify blocked tasks for alert
@@ -192,9 +192,9 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                           <span className="text-xs text-slate-600 font-medium">{getAssigneeName(task)}</span>
                        </div>
                        <div className="flex items-center gap-3">
-                          {task.steps.reduce((acc, step) => acc + step.comments.length, 0) > 0 && (
+                          {(task.steps ?? []).reduce((acc, step) => acc + (step.comments?.length ?? 0), 0) > 0 && (
                              <span className="flex items-center text-xs text-slate-400 gap-1">
-                               <MessageSquare size={12}/> {task.steps.reduce((acc, step) => acc + step.comments.length, 0)}
+                               <MessageSquare size={12}/> {(task.steps ?? []).reduce((acc, step) => acc + (step.comments?.length ?? 0), 0)}
                              </span>
                           )}
                           <Badge type="priority" value={task.priority} />

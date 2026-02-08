@@ -18,7 +18,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, onSelectT
   
   const openUat = tasks.filter(t => t.status === Status.PENDING || t.status === Status.IN_PROGRESS).length;
   const blockers = tasks.filter(t => t.status === Status.BLOCKED || t.status === Status.FAILED).length;
-  const unreadComments = Math.round(tasks.reduce((acc, t) => acc + t.steps.reduce((sAcc, s) => sAcc + s.comments.length, 0), 0) * 0.3);
+  const unreadComments = Math.round(tasks.reduce((acc, t) => acc + (t.steps ?? []).reduce((sAcc, s) => sAcc + (s.comments?.length ?? 0), 0), 0) * 0.3);
 
   // Filter recent tasks to show attention items first (Blocked/Failed, then Open)
   const recentTasks = [...tasks].sort((a, b) => {
