@@ -1,7 +1,6 @@
 import React from 'react';
 import { Task, Status, Priority } from '../types';
 import { Badge } from '../components/Badge';
-import { MOCK_USERS } from '../constants';
 import { AlertTriangle, TrendingUp, Clock, MessageSquare, ArrowRight, XCircle } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -135,7 +134,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, onSelectT
                    
                    <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
                       <div className="flex items-center gap-4 text-xs text-slate-500">
-                         <span>Assignee: <strong>{MOCK_USERS.find(u => u.id === task.assigneeId)?.name || task.assigneeId}</strong></span>
+                         <span>Assignee: <strong>{task.assignee?.name || task.assignee?.email || task.assigneeId || 'Unassigned'}</strong></span>
                          <span>Due: {task.dueDate}</span>
                       </div>
                       <ArrowRight size={18} className="text-slate-300 group-hover:text-brand-500" />

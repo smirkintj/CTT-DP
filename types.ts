@@ -69,6 +69,17 @@ export interface Task {
     releaseVersion?: string;
     deployedBy?: string;
   };
+
+  assignee?: {
+    id: string;
+    name: string;
+    email: string;
+    avatarUrl?: string;
+  };
+  country?: {
+    code: string;
+    name: string;
+  };
 }
 
 export interface TestStep {

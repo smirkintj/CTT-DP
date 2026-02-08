@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Task, Status, User, Role, Priority, TestStep, Comment } from '../types';
+import { Task, Status, User, Role, Priority, TestStep } from '../types';
 import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
 import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer } from 'lucide-react';
@@ -48,6 +48,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       return step;
     });
 
+    const previousStatus = localTask.status;
     const updatedTask = { ...localTask, steps: updatedSteps };
     
     // Auto-update task status if all passed
@@ -62,6 +63,10 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
 
     setLocalTask(updatedTask);
     onUpdateTask(updatedTask);
+
+    if (updatedTask.status !== previousStatus) {
+      void persistStatus(updatedTask.status);
+    }
 
     // Auto-advance logic
     if (updates.isPassed === true) {
@@ -85,27 +90,18 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     handleStepUpdate(stepId, { attachments: newAttachments });
   };
 
-  const handleAddComment = (stepId: string) => {
+  const handleAddComment = async (stepId: string) => {
     const text = commentInputs[stepId];
     if (!text || !text.trim()) return;
-
-    const newComment: Comment = {
-      id: `c_${Date.now()}`,
-      userId: currentUser.name,
-      text: text,
-      createdAt: 'Just now'
-    };
-
-    const updatedSteps = localTask.steps.map(step => {
-      if (step.id === stepId) {
-        return { ...step, comments: [...step.comments, newComment] };
-      }
-      return step;
+    const response = await fetch(`/api/tasks/${localTask.id}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: text })
     });
 
-    const updatedTask = { ...localTask, steps: updatedSteps };
-    setLocalTask(updatedTask);
-    onUpdateTask(updatedTask);
+    if (!response.ok) return;
+
+    await refreshTask(localTask.id);
     setCommentInputs({ ...commentInputs, [stepId]: '' });
   };
 
@@ -145,6 +141,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     };
     setLocalTask(updatedTask);
     onUpdateTask(updatedTask);
+    void persistStatus(updatedTask.status);
   };
 
   const handleDeploy = () => {
@@ -160,12 +157,34 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     };
     setLocalTask(deployedTask);
     onUpdateTask(deployedTask);
+    void persistStatus(deployedTask.status);
     setDeploymentModalOpen(false);
   };
 
   const handlePrint = () => {
       window.print();
   };
+
+  const refreshTask = async (taskId: string) => {
+    const response = await fetch(`/api/tasks/${taskId}`, { cache: 'no-store' });
+    if (!response.ok) return;
+    const updated = await response.json();
+    setLocalTask(updated);
+    onUpdateTask(updated);
+  };
+
+  const persistStatus = async (status: Status) => {
+    await fetch(`/api/tasks/${localTask.id}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+  };
+
+  useEffect(() => {
+    setLocalTask(task);
+    void refreshTask(task.id);
+  }, [task.id]);
 
   return (
     <div className="max-w-5xl mx-auto animate-fade-in pb-20 print:p-0 print:max-w-none">

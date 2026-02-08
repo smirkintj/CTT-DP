@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { Task, Status } from '../types';
-import { MOCK_NOTIFICATIONS, MOCK_USERS } from '../constants';
+import { MOCK_NOTIFICATIONS } from '../constants';
 import { Badge } from '../components/Badge';
 import { Search, ArrowRight, MessageSquare, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 
@@ -33,14 +33,14 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
   // Mock Activity Feed
   const activityFeed = MOCK_NOTIFICATIONS.filter(n => n.type === 'MENTION' || n.type === 'ALERT').slice(0, 5);
 
-  const getAssigneeName = (id: string) => {
-    const user = MOCK_USERS.find(u => u.id === id);
-    return user ? user.name : 'Unassigned';
+  const getAssigneeName = (task: Task) => {
+    if (task.assignee?.name) return task.assignee.name;
+    if (task.assignee?.email) return task.assignee.email;
+    return task.assigneeId ? task.assigneeId : 'Unassigned';
   };
 
-  const getAssigneeAvatar = (id: string) => {
-    const user = MOCK_USERS.find(u => u.id === id);
-    return user?.avatarUrl;
+  const getAssigneeAvatar = (task: Task) => {
+    return task.assignee?.avatarUrl;
   };
 
   return (
@@ -184,12 +184,12 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
 
                     <div className="border-t border-slate-100 pt-3 mt-auto flex items-center justify-between">
                        <div className="flex items-center gap-2">
-                          {getAssigneeAvatar(task.assigneeId) ? (
-                            <img src={getAssigneeAvatar(task.assigneeId)} alt="Assignee" className="w-6 h-6 rounded-full border border-slate-200"/>
+                          {getAssigneeAvatar(task) ? (
+                            <img src={getAssigneeAvatar(task)} alt="Assignee" className="w-6 h-6 rounded-full border border-slate-200"/>
                           ) : (
                             <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">?</div>
                           )}
-                          <span className="text-xs text-slate-600 font-medium">{getAssigneeName(task.assigneeId)}</span>
+                          <span className="text-xs text-slate-600 font-medium">{getAssigneeName(task)}</span>
                        </div>
                        <div className="flex items-center gap-3">
                           {task.steps.reduce((acc, step) => acc + step.comments.length, 0) > 0 && (

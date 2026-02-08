@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { signIn, getSession, useSession } from 'next-auth/react';
+import { signIn, getSession, useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Layout } from './components/Layout';
 import { StakeholderDashboard } from './views/StakeholderDashboard';
@@ -10,7 +10,7 @@ import { AdminDatabase } from './views/AdminDatabase';
 import { TaskDetail } from './views/TaskDetail';
 import { ImportWizard } from './views/ImportWizard';
 import { User, Task, Role, ViewState, CountryConfig } from './types';
-import { MOCK_TASKS, INITIAL_COUNTRIES, INITIAL_MODULES } from './constants';
+import { INITIAL_COUNTRIES, INITIAL_MODULES } from './constants';
 
 interface AppProps {
   initialView?: ViewState;
@@ -24,7 +24,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
   // State Management
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [view, setView] = useState<ViewState>(initialView ?? 'LOGIN');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialSelectedTaskId);
 
@@ -60,6 +60,43 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     setView(initialView ?? (role === Role.ADMIN ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER'));
   }, [session, status, initialView]);
 
+  useEffect(() => {
+    if (!session?.user) {
+      setTasks([]);
+      return;
+    }
+
+    const loadTasks = async () => {
+      const response = await fetch('/api/tasks', { cache: 'no-store' });
+      if (!response.ok) {
+        setTasks([]);
+        return;
+      }
+      const data = await response.json();
+      setTasks(data);
+    };
+
+    void loadTasks();
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user || !selectedTaskId) return;
+
+    if (tasks.find((task) => task.id === selectedTaskId)) return;
+
+    const loadTask = async () => {
+      const response = await fetch(`/api/tasks/${selectedTaskId}`, { cache: 'no-store' });
+      if (!response.ok) return;
+      const task = await response.json();
+      setTasks((prev) => {
+        const exists = prev.some((t) => t.id === task.id);
+        return exists ? prev : [task, ...prev];
+      });
+    };
+
+    void loadTask();
+  }, [selectedTaskId, session?.user, tasks]);
+
   // Handlers
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +122,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   };
 
   const handleLogout = () => {
+    void signOut({ redirect: false });
     setCurrentUser(null);
     setView('LOGIN');
     setSelectedTaskId(null);
@@ -100,7 +138,11 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   };
 
   const handleTaskUpdate = (updatedTask: Task) => {
-    setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+    setTasks(prev => {
+      const exists = prev.some(t => t.id === updatedTask.id);
+      if (!exists) return [updatedTask, ...prev];
+      return prev.map(t => t.id === updatedTask.id ? updatedTask : t);
+    });
   };
   
   const handleAddTasks = (newTasks: Task[]) => {
@@ -235,9 +277,9 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
         />
       )}
 
-      {view === 'TASK_DETAIL' && selectedTaskId && (
+      {view === 'TASK_DETAIL' && selectedTaskId && selectedTask && (
         <TaskDetail 
-          task={selectedTask ?? tasks[0]} 
+          task={selectedTask} 
           currentUser={currentUser} 
           onBack={() => handleNavigation(currentUser.role === Role.ADMIN ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}
           onUpdateTask={handleTaskUpdate}
