@@ -1,15 +1,15 @@
 {
-  "/api/tasks/[id]/comments/route": "app/api/tasks/[id]/comments/route.js",
-  "/api/tasks/[id]/status/route": "app/api/tasks/[id]/status/route.js",
-  "/api/tasks/route": "app/api/tasks/route.js",
-  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
   "/_not-found/page": "app/_not-found/page.js",
+  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
   "/api/tasks/[id]/route": "app/api/tasks/[id]/route.js",
+  "/api/tasks/[id]/comments/route": "app/api/tasks/[id]/comments/route.js",
+  "/api/tasks/route": "app/api/tasks/route.js",
+  "/api/tasks/[id]/status/route": "app/api/tasks/[id]/status/route.js",
   "/api/debug/env/route": "app/api/debug/env/route.js",
   "/admin/tasks/page": "app/admin/tasks/page.js",
-  "/admin/dashboard/page": "app/admin/dashboard/page.js",
-  "/tasks/[id]/page": "app/tasks/[id]/page.js",
+  "/admin/database/page": "app/admin/database/page.js",
   "/page": "app/page.js",
+  "/admin/dashboard/page": "app/admin/dashboard/page.js",
   "/import/page": "app/import/page.js",
-  "/admin/database/page": "app/admin/database/page.js"
+  "/tasks/[id]/page": "app/tasks/[id]/page.js"
 }

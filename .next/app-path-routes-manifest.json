@@ -1,15 +1,15 @@
 {
-  "/api/tasks/[id]/comments/route": "/api/tasks/[id]/comments",
-  "/api/tasks/[id]/status/route": "/api/tasks/[id]/status",
-  "/api/tasks/route": "/api/tasks",
-  "/api/auth/[...nextauth]/route": "/api/auth/[...nextauth]",
   "/_not-found/page": "/_not-found",
+  "/api/auth/[...nextauth]/route": "/api/auth/[...nextauth]",
   "/api/tasks/[id]/route": "/api/tasks/[id]",
+  "/api/tasks/[id]/comments/route": "/api/tasks/[id]/comments",
+  "/api/tasks/route": "/api/tasks",
+  "/api/tasks/[id]/status/route": "/api/tasks/[id]/status",
   "/api/debug/env/route": "/api/debug/env",
   "/admin/tasks/page": "/admin/tasks",
-  "/admin/dashboard/page": "/admin/dashboard",
-  "/tasks/[id]/page": "/tasks/[id]",
+  "/admin/database/page": "/admin/database",
   "/page": "/",
+  "/admin/dashboard/page": "/admin/dashboard",
   "/import/page": "/import",
-  "/admin/database/page": "/admin/database"
+  "/tasks/[id]/page": "/tasks/[id]"
 }

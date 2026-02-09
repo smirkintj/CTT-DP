@@ -23,7 +23,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          {process.env.NEXT_PUBLIC_VERCEL_ENV !== "production" && (
+            <div style={{
+              backgroundColor: "#FEF3C7",
+              color: "#92400E",
+              padding: "8px",
+              textAlign: "center",
+              fontSize: "12px",
+              fontWeight: "600"
+            }}>
+              ⚠️ STAGING / PREVIEW ENVIRONMENT
+            </div>
+          )}
+
+          {children}
+        </Providers>
       </body>
     </html>
   );
