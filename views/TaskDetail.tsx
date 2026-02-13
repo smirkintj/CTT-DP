@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Task, Status, User, Role, TestStep } from '../types';
+import { Task, Status, User, Role, TestStep, Priority } from '../types';
 import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
 import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer } from 'lucide-react';
@@ -18,14 +18,38 @@ interface TaskDetailProps {
 // Defensive normalization: API/DB may omit arrays or return null
 const normalizeTask = (t: Task): Task => {
   const steps = Array.isArray((t as any).steps) ? (t as any).steps : [];
-  return {
-    ...t,
-    steps: steps.map((s: any) => ({
+  const normalizedSteps = steps
+    .map((s: any) => ({
       ...s,
       attachments: Array.isArray(s?.attachments) ? s.attachments : [],
       comments: Array.isArray(s?.comments) ? s.comments : [],
-    })),
+    }))
+    .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+  return {
+    ...t,
+    steps: normalizedSteps
   } as Task;
+};
+
+const toDateInputValue = (value?: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString().slice(0, 10);
+};
+
+const fromDateInputValue = (value?: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString();
+};
+
+const formatDateTime = (value?: string) => {
+  if (!value) return 'N/A';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'N/A';
+  return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 };
 
 export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBack, onUpdateTask }) => {
@@ -34,6 +58,16 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     const safe = normalizeTask(task);
     return safe.steps.find(s => s.isPassed === null)?.id || safe.steps[0]?.id || null;
   });
+  const [isEditingTask, setIsEditingTask] = useState(false);
+  const [taskEdits, setTaskEdits] = useState({
+    jiraTicket: task.jiraTicket ?? '',
+    developer: task.developer ?? '',
+    dueDate: toDateInputValue(task.dueDate),
+    priority: task.priority ?? Priority.MEDIUM,
+    featureModule: task.featureModule ?? ''
+  });
+  const [editingStepId, setEditingStepId] = useState<string | null>(null);
+  const [stepEdits, setStepEdits] = useState<{ [key: string]: Partial<TestStep> }>({});
   const [deploymentModalOpen, setDeploymentModalOpen] = useState(false);
   const [releaseVersion, setReleaseVersion] = useState('');
   const [commentInputs, setCommentInputs] = useState<{[key: string]: string}>({});
@@ -45,7 +79,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   
   const isAdmin = currentUser.role === Role.ADMIN;
   const isDeployed = localTask.status === Status.DEPLOYED;
-  const isSignedOff = !!localTask.signedOff;
+  const isSignedOff = !!localTask.signedOff || !!localTask.signedOffAt;
 
   // Portal URL Logic
   const portalUrl = localTask.targetSystem === 'Admin Portal' 
@@ -53,6 +87,18 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     : 'https://www.easyorderstg.dksh.com';
 
   // Handle Step Updates
+  const persistStepProgress = async (stepId: string, updates: Partial<TestStep>) => {
+    await fetch(`/api/tasks/${localTask.id}/steps/${stepId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        isPassed: updates.isPassed,
+        actualResult: updates.actualResult,
+        attachments: updates.attachments
+      })
+    });
+  };
+
   const handleStepUpdate = (stepId: string, updates: Partial<TestStep>) => {
     if (isSignedOff) return; // Prevent edits if signed
 
@@ -85,6 +131,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
 
     if (updatedTask.status !== previousStatus) {
       void persistStatus(updatedTask.status);
+    }
+    if (!isAdmin) {
+      void persistStepProgress(stepId, updates);
     }
 
     // Auto-advance logic
@@ -161,6 +210,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     setLocalTask(updatedTask);
     onUpdateTask(updatedTask);
     void persistStatus(updatedTask.status);
+    void fetch(`/api/tasks/${localTask.id}/signoff`, { method: 'POST' });
   };
 
   const handleDeploy = () => {
@@ -201,9 +251,91 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     });
   };
 
+  const handleSaveTaskMeta = async () => {
+    const response = await fetch(`/api/tasks/${localTask.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jiraTicket: taskEdits.jiraTicket,
+        developer: taskEdits.developer,
+        dueDate: fromDateInputValue(taskEdits.dueDate),
+        priority: taskEdits.priority,
+        module: taskEdits.featureModule
+      })
+    });
+
+    if (!response.ok) return;
+    const updated = await response.json();
+    const safeUpdated = normalizeTask(updated as Task);
+    setLocalTask(safeUpdated);
+    onUpdateTask(safeUpdated);
+    setIsEditingTask(false);
+  };
+
+  const handleAddStep = async () => {
+    const response = await fetch(`/api/tasks/${localTask.id}/steps`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        description: 'New step',
+        expectedResult: 'Expected outcome',
+        testData: ''
+      })
+    });
+
+    if (!response.ok) return;
+    await refreshTask(localTask.id);
+  };
+
+  const startEditStep = (step: TestStep) => {
+    setEditingStepId(step.id);
+    setStepEdits((prev) => ({
+      ...prev,
+      [step.id]: {
+        description: step.description,
+        expectedResult: step.expectedResult,
+        testData: step.testData ?? ''
+      }
+    }));
+  };
+
+  const handleSaveStep = async (stepId: string) => {
+    const edits = stepEdits[stepId];
+    const response = await fetch(`/api/tasks/${localTask.id}/steps/${stepId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        description: edits?.description,
+        expectedResult: edits?.expectedResult,
+        testData: edits?.testData
+      })
+    });
+
+    if (!response.ok) return;
+    setEditingStepId(null);
+    await refreshTask(localTask.id);
+  };
+
+  const handleDeleteStep = async (stepId: string) => {
+    const confirmed = window.confirm('Delete this step?');
+    if (!confirmed) return;
+    const response = await fetch(`/api/tasks/${localTask.id}/steps/${stepId}`, {
+      method: 'DELETE'
+    });
+    if (!response.ok) return;
+    await refreshTask(localTask.id);
+  };
+
   useEffect(() => {
     const safe = normalizeTask(task);
     setLocalTask(safe);
+    setTaskEdits({
+      jiraTicket: safe.jiraTicket ?? '',
+      developer: safe.developer ?? '',
+      dueDate: toDateInputValue(safe.dueDate),
+      priority: safe.priority ?? Priority.MEDIUM,
+      featureModule: safe.featureModule ?? ''
+    });
     void refreshTask(safe.id);
   }, [task.id]);
 
@@ -287,7 +419,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
               <div>
                 <span className="text-xs text-slate-400 block mb-1">Due Date</span>
                 <span className="flex items-center gap-1 text-sm font-medium text-slate-700">
-                  <Calendar size={12}/> {localTask.dueDate}
+                  <Calendar size={12}/> {formatDateTime(localTask.dueDate)}
                 </span>
               </div>
               <div>
@@ -295,6 +427,87 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                 <Badge type="priority" value={localTask.priority} />
               </div>
           </div>
+
+          {isAdmin && (
+            <div className="mt-6 border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-slate-900">Edit task details</h3>
+                {!isEditingTask ? (
+                  <button
+                    onClick={() => setIsEditingTask(true)}
+                    className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                  >
+                    Edit
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setIsEditingTask(false)}
+                      className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveTaskMeta}
+                      className="text-xs font-medium text-white bg-slate-900 px-3 py-1.5 rounded-md hover:bg-slate-800"
+                    >
+                      Save
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {isEditingTask && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Jira Ticket</label>
+                    <input
+                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
+                      value={taskEdits.jiraTicket}
+                      onChange={(e) => setTaskEdits({ ...taskEdits, jiraTicket: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Developer</label>
+                    <input
+                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
+                      value={taskEdits.developer}
+                      onChange={(e) => setTaskEdits({ ...taskEdits, developer: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Due Date</label>
+                    <input
+                      type="date"
+                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
+                      value={taskEdits.dueDate}
+                      onChange={(e) => setTaskEdits({ ...taskEdits, dueDate: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Priority</label>
+                    <select
+                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
+                      value={taskEdits.priority}
+                      onChange={(e) => setTaskEdits({ ...taskEdits, priority: e.target.value as Priority })}
+                    >
+                      <option value={Priority.HIGH}>High</option>
+                      <option value={Priority.MEDIUM}>Medium</option>
+                      <option value={Priority.LOW}>Low</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Module</label>
+                    <input
+                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
+                      value={taskEdits.featureModule}
+                      onChange={(e) => setTaskEdits({ ...taskEdits, featureModule: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Test Execution Accordion */}
@@ -303,8 +516,16 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
             <h3 className="font-semibold text-slate-900 flex items-center gap-2">
               <CheckCircle size={18} className="text-slate-400"/> Test Steps
             </h3>
-            <div className="text-xs font-medium text-slate-500">
+            <div className="flex items-center gap-3 text-xs font-medium text-slate-500">
               {(localTask.steps ?? []).filter(s => s.isPassed === true).length} / {(localTask.steps ?? []).length} Steps Completed
+              {isAdmin && (
+                <button
+                  onClick={handleAddStep}
+                  className="ml-2 px-2.5 py-1.5 rounded-md bg-slate-900 text-white text-xs hover:bg-slate-800 print:hidden"
+                >
+                  + Add Step
+                </button>
+              )}
             </div>
           </div>
 
@@ -349,6 +570,22 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                                <PenTool size={10}/> {(step.comments ?? []).length}
                              </span>
                            )}
+                           {isAdmin && !isSignedOff && (
+                             <div className="flex items-center gap-2">
+                               <button
+                                 onClick={(e) => { e.stopPropagation(); startEditStep(step); }}
+                                 className="text-[10px] font-medium text-slate-500 hover:text-slate-800"
+                               >
+                                 Edit
+                               </button>
+                               <button
+                                 onClick={(e) => { e.stopPropagation(); handleDeleteStep(step.id); }}
+                                 className="text-[10px] font-medium text-rose-600 hover:text-rose-700"
+                               >
+                                 Delete
+                               </button>
+                             </div>
+                           )}
                            {isOpen ? <ChevronUp size={16} className="text-slate-400"/> : <ChevronDown size={16} className="text-slate-400"/>}
                         </div>
                     </div>
@@ -357,6 +594,63 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                     {(isOpen || isSignedOff) && (
                       <div className="px-4 pb-6 pt-0 animate-in slide-in-from-top-2">
                           <div className="ml-12 space-y-4">
+                              {isAdmin && editingStepId === step.id && (
+                                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
+                                  <div>
+                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Description</label>
+                                    <textarea
+                                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
+                                      value={stepEdits[step.id]?.description ?? ''}
+                                      onChange={(e) =>
+                                        setStepEdits((prev) => ({
+                                          ...prev,
+                                          [step.id]: { ...prev[step.id], description: e.target.value }
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Expected Result</label>
+                                    <textarea
+                                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
+                                      value={stepEdits[step.id]?.expectedResult ?? ''}
+                                      onChange={(e) =>
+                                        setStepEdits((prev) => ({
+                                          ...prev,
+                                          [step.id]: { ...prev[step.id], expectedResult: e.target.value }
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Test Data</label>
+                                    <input
+                                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
+                                      value={stepEdits[step.id]?.testData ?? ''}
+                                      onChange={(e) =>
+                                        setStepEdits((prev) => ({
+                                          ...prev,
+                                          [step.id]: { ...prev[step.id], testData: e.target.value }
+                                        }))
+                                      }
+                                    />
+                                  </div>
+                                  <div className="flex justify-end gap-2">
+                                    <button
+                                      onClick={() => setEditingStepId(null)}
+                                      className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      onClick={() => handleSaveStep(step.id)}
+                                      className="text-xs font-medium text-white bg-slate-900 px-3 py-1.5 rounded-md hover:bg-slate-800"
+                                    >
+                                      Save
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                               
                               {/* Expected vs Actual Grid */}
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -39,6 +39,8 @@ model User {
   updatedAt    DateTime  @updatedAt
 
   assignedTasks Task[]   @relation("TaskAssignee")
+  updatedTasks  Task[]   @relation("TaskUpdatedBy")
+  signedOffTasks Task[]  @relation("TaskSignedOffBy")
   comments      Comment[]
 }
 
@@ -64,10 +66,16 @@ model Task {
   dueDate     DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  updatedById String?
+  signedOffAt DateTime?
+  signedOffById String?
 
-  country   Country @relation(fields: [countryCode], references: [code])
-  assignee  User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  comments  Comment[]
+  country    Country @relation(fields: [countryCode], references: [code])
+  assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  updatedBy  User?   @relation("TaskUpdatedBy", fields: [updatedById], references: [id])
+  signedOffBy User?  @relation("TaskSignedOffBy", fields: [signedOffById], references: [id])
+  comments   Comment[]
+  steps      TaskStep[]
 }
 
 model Comment {
@@ -79,4 +87,22 @@ model Comment {
 
   task   Task @relation(fields: [taskId], references: [id])
   author User @relation(fields: [authorId], references: [id])
+}
+
+model TaskStep {
+  id             String   @id @default(cuid())
+  taskId         String
+  order          Int
+  description    String
+  expectedResult String
+  testData       String?
+  actualResult   String?
+  isPassed       Boolean?
+  attachments    Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id])
+
+  @@index([taskId, order])
 }

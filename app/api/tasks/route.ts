@@ -25,6 +25,20 @@ export async function GET() {
           name: true
         }
       },
+      updatedBy: {
+        select: {
+          id: true,
+          email: true,
+          name: true
+        }
+      },
+      signedOffBy: {
+        select: {
+          id: true,
+          email: true,
+          name: true
+        }
+      },
       comments: {
         include: {
           author: {

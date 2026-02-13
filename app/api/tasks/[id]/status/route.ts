@@ -3,8 +3,8 @@ import prisma from '../../../../../lib/prisma';
 import { getAuthSession } from '../../../../../lib/auth';
 import { mapUiStatusToDb } from '../../_mappers';
 
-export async function POST(req: Request, ctx: any) {
-  const id = ctx?.params?.id as string | undefined;
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   if (!id) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
   }
@@ -31,8 +31,10 @@ export async function POST(req: Request, ctx: any) {
   }
 
   const isAdmin = session.user.role === 'ADMIN';
-  if (!isAdmin && task.assigneeId !== session.user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!isAdmin) {
+    if (task.assigneeId !== session.user.id || task.countryCode !== session.user.countryCode) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
   }
 
   const dbStatus = mapUiStatusToDb(status);
@@ -40,7 +42,8 @@ export async function POST(req: Request, ctx: any) {
   await prisma.task.update({
     where: { id },
     data: {
-      status: dbStatus
+      status: dbStatus,
+      updatedById: session.user.id
     }
   });
 

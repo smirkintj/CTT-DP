@@ -41,8 +41,20 @@ export interface Task {
   countryCode: string;
   assigneeId: string;
   dueDate: string;
+  createdAt?: string;
   steps: TestStep[];
   updatedAt: string;
+  updatedBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  signedOffAt?: string | null;
+  signedOffBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
   
   // New Integration & Meta Fields
   jiraTicket?: string;
@@ -75,6 +87,7 @@ export interface Task {
     name: string;
     email: string;
     avatarUrl?: string;
+    countryCode?: string;
   };
   country?: {
     code: string;
@@ -84,12 +97,15 @@ export interface Task {
 
 export interface TestStep {
   id: string;
+  order?: number;
   description: string;
   // pageContext removed as requested
   expectedResult: string;
   testData?: string;
   actualResult?: string;
   isPassed?: boolean | null;
+  createdAt?: string;
+  updatedAt?: string;
   completedAt?: string;
   attachments?: string[]; // Array of base64 image strings
   comments: Comment[]; 

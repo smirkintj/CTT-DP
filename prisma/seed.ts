@@ -107,6 +107,39 @@ const seed = async () => {
       });
 
       for (const task of seededTasks) {
+        const existingSteps = await prisma.taskStep.count({
+          where: { taskId: task.id }
+        });
+
+        if (existingSteps === 0) {
+          await prisma.taskStep.createMany({
+            data: [
+              {
+                taskId: task.id,
+                order: 1,
+                description: 'Verify basic workflow loads correctly.',
+                expectedResult: 'The page loads without errors and core actions are visible.',
+                testData: 'Default dataset'
+              },
+              {
+                taskId: task.id,
+                order: 2,
+                description: 'Validate primary user flow with sample data.',
+                expectedResult: 'User can complete the flow and see a success confirmation.',
+                testData: 'Sample order/customer'
+              },
+              {
+                taskId: task.id,
+                order: 3,
+                description: 'Confirm records are saved and reflected in reports.',
+                expectedResult: 'Saved records appear in the list/report within 1 minute.',
+                testData: 'Report filter = Today'
+              }
+            ],
+            skipDuplicates: true
+          });
+        }
+
         await prisma.comment.create({
           data: {
             taskId: task.id,

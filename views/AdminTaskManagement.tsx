@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Task, Status, Priority, TestStep, TargetSystem, CountryConfig } from '../types';
 import { Badge } from '../components/Badge';
 import { MOCK_USERS } from '../constants';
@@ -7,6 +7,7 @@ import { Edit2, Trash2, Plus, UploadCloud, Search, Filter, X, Save, Globe } from
 
 interface AdminTaskManagementProps {
   tasks: Task[];
+  loading: boolean;
   onImport: () => void;
   onEdit: (task: Task) => void;
   onAddTask: (tasks: Task[]) => void;
@@ -16,6 +17,7 @@ interface AdminTaskManagementProps {
 
 export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({ 
     tasks, 
+    loading,
     onImport, 
     onEdit, 
     onAddTask,
@@ -24,6 +26,12 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [priorityFilter, setPriorityFilter] = useState('ALL');
+  const [countryFilter, setCountryFilter] = useState('ALL');
+  const [signedOffFilter, setSignedOffFilter] = useState('ALL');
+  const [sortBy, setSortBy] = useState<'dueDate' | 'priority' | 'status' | 'createdAt' | 'updatedAt'>('dueDate');
   
   // New Task State
   const [newTask, setNewTask] = useState<Partial<Task>>({
@@ -43,10 +51,82 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       { id: '1', description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }
   ]);
 
-  const filteredTasks = tasks.filter(t => 
-    t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    t.featureModule.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const normalizeStatusKey = (status: string) => status?.toString().trim().replace(/\s+/g, '_').toUpperCase();
+  const normalizePriorityKey = (priority: string) => priority?.toString().trim().replace(/\s+/g, '_').toUpperCase();
+  const formatDateTime = (value?: string) => {
+    if (!value) return 'N/A';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  };
+
+  const filteredTasks = useMemo(() => {
+    const filtered = tasks.filter(t => 
+      t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      t.featureModule.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const statusFiltered = statusFilter === 'ALL'
+      ? filtered
+      : filtered.filter(t => normalizeStatusKey(t.status as unknown as string) === statusFilter);
+
+    const priorityFiltered = priorityFilter === 'ALL'
+      ? statusFiltered
+      : statusFiltered.filter(t => normalizePriorityKey(t.priority as unknown as string) === priorityFilter);
+
+    const countryFiltered = countryFilter === 'ALL'
+      ? priorityFiltered
+      : priorityFiltered.filter(t => t.countryCode === countryFilter);
+
+    const signedOffFiltered = signedOffFilter === 'ALL'
+      ? countryFiltered
+      : countryFiltered.filter(t => signedOffFilter === 'SIGNED' ? !!t.signedOffAt : !t.signedOffAt);
+
+    const statusOrder: Record<string, number> = {
+      BLOCKED: 0,
+      FAILED: 1,
+      IN_PROGRESS: 2,
+      READY: 3,
+      PENDING: 3,
+      PASSED: 4,
+      DEPLOYED: 5
+    };
+
+    const priorityOrder: Record<string, number> = {
+      CRITICAL: 0,
+      HIGH: 1,
+      MEDIUM: 2,
+      LOW: 3
+    };
+
+    const toTime = (dateStr?: string) => {
+      if (!dateStr) return Number.POSITIVE_INFINITY;
+      const time = new Date(dateStr).getTime();
+      return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time;
+    };
+
+    const sorted = [...signedOffFiltered].sort((a, b) => {
+      if (sortBy === 'priority') {
+        const aRank = priorityOrder[normalizePriorityKey(a.priority as unknown as string)] ?? 99;
+        const bRank = priorityOrder[normalizePriorityKey(b.priority as unknown as string)] ?? 99;
+        return aRank - bRank;
+      }
+      if (sortBy === 'status') {
+        const aRank = statusOrder[normalizeStatusKey(a.status as unknown as string)] ?? 99;
+        const bRank = statusOrder[normalizeStatusKey(b.status as unknown as string)] ?? 99;
+        return aRank - bRank;
+      }
+      if (sortBy === 'createdAt') {
+        return toTime(a.createdAt) - toTime(b.createdAt);
+      }
+      if (sortBy === 'updatedAt') {
+        return toTime(a.updatedAt) - toTime(b.updatedAt);
+      }
+      return toTime(a.dueDate) - toTime(b.dueDate);
+    });
+
+    return sorted;
+  }, [tasks, searchTerm, statusFilter, priorityFilter, countryFilter, signedOffFilter, sortBy]);
 
   const toggleCountry = (code: string) => {
       if (selectedCountries.includes(code)) {
@@ -157,10 +237,88 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                  onChange={(e) => setSearchTerm(e.target.value)}
                />
             </div>
-            <button className="p-2 text-slate-500 hover:bg-slate-200 rounded-lg">
-               <Filter size={18} />
-            </button>
+            <div className="flex items-center gap-2">
+              <select
+                className="px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-600"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'dueDate' | 'priority' | 'status' | 'createdAt' | 'updatedAt')}
+              >
+                <option value="dueDate">Sort: Due date</option>
+                <option value="priority">Sort: Priority</option>
+                <option value="status">Sort: Status</option>
+                <option value="createdAt">Sort: Created</option>
+                <option value="updatedAt">Sort: Last updated</option>
+              </select>
+              <button
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={`p-2 rounded-lg ${isFilterOpen ? 'bg-slate-200 text-slate-700' : 'text-slate-500 hover:bg-slate-200'}`}
+              >
+                 <Filter size={18} />
+              </button>
+            </div>
          </div>
+
+         {isFilterOpen && (
+           <div className="p-4 border-b border-slate-200 bg-white">
+             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+               <div>
+                 <label className="block text-slate-500 font-medium mb-1">Status</label>
+                 <select
+                   className="w-full rounded-md border-slate-300 text-sm"
+                   value={statusFilter}
+                   onChange={(e) => setStatusFilter(e.target.value)}
+                 >
+                   <option value="ALL">All</option>
+                   <option value="READY">Ready</option>
+                   <option value="IN_PROGRESS">In Progress</option>
+                   <option value="PASSED">Passed</option>
+                   <option value="FAILED">Failed</option>
+                   <option value="DEPLOYED">Deployed</option>
+                   <option value="BLOCKED">Blocked</option>
+                 </select>
+               </div>
+               <div>
+                 <label className="block text-slate-500 font-medium mb-1">Priority</label>
+                 <select
+                   className="w-full rounded-md border-slate-300 text-sm"
+                   value={priorityFilter}
+                   onChange={(e) => setPriorityFilter(e.target.value)}
+                 >
+                   <option value="ALL">All</option>
+                   <option value="HIGH">High</option>
+                   <option value="MEDIUM">Medium</option>
+                   <option value="LOW">Low</option>
+                   <option value="CRITICAL">Critical</option>
+                 </select>
+               </div>
+               <div>
+                 <label className="block text-slate-500 font-medium mb-1">Country</label>
+                 <select
+                   className="w-full rounded-md border-slate-300 text-sm"
+                   value={countryFilter}
+                   onChange={(e) => setCountryFilter(e.target.value)}
+                 >
+                   <option value="ALL">All</option>
+                   {availableCountries.map((country) => (
+                     <option key={country.code} value={country.code}>{country.code}</option>
+                   ))}
+                 </select>
+               </div>
+               <div>
+                 <label className="block text-slate-500 font-medium mb-1">Signed off</label>
+                 <select
+                   className="w-full rounded-md border-slate-300 text-sm"
+                   value={signedOffFilter}
+                   onChange={(e) => setSignedOffFilter(e.target.value)}
+                 >
+                   <option value="ALL">All</option>
+                   <option value="SIGNED">Signed off</option>
+                   <option value="NOT_SIGNED">Not signed off</option>
+                 </select>
+               </div>
+             </div>
+           </div>
+         )}
 
          {/* Table */}
          <div className="overflow-x-auto">
@@ -172,43 +330,90 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                      <th className="px-6 py-4">Country</th>
                      <th className="px-6 py-4">Status</th>
                      <th className="px-6 py-4">Priority</th>
+                     <th className="px-6 py-4">Created On</th>
+                     <th className="px-6 py-4">Last Update</th>
+                     <th className="px-6 py-4">Stakeholder Assigned</th>
+                     <th className="px-6 py-4">Signed Off On</th>
                      <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                </thead>
                <tbody className="divide-y divide-slate-100">
-                  {filteredTasks.map(task => (
-                    <tr key={task.id} className="hover:bg-slate-50 transition-colors">
-                       <td className="px-6 py-4 font-medium text-slate-900">{task.title}</td>
-                       <td className="px-6 py-4">
-                          <Badge type="module" value={task.featureModule} />
-                       </td>
-                       <td className="px-6 py-4">{task.countryCode}</td>
-                       <td className="px-6 py-4">
-                          <Badge type="status" value={task.status} />
-                       </td>
-                       <td className="px-6 py-4">
-                          <Badge type="priority" value={task.priority} />
-                       </td>
-                       <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-2">
-                             <button 
-                               onClick={() => onEdit(task)}
-                               className="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-brand-50 rounded"
-                             >
-                                <Edit2 size={16} />
-                             </button>
-                             <button className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded">
-                                <Trash2 size={16} />
-                             </button>
-                          </div>
-                       </td>
+                  {loading && filteredTasks.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="px-6 py-10 text-center text-slate-500">
+                        Loading tasks...
+                      </td>
                     </tr>
-                  ))}
+                  ) : filteredTasks.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="px-6 py-10 text-center text-slate-400">
+                        No tasks found.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredTasks.map(task => (
+                      <tr key={task.id} className="hover:bg-slate-50 transition-colors">
+                         <td className="px-6 py-4 font-medium text-slate-900">{task.title}</td>
+                         <td className="px-6 py-4">
+                            <Badge type="module" value={task.featureModule} />
+                         </td>
+                         <td className="px-6 py-4">{task.countryCode}</td>
+                         <td className="px-6 py-4">
+                            <Badge type="status" value={task.status} />
+                         </td>
+                         <td className="px-6 py-4">
+                            <Badge type="priority" value={task.priority} />
+                         </td>
+                         <td className="px-6 py-4 text-slate-600">{formatDateTime(task.createdAt)}</td>
+                         <td className="px-6 py-4 text-slate-600">
+                           <div className="flex flex-col">
+                             <span>{formatDateTime(task.updatedAt)}</span>
+                             <span className="text-[11px] text-slate-400">
+                               {task.updatedBy?.name || task.updatedBy?.email || 'System'}
+                             </span>
+                           </div>
+                         </td>
+                         <td className="px-6 py-4 text-slate-600">
+                           <div className="flex flex-col">
+                             <span>{task.assignee?.name || task.assignee?.email || 'Unassigned'}</span>
+                             <span className="text-[11px] text-slate-400">
+                               {task.assignee?.countryCode || task.countryCode}
+                             </span>
+                           </div>
+                         </td>
+                         <td className="px-6 py-4 text-slate-600">
+                           {task.signedOffAt ? (
+                             <div className="flex flex-col">
+                               <span>{formatDateTime(task.signedOffAt)}</span>
+                               <span className="text-[11px] text-slate-400">
+                                 {task.signedOffBy?.name || task.signedOffBy?.email || '—'}
+                               </span>
+                             </div>
+                           ) : (
+                             <span className="text-slate-400">—</span>
+                           )}
+                         </td>
+                         <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end gap-2">
+                               <button 
+                                 onClick={() => onEdit(task)}
+                                 className="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-brand-50 rounded"
+                               >
+                                  <Edit2 size={16} />
+                               </button>
+                               <button className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded">
+                                  <Trash2 size={16} />
+                               </button>
+                            </div>
+                         </td>
+                      </tr>
+                    ))
+                  )}
                </tbody>
             </table>
          </div>
          <div className="p-4 border-t border-slate-200 bg-slate-50 text-xs text-slate-500 text-center">
-            Showing {filteredTasks.length} tasks
+            {loading ? 'Loading tasks...' : `Showing ${filteredTasks.length} tasks`}
          </div>
       </div>
 

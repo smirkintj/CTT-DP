@@ -15,7 +15,11 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout, onNavigate, currentView }) => {
   const isAdmin = currentUser.role === Role.ADMIN;
   const [showNotifications, setShowNotifications] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const displayName = isAdmin ? 'Admin User' : (currentUser.name || 'User');
+  const roleLabel = isAdmin ? 'Administrator' : `${currentUser.countryCode} • ${currentUser.role}`;
+  const initials = currentUser.name ? currentUser.name.trim().charAt(0).toUpperCase() : '?';
 
   // Filter notifications for current user
   const notifications = MOCK_NOTIFICATIONS.filter(n => n.userId === currentUser.id);
@@ -31,6 +35,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    setAvatarError(false);
+  }, [currentUser.avatarUrl]);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
       {/* Top Navigation */}
@@ -42,7 +50,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-2 cursor-pointer group" onClick={() => onNavigate(isAdmin ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}>
                 {/* DKSH Style Brand Mark */}
-                <div className="w-9 h-9 bg-brand-500 rounded flex items-center justify-center shadow-sm group-hover:bg-brand-600 transition-colors">
+                <div className="h-8 w-auto px-2 bg-brand-500 rounded flex items-center justify-center shadow-sm group-hover:bg-brand-600 transition-colors">
                   <span className="text-white font-bold text-sm tracking-wider">CTT</span>
                 </div>
                 <div className="hidden md:block">
@@ -149,14 +157,21 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
 
                <div className="flex items-center gap-3">
                  <div className="text-right hidden sm:block">
-                   <p className="text-sm font-medium text-slate-900">{currentUser.name}</p>
-                   <p className="text-xs text-slate-500">{currentUser.countryCode} • {currentUser.role}</p>
+                   <p className="text-sm font-medium text-slate-900">{displayName}</p>
+                   <p className="text-xs text-slate-500">{roleLabel}</p>
                  </div>
-                 <img 
-                    src={currentUser.avatarUrl} 
-                    alt="User" 
-                    className="w-9 h-9 rounded-full border border-slate-200 shadow-sm object-cover"
-                 />
+                 {currentUser.avatarUrl && !avatarError ? (
+                   <img 
+                      src={currentUser.avatarUrl} 
+                      alt="User" 
+                      onError={() => setAvatarError(true)}
+                      className="w-9 h-9 rounded-full border border-slate-200 shadow-sm object-cover"
+                   />
+                 ) : (
+                   <div className="w-9 h-9 rounded-full border border-slate-200 shadow-sm bg-slate-100 text-slate-600 flex items-center justify-center text-sm font-semibold">
+                     {initials}
+                   </div>
+                 )}
                  <button onClick={onLogout} className="text-slate-400 hover:text-slate-800 ml-2">
                    <LogOut size={18} />
                  </button>

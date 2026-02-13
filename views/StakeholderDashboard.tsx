@@ -7,11 +7,12 @@ import { Search, ArrowRight, MessageSquare, AlertCircle, CheckCircle, Clock } fr
 
 interface StakeholderDashboardProps {
   tasks: Task[];
+  loading: boolean;
   onSelectTask: (task: Task) => void;
   currentUserCountry: string;
 }
 
-export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ tasks, onSelectTask, currentUserCountry }) => {
+export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ tasks, loading, onSelectTask, currentUserCountry }) => {
   const [filterStatus, setFilterStatus] = useState<string>('All');
   
   const myTasks = tasks.filter(t => t.countryCode === currentUserCountry);
@@ -152,7 +153,11 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
 
             {/* Grid View */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredTasks.length === 0 ? (
+              {loading && filteredTasks.length === 0 ? (
+                <div className="col-span-full text-center py-20 bg-white rounded-xl border border-slate-200">
+                  <p className="text-slate-400">Loading tasks...</p>
+                </div>
+              ) : filteredTasks.length === 0 ? (
                 <div className="col-span-full text-center py-20 bg-white rounded-xl border border-dashed border-slate-200">
                   <p className="text-slate-400">No tasks found matching your filters.</p>
                 </div>

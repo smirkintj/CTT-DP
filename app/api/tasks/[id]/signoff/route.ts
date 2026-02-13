@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '../../../../../lib/prisma';
-import { getAuthSession } from '../../../../../lib/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../../../lib/auth';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -8,17 +9,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
   }
 
-  const session = await getAuthSession();
-
+  const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const body = await req.json().catch(() => null);
-  const text = body?.body as string | undefined;
-
-  if (!text || !text.trim()) {
-    return NextResponse.json({ error: 'Invalid comment' }, { status: 400 });
   }
 
   const task = await prisma.task.findUnique({
@@ -36,17 +29,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
   }
 
-  await prisma.comment.create({
-    data: {
-      taskId: id,
-      authorId: session.user.id,
-      body: text.trim()
-    }
-  });
+  const signedOffAt = new Date();
 
   await prisma.task.update({
     where: { id },
     data: {
+      signedOffAt,
+      signedOffById: session.user.id,
       updatedById: session.user.id
     }
   });

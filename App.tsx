@@ -25,6 +25,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   // State Management
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
   const [view, setView] = useState<ViewState>(initialView ?? 'LOGIN');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialSelectedTaskId);
 
@@ -67,13 +68,21 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     }
 
     const loadTasks = async () => {
+      setLoadingTasks(true);
       const response = await fetch('/api/tasks', { cache: 'no-store' });
       if (!response.ok) {
-        setTasks([]);
+        setLoadingTasks(false);
         return;
       }
       const data = await response.json();
-      setTasks(data);
+      const mappedTasks = Array.isArray(data)
+        ? data.map((task: any) => ({
+            ...task,
+            featureModule: task.featureModule ?? task.module ?? 'General'
+          }))
+        : [];
+      setTasks(mappedTasks);
+      setLoadingTasks(false);
     };
 
     void loadTasks();
@@ -163,7 +172,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
            <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-brand-500 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="h-12 w-auto px-4 bg-brand-500 rounded-xl flex items-center justify-center shadow-lg">
                  <span className="text-white font-bold text-2xl tracking-wider">CTT</span>
               </div>
            </div>
@@ -244,6 +253,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       {view === 'DASHBOARD_STAKEHOLDER' && (
         <StakeholderDashboard 
           tasks={tasks} 
+          loading={loadingTasks}
           onSelectTask={handleTaskSelect}
           currentUserCountry={currentUser.countryCode} 
         />
@@ -252,6 +262,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       {view === 'DASHBOARD_ADMIN' && (
         <AdminDashboard 
           tasks={tasks} 
+          loading={loadingTasks}
           onSelectTask={handleTaskSelect}
           onManageTasks={() => handleNavigation('ADMIN_TASK_MANAGEMENT')}
         />
@@ -260,6 +271,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       {view === 'ADMIN_TASK_MANAGEMENT' && (
         <AdminTaskManagement 
           tasks={tasks}
+          loading={loadingTasks}
           onImport={() => handleNavigation('IMPORT_WIZARD')}
           onEdit={handleTaskSelect}
           onAddTask={handleAddTasks}
