@@ -17,53 +17,90 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const task = await prisma.task.findUnique({
-    where: { id },
-    include: {
-      country: true,
-      assignee: {
-        select: {
-          id: true,
-          email: true,
-          countryCode: true,
-          name: true
-        }
-      },
-      updatedBy: {
-        select: {
-          id: true,
-          email: true,
-          name: true
-        }
-      },
-      signedOffBy: {
-        select: {
-          id: true,
-          email: true,
-          name: true
-        }
-      },
-      steps: {
-        orderBy: {
-          order: 'asc'
-        }
-      },
-      comments: {
-        include: {
-          author: {
-            select: {
-              id: true,
-              email: true,
-              name: true
-            }
+  let task: any = null;
+  try {
+    task = await prisma.task.findUnique({
+      where: { id },
+      include: {
+        country: true,
+        assignee: {
+          select: {
+            id: true,
+            email: true,
+            countryCode: true,
+            name: true
           }
         },
-        orderBy: {
-          createdAt: 'asc'
+        updatedBy: {
+          select: {
+            id: true,
+            email: true,
+            name: true
+          }
+        },
+        signedOffBy: {
+          select: {
+            id: true,
+            email: true,
+            name: true
+          }
+        },
+        steps: {
+          orderBy: {
+            order: 'asc'
+          }
+        },
+        comments: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                email: true,
+                name: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
         }
       }
-    }
-  });
+    });
+  } catch {
+    task = await prisma.task.findUnique({
+      where: { id },
+      include: {
+        country: true,
+        assignee: {
+          select: {
+            id: true,
+            email: true,
+            countryCode: true,
+            name: true
+          }
+        },
+        steps: {
+          orderBy: {
+            order: 'asc'
+          }
+        },
+        comments: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                email: true,
+                name: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
+        }
+      }
+    });
+  }
 
   if (!task) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -113,54 +150,100 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     updatedById: session.user.id
   };
 
-  const task = await prisma.task.update({
-    where: { id },
-    data,
-    include: {
-      country: true,
-      assignee: {
-        select: {
-          id: true,
-          email: true,
-          countryCode: true,
-          name: true
-        }
-      },
-      updatedBy: {
-        select: {
-          id: true,
-          email: true,
-          name: true
-        }
-      },
-      signedOffBy: {
-        select: {
-          id: true,
-          email: true,
-          name: true
-        }
-      },
-      steps: {
-        orderBy: {
-          order: 'asc'
-        }
-      },
-      comments: {
-        include: {
-          author: {
-            select: {
-              id: true,
-              email: true,
-              name: true
-            }
+  let task: any;
+  try {
+    task = await prisma.task.update({
+      where: { id },
+      data,
+      include: {
+        country: true,
+        assignee: {
+          select: {
+            id: true,
+            email: true,
+            countryCode: true,
+            name: true
           }
         },
-        orderBy: {
-          createdAt: 'asc'
+        updatedBy: {
+          select: {
+            id: true,
+            email: true,
+            name: true
+          }
+        },
+        signedOffBy: {
+          select: {
+            id: true,
+            email: true,
+            name: true
+          }
+        },
+        steps: {
+          orderBy: {
+            order: 'asc'
+          }
+        },
+        comments: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                email: true,
+                name: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
         }
       }
-    }
-  });
+    });
+  } catch {
+    const fallbackData: any = {
+      jiraTicket: body?.jiraTicket ?? undefined,
+      developer: body?.developer ?? undefined,
+      dueDate: body?.dueDate ? new Date(body.dueDate) : undefined,
+      priority: body?.priority ?? undefined,
+      module: body?.module ?? body?.featureModule ?? undefined
+    };
+
+    task = await prisma.task.update({
+      where: { id },
+      data: fallbackData,
+      include: {
+        country: true,
+        assignee: {
+          select: {
+            id: true,
+            email: true,
+            countryCode: true,
+            name: true
+          }
+        },
+        steps: {
+          orderBy: {
+            order: 'asc'
+          }
+        },
+        comments: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                email: true,
+                name: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
+        }
+      }
+    });
+  }
 
   return NextResponse.json(mapTaskToUi(task));
 }

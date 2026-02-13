@@ -6,8 +6,6 @@ import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
 import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer } from 'lucide-react';
 
-console.log("TaskDetail rendered");
-
 interface TaskDetailProps {
   task: Task;
   currentUser: User;
@@ -130,7 +128,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     onUpdateTask(updatedTask);
 
     if (updatedTask.status !== previousStatus) {
-      void persistStatus(updatedTask.status);
+      const failedStepOrder =
+        updates.isPassed === false
+          ? (localTask.steps ?? []).find((step) => step.id === stepId)?.order
+          : undefined;
+      void persistStatus(updatedTask.status, failedStepOrder);
     }
     if (!isAdmin) {
       void persistStepProgress(stepId, updates);
@@ -161,10 +163,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   const handleAddComment = async (stepId: string) => {
     const text = commentInputs[stepId];
     if (!text || !text.trim()) return;
+    const stepOrder = (localTask.steps ?? []).find((step) => step.id === stepId)?.order;
     const response = await fetch(`/api/tasks/${localTask.id}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body: text })
+      body: JSON.stringify({ body: text, stepOrder })
     });
 
     if (!response.ok) return;
@@ -243,11 +246,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     onUpdateTask(safeUpdated);
   };
 
-  const persistStatus = async (status: Status) => {
+  const persistStatus = async (status: Status, stepOrder?: number) => {
     await fetch(`/api/tasks/${localTask.id}/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status })
+      body: JSON.stringify({ status, stepOrder })
     });
   };
 

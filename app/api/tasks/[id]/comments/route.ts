@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '../../../../../lib/prisma';
 import { getAuthSession } from '../../../../../lib/auth';
+import { createActivity } from '../../../../../lib/activity';
+import { ActivityType } from '@prisma/client';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,6 +18,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const body = await req.json().catch(() => null);
   const text = body?.body as string | undefined;
+  const stepOrder = typeof body?.stepOrder === 'number' ? body.stepOrder : undefined;
 
   if (!text || !text.trim()) {
     return NextResponse.json({ error: 'Invalid comment' }, { status: 400 });
@@ -42,6 +45,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       authorId: session.user.id,
       body: text.trim()
     }
+  });
+
+  await createActivity({
+    type: ActivityType.COMMENT_ADDED,
+    message:
+      stepOrder && stepOrder > 0
+        ? `${session.user.name || session.user.email} added a comment on Step ${stepOrder} in ${task.title}.`
+        : `${session.user.name || session.user.email} added a comment on ${task.title}.`,
+    taskId: id,
+    actorId: session.user.id,
+    countryCode: task.countryCode
   });
 
   return NextResponse.json({ ok: true });

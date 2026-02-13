@@ -1,7 +1,6 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Task, Status } from '../types';
-import { MOCK_NOTIFICATIONS } from '../constants';
 import { Badge } from '../components/Badge';
 import { Search, ArrowRight, MessageSquare, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 
@@ -14,6 +13,8 @@ interface StakeholderDashboardProps {
 
 export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ tasks, loading, onSelectTask, currentUserCountry }) => {
   const [filterStatus, setFilterStatus] = useState<string>('All');
+  const [activityFeed, setActivityFeed] = useState<Array<{ id: string; type: string; message: string; createdAt: string }>>([]);
+  const [loadingActivity, setLoadingActivity] = useState(true);
   
   const myTasks = tasks.filter(t => t.countryCode === currentUserCountry);
   const filteredTasks = filterStatus === 'All' ? myTasks : myTasks.filter(t => t.status === filterStatus);
@@ -31,8 +32,39 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
   // Identify blocked tasks for alert
   const blockedTasks = myTasks.filter(t => t.status === Status.BLOCKED);
 
-  // Mock Activity Feed
-  const activityFeed = MOCK_NOTIFICATIONS.filter(n => n.type === 'MENTION' || n.type === 'ALERT').slice(0, 5);
+  useEffect(() => {
+    const loadActivities = async () => {
+      setLoadingActivity(true);
+      const response = await fetch('/api/activities', { cache: 'no-store' });
+      if (!response.ok) {
+        setLoadingActivity(false);
+        return;
+      }
+
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setActivityFeed(data.slice(0, 5));
+      } else {
+        setActivityFeed([]);
+      }
+      setLoadingActivity(false);
+    };
+
+    void loadActivities();
+  }, []);
+
+  const formatTimeAgo = (isoDate: string) => {
+    const time = new Date(isoDate).getTime();
+    if (Number.isNaN(time)) return '';
+    const seconds = Math.floor((Date.now() - time) / 1000);
+    if (seconds < 60) return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} min ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hr ago`;
+    const days = Math.floor(hours / 24);
+    return `${days} day${days > 1 ? 's' : ''} ago`;
+  };
 
   const getAssigneeName = (task: Task) => {
     if (task.assignee?.name) return task.assignee.name;
@@ -218,21 +250,26 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4">Recent Activity</h3>
             
             <div className="space-y-6">
-              {activityFeed.length === 0 ? (
+              {loadingActivity ? (
+                <p className="text-sm text-slate-400">Loading activity...</p>
+              ) : activityFeed.length === 0 ? (
                 <p className="text-sm text-slate-400">No recent activity.</p>
               ) : (
                 activityFeed.map((activity) => (
                     <div key={activity.id} className="flex gap-3">
                       <div className="mt-0.5 min-w-[24px]">
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                          activity.type === 'ALERT' ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'
+                          activity.type === 'STATUS_CHANGED' ? 'bg-rose-100 text-rose-600' :
+                          activity.type === 'SIGNED_OFF' || activity.type === 'DEPLOYED' ? 'bg-emerald-100 text-emerald-600' :
+                          activity.type === 'COMMENT_ADDED' ? 'bg-blue-100 text-blue-600' :
+                          'bg-slate-100 text-slate-600'
                         }`}>
-                          {activity.type === 'ALERT' ? '!' : '@'}
+                          {activity.type === 'STATUS_CHANGED' ? '!' : 'i'}
                         </div>
                       </div>
                       <div>
                         <p className="text-sm text-slate-700 leading-snug">{activity.message}</p>
-                        <span className="text-xs text-slate-400 block mt-1">{activity.time}</span>
+                        <span className="text-xs text-slate-400 block mt-1">{formatTimeAgo(activity.createdAt)}</span>
                       </div>
                     </div>
                 ))

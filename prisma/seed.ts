@@ -1,4 +1,4 @@
-import { PrismaClient, TaskPriority, TaskStatus } from '@prisma/client';
+import { ActivityType, PrismaClient, TaskPriority, TaskStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -98,6 +98,31 @@ const seed = async () => {
       data: tasks,
       skipDuplicates: true
     });
+
+    const seededTasksForActivity = await prisma.task.findMany({
+      where: { assigneeId: stakeholder.id },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    for (const task of seededTasksForActivity) {
+      const existingActivity = await prisma.activity.findFirst({
+        where: {
+          type: ActivityType.TASK_ASSIGNED,
+          taskId: task.id
+        }
+      });
+      if (!existingActivity) {
+        await prisma.activity.create({
+          data: {
+            type: ActivityType.TASK_ASSIGNED,
+            taskId: task.id,
+            actorId: admin.id,
+            countryCode: task.countryCode,
+            message: `Admin assigned "${task.title}" to ${stakeholder.email}.`
+          }
+        });
+      }
+    }
 
     if (createdTasks.count > 0) {
       const seededTasks = await prisma.task.findMany({

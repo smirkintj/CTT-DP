@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '../../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/auth';
+import { ActivityType } from '@prisma/client';
+import { createActivity } from '../../../../../lib/activity';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -38,6 +40,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       signedOffById: session.user.id,
       updatedById: session.user.id
     }
+  });
+
+  await createActivity({
+    type: ActivityType.SIGNED_OFF,
+    message: `${session.user.name || session.user.email} signed off "${task.title}".`,
+    taskId: id,
+    actorId: session.user.id,
+    countryCode: task.countryCode
   });
 
   return NextResponse.json({ ok: true });

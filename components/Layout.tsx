@@ -1,7 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { User, Role } from '../types';
-import { MOCK_NOTIFICATIONS } from '../constants';
 import { LogOut, LayoutGrid, UploadCloud, Bell, MessageSquare, AlertCircle, Check, Info, List, Database } from 'lucide-react';
 
 interface LayoutProps {
@@ -16,14 +15,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   const isAdmin = currentUser.role === Role.ADMIN;
   const [showNotifications, setShowNotifications] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [activities, setActivities] = useState<Array<{ id: string; type: string; message: string; createdAt: string; isRead: boolean }>>([]);
+  const [loadingActivities, setLoadingActivities] = useState(true);
   const notifRef = useRef<HTMLDivElement>(null);
   const displayName = isAdmin ? 'Admin User' : (currentUser.name || 'User');
   const roleLabel = isAdmin ? 'Administrator' : `${currentUser.countryCode} • ${currentUser.role}`;
   const initials = currentUser.name ? currentUser.name.trim().charAt(0).toUpperCase() : '?';
 
-  // Filter notifications for current user
-  const notifications = MOCK_NOTIFICATIONS.filter(n => n.userId === currentUser.id);
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = activities.filter((item) => !item.isRead).length;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -38,6 +37,58 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   useEffect(() => {
     setAvatarError(false);
   }, [currentUser.avatarUrl]);
+
+  useEffect(() => {
+    const loadActivities = async () => {
+      setLoadingActivities(true);
+      const response = await fetch('/api/activities', { cache: 'no-store' });
+      if (!response.ok) {
+        setLoadingActivities(false);
+        return;
+      }
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setActivities(data);
+      }
+      setLoadingActivities(false);
+    };
+    void loadActivities();
+  }, [currentUser.id]);
+
+  const formatTimeAgo = (isoDate: string) => {
+    const time = new Date(isoDate).getTime();
+    if (Number.isNaN(time)) return '';
+    const seconds = Math.floor((Date.now() - time) / 1000);
+    if (seconds < 60) return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} min ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hr ago`;
+    const days = Math.floor(hours / 24);
+    return `${days} day${days > 1 ? 's' : ''} ago`;
+  };
+
+  const markAllRead = async () => {
+    const response = await fetch('/api/activities/mark-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ all: true })
+    });
+    if (!response.ok) return;
+    setActivities((prev) => prev.map((item) => ({ ...item, isRead: true })));
+  };
+
+  const markRead = async (activityId: string) => {
+    const response = await fetch('/api/activities/mark-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ activityId })
+    });
+    if (!response.ok) return;
+    setActivities((prev) =>
+      prev.map((item) => (item.id === activityId ? { ...item, isRead: true } : item))
+    );
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
@@ -112,36 +163,48 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                    <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-100 ring-1 ring-black ring-opacity-5 animate-in fade-in slide-in-from-top-2 origin-top-right overflow-hidden">
                      <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
                        <h3 className="text-sm font-semibold text-slate-900">Notifications</h3>
-                       <button className="text-xs text-brand-600 hover:text-brand-700 font-medium">Mark all read</button>
+                       <button onClick={markAllRead} className="text-xs text-brand-600 hover:text-brand-700 font-medium">Mark all read</button>
                      </div>
                      <div className="max-h-[400px] overflow-y-auto">
-                       {notifications.length === 0 ? (
+                       {loadingActivities ? (
                          <div className="p-8 text-center text-slate-400">
-                           <p className="text-sm">No new notifications</p>
+                           <p className="text-sm">Loading notifications...</p>
+                         </div>
+                       ) : activities.length === 0 ? (
+                         <div className="p-8 text-center text-slate-400">
+                           <p className="text-sm">No notifications</p>
                          </div>
                        ) : (
                          <div className="divide-y divide-slate-50">
-                           {notifications.map(n => (
-                             <div key={n.id} className={`p-4 hover:bg-slate-50 transition-colors flex gap-3 ${!n.isRead ? 'bg-brand-50/10' : ''}`}>
+                           {activities.map(n => (
+                             <button
+                               key={n.id}
+                               onClick={() => {
+                                 if (!n.isRead) {
+                                   void markRead(n.id);
+                                 }
+                               }}
+                               className={`w-full text-left p-4 hover:bg-slate-50 transition-colors flex gap-3 ${!n.isRead ? 'bg-brand-50/10' : ''}`}
+                             >
                                <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                 n.type === 'ALERT' ? 'bg-rose-100 text-rose-600' :
-                                 n.type === 'SUCCESS' ? 'bg-emerald-100 text-emerald-600' :
-                                 n.type === 'MENTION' ? 'bg-blue-100 text-blue-600' :
+                                 n.type === 'STATUS_CHANGED' ? 'bg-rose-100 text-rose-600' :
+                                 n.type === 'SIGNED_OFF' || n.type === 'DEPLOYED' ? 'bg-emerald-100 text-emerald-600' :
+                                 n.type === 'COMMENT_ADDED' ? 'bg-blue-100 text-blue-600' :
                                  'bg-slate-100 text-slate-500'
                                }`}>
-                                 {n.type === 'ALERT' && <AlertCircle size={14} />}
-                                 {n.type === 'SUCCESS' && <Check size={14} />}
-                                 {n.type === 'MENTION' && <MessageSquare size={14} />}
-                                 {n.type === 'INFO' && <Info size={14} />}
+                                 {n.type === 'STATUS_CHANGED' && <AlertCircle size={14} />}
+                                 {(n.type === 'SIGNED_OFF' || n.type === 'DEPLOYED') && <Check size={14} />}
+                                 {n.type === 'COMMENT_ADDED' && <MessageSquare size={14} />}
+                                 {n.type === 'TASK_ASSIGNED' && <Info size={14} />}
                                </div>
                                <div>
                                  <p className="text-sm text-slate-800 leading-snug">{n.message}</p>
-                                 <p className="text-xs text-slate-400 mt-1">{n.time}</p>
+                                 <p className="text-xs text-slate-400 mt-1">{formatTimeAgo(n.createdAt)}</p>
                                </div>
                                {!n.isRead && (
                                  <div className="mt-2 w-2 h-2 rounded-full bg-brand-500 flex-shrink-0"></div>
                                )}
-                             </div>
+                             </button>
                            ))}
                          </div>
                        )}
@@ -161,6 +224,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                    <p className="text-xs text-slate-500">{roleLabel}</p>
                  </div>
                  {currentUser.avatarUrl && !avatarError ? (
+                   // eslint-disable-next-line @next/next/no-img-element
                    <img 
                       src={currentUser.avatarUrl} 
                       alt="User" 

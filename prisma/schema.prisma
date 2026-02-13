@@ -28,6 +28,14 @@ enum TaskPriority {
   HIGH
 }
 
+enum ActivityType {
+  TASK_ASSIGNED
+  STATUS_CHANGED
+  COMMENT_ADDED
+  SIGNED_OFF
+  DEPLOYED
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -41,6 +49,8 @@ model User {
   assignedTasks Task[]   @relation("TaskAssignee")
   updatedTasks  Task[]   @relation("TaskUpdatedBy")
   signedOffTasks Task[]  @relation("TaskSignedOffBy")
+  activities     Activity[] @relation("ActivityActor")
+  activityReads  ActivityRead[]
   comments      Comment[]
 }
 
@@ -76,6 +86,7 @@ model Task {
   signedOffBy User?  @relation("TaskSignedOffBy", fields: [signedOffById], references: [id])
   comments   Comment[]
   steps      TaskStep[]
+  activities Activity[]
 }
 
 model Comment {
@@ -105,4 +116,34 @@ model TaskStep {
   task Task @relation(fields: [taskId], references: [id])
 
   @@index([taskId, order])
+}
+
+model Activity {
+  id          String       @id @default(cuid())
+  type        ActivityType
+  message     String
+  taskId      String?
+  actorId     String?
+  countryCode String?
+  createdAt   DateTime     @default(now())
+
+  task      Task?          @relation(fields: [taskId], references: [id])
+  actor     User?          @relation("ActivityActor", fields: [actorId], references: [id])
+  reads     ActivityRead[]
+
+  @@index([createdAt])
+  @@index([countryCode])
+}
+
+model ActivityRead {
+  id         String   @id @default(cuid())
+  activityId String
+  userId     String
+  readAt     DateTime @default(now())
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, userId])
+  @@index([userId, readAt])
 }

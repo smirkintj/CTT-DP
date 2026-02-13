@@ -13,48 +13,80 @@ export async function GET() {
 
   const isAdmin = session.user.role === 'ADMIN';
 
-  const tasks = await prisma.task.findMany({
-    where: isAdmin ? undefined : { assigneeId: session.user.id },
-    include: {
-      country: true,
-      assignee: {
-        select: {
-          id: true,
-          email: true,
-          countryCode: true,
-          name: true
-        }
-      },
-      updatedBy: {
-        select: {
-          id: true,
-          email: true,
-          name: true
-        }
-      },
-      signedOffBy: {
-        select: {
-          id: true,
-          email: true,
-          name: true
-        }
-      },
-      comments: {
-        include: {
-          author: {
-            select: {
-              id: true,
-              email: true,
-              name: true
+  let tasks: any[] = [];
+  try {
+    tasks = await prisma.task.findMany({
+      where: isAdmin ? undefined : { assigneeId: session.user.id },
+      include: {
+        country: true,
+        assignee: {
+          select: {
+            id: true,
+            email: true,
+            countryCode: true,
+            name: true
+          }
+        },
+        updatedBy: {
+          select: {
+            id: true,
+            email: true,
+            name: true
+          }
+        },
+        signedOffBy: {
+          select: {
+            id: true,
+            email: true,
+            name: true
+          }
+        },
+        comments: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                email: true,
+                name: true
+              }
             }
           }
         }
+      },
+      orderBy: {
+        updatedAt: 'desc'
       }
-    },
-    orderBy: {
-      updatedAt: 'desc'
-    }
-  });
+    });
+  } catch {
+    tasks = await prisma.task.findMany({
+      where: isAdmin ? undefined : { assigneeId: session.user.id },
+      include: {
+        country: true,
+        assignee: {
+          select: {
+            id: true,
+            email: true,
+            countryCode: true,
+            name: true
+          }
+        },
+        comments: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                email: true,
+                name: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      }
+    });
+  }
 
   const mapped = tasks.map(mapTaskToUi);
 

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '../../../../../lib/prisma';
 import { getAuthSession } from '../../../../../lib/auth';
 import { mapUiStatusToDb } from '../../_mappers';
+import { ActivityType } from '@prisma/client';
+import { createActivity, toStatusLabel } from '../../../../../lib/activity';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,6 +19,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const body = await req.json().catch(() => null);
   const status = body?.status as string | undefined;
+  const stepOrder = typeof body?.stepOrder === 'number' ? body.stepOrder : undefined;
 
   if (!status) {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
@@ -38,6 +41,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const dbStatus = mapUiStatusToDb(status);
+  const previousStatus = task.status;
+
+  if (previousStatus === dbStatus) {
+    return NextResponse.json({ ok: true, unchanged: true });
+  }
 
   await prisma.task.update({
     where: { id },
@@ -46,6 +54,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       updatedById: session.user.id
     }
   });
+
+  if (dbStatus === 'DEPLOYED' || dbStatus === 'FAILED') {
+    const failedMessage =
+      stepOrder && stepOrder > 0
+        ? `${session.user.name || session.user.email} marked Step ${stepOrder} in ${task.title} as Failed.`
+        : `${session.user.name || session.user.email} marked a step in ${task.title} as Failed.`;
+
+    await createActivity({
+      type: dbStatus === 'DEPLOYED' ? ActivityType.DEPLOYED : ActivityType.STATUS_CHANGED,
+      message:
+        dbStatus === 'FAILED'
+          ? failedMessage
+          : `${session.user.name || session.user.email} changed "${task.title}" from ${toStatusLabel(previousStatus)} to ${toStatusLabel(dbStatus)}.`,
+      taskId: id,
+      actorId: session.user.id,
+      countryCode: task.countryCode
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }
