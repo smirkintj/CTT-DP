@@ -44,12 +44,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
   });
 
-  await prisma.task.update({
-    where: { id },
-    data: {
-      updatedById: session.user.id
-    }
-  });
-
   return NextResponse.json({ ok: true });
 }
