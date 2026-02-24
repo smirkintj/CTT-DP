@@ -49,11 +49,21 @@ const getStatusColor = (status: string) => {
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
-    case Priority.LOW: return 'text-slate-500';
-    case Priority.MEDIUM: return 'text-blue-600';
+    case Priority.LOW: return 'text-slate-600 font-medium';
+    case Priority.MEDIUM: return 'text-blue-600 font-medium';
     case Priority.HIGH: return 'text-amber-600 font-medium';
-    case Priority.CRITICAL: return 'text-rose-600 font-bold';
-    default: return 'text-slate-500';
+    case Priority.CRITICAL: return 'text-rose-600 font-medium';
+    default: return 'text-slate-600 font-medium';
+  }
+};
+
+const getPriorityDotColor = (priority: string) => {
+  switch (priority?.toString().trim().replace(/\s+/g, '_').toUpperCase()) {
+    case 'LOW': return 'bg-slate-400';
+    case 'MEDIUM': return 'bg-blue-500';
+    case 'HIGH': return 'bg-amber-500';
+    case 'CRITICAL': return 'bg-rose-500';
+    default: return 'bg-slate-400';
   }
 };
 
@@ -78,11 +88,9 @@ export const Badge: React.FC<BadgeProps> = ({ type, value, className = '' }) => 
   }
 
   if (type === 'priority') {
-    const priorityKey = value?.toString().trim().replace(/\s+/g, '_').toUpperCase();
     return (
       <span className={`text-xs flex items-center gap-1 ${getPriorityColor(value)} ${className}`}>
-         {priorityKey === 'CRITICAL' && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"/>}
-         {priorityKey === 'HIGH' && <span className="w-1.5 h-1.5 rounded-full bg-amber-500"/>}
+         <span className={`w-1.5 h-1.5 rounded-full ${getPriorityDotColor(value)}`} />
          {getPriorityLabel(value)}
       </span>
     );

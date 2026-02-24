@@ -153,6 +153,11 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       return prev.map(t => t.id === updatedTask.id ? updatedTask : t);
     });
   };
+
+  const handleTaskDelete = (taskId: string) => {
+    setTasks((prev) => prev.filter((task) => task.id !== taskId));
+    setSelectedTaskId((prev) => (prev === taskId ? null : prev));
+  };
   
   const handleAddTasks = (newTasks: Task[]) => {
     setTasks(prev => [...newTasks, ...prev]);
@@ -265,6 +270,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
           loading={loadingTasks}
           onSelectTask={handleTaskSelect}
           onManageTasks={() => handleNavigation('ADMIN_TASK_MANAGEMENT')}
+          currentUser={currentUser}
         />
       )}
 
@@ -295,6 +301,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
           currentUser={currentUser} 
           onBack={() => handleNavigation(currentUser.role === Role.ADMIN ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}
           onUpdateTask={handleTaskUpdate}
+          onDeleteTask={handleTaskDelete}
         />
       )}
 

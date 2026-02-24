@@ -4,13 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { Task, Status, User, Role, TestStep, Priority } from '../types';
 import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
-import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer, Trash2 } from 'lucide-react';
 
 interface TaskDetailProps {
   task: Task;
   currentUser: User;
   onBack: () => void;
   onUpdateTask: (task: Task) => void;
+  onDeleteTask: (taskId: string) => void;
 }
 
 // Defensive normalization: API/DB may omit arrays or return null
@@ -50,7 +51,7 @@ const formatDateTime = (value?: string) => {
   return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 };
 
-export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBack, onUpdateTask }) => {
+export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBack, onUpdateTask, onDeleteTask }) => {
   const [localTask, setLocalTask] = useState<Task>(() => normalizeTask(task));
   const [expandedStep, setExpandedStep] = useState<string | null>(() => {
     const safe = normalizeTask(task);
@@ -237,6 +238,18 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       window.print();
   };
 
+  const handleDeleteTask = async () => {
+    if (!isAdmin) return;
+    const confirmed = window.confirm('Delete this task? This action cannot be undone.');
+    if (!confirmed) return;
+
+    const response = await fetch(`/api/tasks/${localTask.id}`, { method: 'DELETE' });
+    if (!response.ok) return;
+
+    onDeleteTask(localTask.id);
+    onBack();
+  };
+
   const refreshTask = async (taskId: string) => {
     const response = await fetch(`/api/tasks/${taskId}`, { cache: 'no-store' });
     if (!response.ok) return;
@@ -353,14 +366,24 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
         >
           <ArrowLeft size={18} /> Back
         </button>
-        {isAdmin && !isDeployed && localTask.status === Status.PASSED && (
-          <button 
-            onClick={() => setDeploymentModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
-          >
-            <Rocket size={16} /> Deploy Feature
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={handleDeleteTask}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-rose-600 border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors shadow-sm"
+            >
+              <Trash2 size={16} /> Delete Task
+            </button>
+          )}
+          {isAdmin && !isDeployed && localTask.status === Status.PASSED && (
+            <button 
+              onClick={() => setDeploymentModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
+            >
+              <Rocket size={16} /> Deploy Feature
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-6">
