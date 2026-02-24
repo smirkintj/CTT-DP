@@ -89,6 +89,33 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   }, [session?.user?.id]);
 
   useEffect(() => {
+    if (!session?.user || session.user.role !== 'ADMIN') return;
+
+    const loadAdminMetadata = async () => {
+      const [countriesRes, modulesRes] = await Promise.all([
+        fetch('/api/admin/countries', { cache: 'no-store' }),
+        fetch('/api/admin/modules', { cache: 'no-store' })
+      ]);
+
+      if (countriesRes.ok) {
+        const countries = await countriesRes.json();
+        if (Array.isArray(countries)) {
+          setAvailableCountries(countries);
+        }
+      }
+
+      if (modulesRes.ok) {
+        const modules = await modulesRes.json();
+        if (Array.isArray(modules)) {
+          setAvailableModules(modules);
+        }
+      }
+    };
+
+    void loadAdminMetadata();
+  }, [session?.user?.id, session?.user?.role]);
+
+  useEffect(() => {
     if (!session?.user || !selectedTaskId) return;
 
     if (tasks.find((task) => task.id === selectedTaskId)) return;

@@ -1,8 +1,7 @@
 'use client';
 import React, { useMemo, useState } from 'react';
-import { Task, Status, Priority, TestStep, TargetSystem, CountryConfig } from '../types';
+import { Task, Priority, TestStep, TargetSystem, CountryConfig } from '../types';
 import { Badge } from '../components/Badge';
-import { MOCK_USERS } from '../constants';
 import { Trash2, Plus, UploadCloud, Search, Filter, X, Save, Globe } from 'lucide-react';
 
 interface AdminTaskManagementProps {
@@ -39,12 +38,12 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
      description: '',
      featureModule: 'Ordering',
      priority: Priority.MEDIUM,
-     assigneeId: MOCK_USERS[0].id,
      dueDate: '',
      scope: 'Local',
      targetSystem: 'Ordering Portal',
      crNumber: '',
   });
+  const [creating, setCreating] = useState(false);
 
   const [selectedCountries, setSelectedCountries] = useState<string[]>(['SG']);
   const [steps, setSteps] = useState<Partial<TestStep>[]>([
@@ -145,51 +144,43 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       }
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
      if (!newTask.title) return;
-     
-     const createdTasks: Task[] = [];
-     
-     // Generate one task per selected country
-     selectedCountries.forEach(countryCode => {
-         // Filter steps that are applicable to 'ALL' or specifically this country
-         const applicableSteps = steps.filter(s => s.countryFilter === 'ALL' || s.countryFilter === countryCode);
-         
-         if (applicableSteps.length === 0) return; // Skip if no steps for this country
 
-         const t: Task = {
-             id: `t_${Date.now()}_${countryCode}`,
-             title: newTask.title || 'Untitled',
-             description: newTask.description || '',
-             featureModule: newTask.featureModule || 'General',
-             status: Status.PENDING,
-             priority: newTask.priority || Priority.MEDIUM,
-             countryCode: countryCode,
-             assigneeId: newTask.assigneeId || 'u1',
-             dueDate: newTask.dueDate || new Date().toISOString().split('T')[0],
-             scope: newTask.scope || 'Local',
-             targetSystem: newTask.targetSystem || 'Ordering Portal',
-             crNumber: newTask.crNumber,
-             steps: applicableSteps.map((s, i) => ({
-                 id: `s_${Date.now()}_${countryCode}_${i}`,
-                 description: s.description || '',
-                 expectedResult: s.expectedResult || '',
-                 testData: s.testData || '',
-                 isPassed: null,
-                 comments: []
-             })),
-             updatedAt: 'Just now'
-         };
-         createdTasks.push(t);
-     });
-     
-     onAddTask(createdTasks);
-     setIsModalOpen(false);
-     
-     // Reset form
-     setNewTask({ featureModule: 'Ordering', priority: Priority.MEDIUM, targetSystem: 'Ordering Portal' });
-     setSelectedCountries(['SG']);
-     setSteps([{ id: '1', description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }]);
+     try {
+       setCreating(true);
+       const response = await fetch('/api/tasks', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           title: newTask.title,
+           description: newTask.description,
+           featureModule: newTask.featureModule,
+           module: newTask.featureModule,
+           priority: newTask.priority,
+           dueDate: newTask.dueDate ? new Date(newTask.dueDate).toISOString() : undefined,
+           countries: selectedCountries,
+           steps
+         })
+       });
+
+       const data = await response.json().catch(() => null);
+       if (!response.ok) {
+         throw new Error(data?.error || 'Failed to create tasks');
+       }
+
+       const createdTasks = Array.isArray(data) ? data : [];
+       onAddTask(createdTasks);
+       setIsModalOpen(false);
+
+       setNewTask({ featureModule: 'Ordering', priority: Priority.MEDIUM, targetSystem: 'Ordering Portal' });
+       setSelectedCountries(['SG']);
+       setSteps([{ id: '1', description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }]);
+     } catch (error) {
+       alert(error instanceof Error ? error.message : 'Failed to create tasks');
+     } finally {
+       setCreating(false);
+     }
   };
 
 
@@ -581,7 +572,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
 
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 rounded-b-xl flex justify-end gap-3">
                    <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 hover:text-slate-800 text-sm font-medium">Cancel</button>
-                   <button onClick={handleCreate} className="px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800 text-sm font-medium flex items-center gap-2">
+                   <button onClick={handleCreate} disabled={creating} className="px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800 text-sm font-medium flex items-center gap-2 disabled:opacity-60">
                       <Save size={16}/> Create {selectedCountries.length} Tasks
                    </button>
                 </div>
