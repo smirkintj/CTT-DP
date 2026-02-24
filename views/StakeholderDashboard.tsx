@@ -9,25 +9,68 @@ interface StakeholderDashboardProps {
   loading: boolean;
   onSelectTask: (task: Task) => void;
   currentUserCountry: string;
+  currentUserName: string;
+  onOpenInbox: () => void;
 }
 
-export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ tasks, loading, onSelectTask, currentUserCountry }) => {
-  const [filterStatus, setFilterStatus] = useState<string>('All');
+const normalizeStatusKey = (status: string) => {
+  if (!status) return 'UNKNOWN';
+  return status.toString().trim().replace(/\s+/g, '_').toUpperCase();
+};
+
+const getStatusLabel = (statusKey: string) => {
+  const labels: Record<string, string> = {
+    READY: 'Ready',
+    IN_PROGRESS: 'In Progress',
+    PASSED: 'Passed',
+    FAILED: 'Failed',
+    BLOCKED: 'Blocked'
+  };
+  return labels[statusKey] ?? statusKey;
+};
+
+export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ tasks, loading, onSelectTask, currentUserCountry, currentUserName, onOpenInbox }) => {
+  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
   const [activityFeed, setActivityFeed] = useState<Array<{ id: string; type: string; message: string; createdAt: string }>>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
+  const [unreadComments, setUnreadComments] = useState(0);
   
   const myTasks = tasks.filter(t => t.countryCode === currentUserCountry);
-  const filteredTasks = filterStatus === 'All' ? myTasks : myTasks.filter(t => t.status === filterStatus);
+  const statusFilteredTasks = filterStatus === 'ALL'
+    ? myTasks
+    : myTasks.filter((task) => {
+        const statusKey = normalizeStatusKey(task.status as unknown as string);
+        const isSignedOff = Boolean(task.signedOffAt || task.signedOff);
+        if (filterStatus === 'IN_PROGRESS') {
+          return statusKey === 'IN_PROGRESS' || statusKey === 'READY' || (statusKey === 'PASSED' && !isSignedOff);
+        }
+        if (filterStatus === 'PASSED') {
+          return statusKey === 'PASSED' && isSignedOff;
+        }
+        return statusKey === filterStatus;
+      });
+  const filteredTasks = statusFilteredTasks.filter((task) => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      task.title.toLowerCase().includes(query) ||
+      task.featureModule.toLowerCase().includes(query) ||
+      (task.description || '').toLowerCase().includes(query)
+    );
+  });
   
   // Calculate specific stats
-  const total = myTasks.length;
-  const pendingCount = myTasks.filter(t => t.status === Status.PENDING || t.status === Status.IN_PROGRESS).length;
-  const passedCount = myTasks.filter(t => t.status === Status.PASSED).length;
-  const completionPercentage = total > 0 ? Math.round((passedCount / total) * 100) : 0;
-  
-  // KPI: Unread Comments (Simulated)
-  const totalComments = myTasks.reduce((acc, t) => acc + (t.steps ?? []).reduce((sAcc, s) => sAcc + (s.comments?.length ?? 0), 0), 0);
-  const unreadComments = Math.round(totalComments * 0.2); // Mock 20% unread
+  const pendingCount = myTasks.filter((task) => {
+    const key = task.status?.toString().trim().replace(/\s+/g, '_').toUpperCase();
+    const isSignedOff = Boolean(task.signedOffAt || task.signedOff);
+    return key === 'READY' || key === 'PENDING' || key === 'IN_PROGRESS' || key === 'BLOCKED' || key === 'FAILED' || (key === 'PASSED' && !isSignedOff);
+  }).length;
+  const completedTasks = myTasks.filter((task) => {
+    const key = task.status?.toString().trim().replace(/\s+/g, '_').toUpperCase();
+    return key === 'DEPLOYED' || Boolean(task.signedOffAt || task.signedOff);
+  }).length;
+  const completionPercentage = myTasks.length > 0 ? Math.round((completedTasks / myTasks.length) * 100) : 0;
 
   // Identify blocked tasks for alert
   const blockedTasks = myTasks.filter(t => t.status === Status.BLOCKED);
@@ -53,6 +96,16 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
     void loadActivities();
   }, []);
 
+  useEffect(() => {
+    const loadUnreadCount = async () => {
+      const response = await fetch('/api/comments/unread-count', { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      setUnreadComments(typeof data?.count === 'number' ? data.count : 0);
+    };
+    void loadUnreadCount();
+  }, [myTasks.length]);
+
   const formatTimeAgo = (isoDate: string) => {
     const time = new Date(isoDate).getTime();
     if (Number.isNaN(time)) return '';
@@ -64,6 +117,13 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
     if (hours < 24) return `${hours} hr ago`;
     const days = Math.floor(hours / 24);
     return `${days} day${days > 1 ? 's' : ''} ago`;
+  };
+
+  const formatDateOnly = (value?: string) => {
+    if (!value) return 'N/A';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
   };
 
   const getAssigneeName = (task: Task) => {
@@ -102,7 +162,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
           
           {/* Welcome Section */}
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Hello, Sarah</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Hello, {currentUserName || 'User'}</h1>
             <p className="text-slate-500 mt-1">Here is the testing progress for {currentUserCountry}.</p>
           </div>
 
@@ -133,8 +193,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                     <span className="text-3xl font-bold text-slate-900">{pendingCount}</span>
                     <span className="text-xs text-slate-400">remaining</span>
                 </div>
-                <p className="text-xs text-slate-400 mt-3">Due this week</p>
-            </div>
+              </div>
 
             {/* Unread Comments Card */}
             <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm relative overflow-hidden">
@@ -148,7 +207,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                         <span className="text-3xl font-bold text-purple-900">{unreadComments}</span>
                         <span className="text-xs text-purple-600 font-medium">new comments</span>
                     </div>
-                    <button className="text-xs text-purple-700 hover:text-purple-900 font-medium mt-3 flex items-center gap-1">
+                    <button onClick={onOpenInbox} className="text-xs text-purple-700 hover:text-purple-900 font-medium mt-3 flex items-center gap-1">
                         View Discussions <ArrowRight size={12}/>
                     </button>
                 </div>
@@ -160,15 +219,15 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
             {/* Filters */}
             <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-2 rounded-lg border border-slate-200 shadow-sm mb-6">
               <div className="flex gap-1 bg-slate-100 p-1 rounded-md overflow-x-auto max-w-full">
-                {['All', Status.PENDING, Status.IN_PROGRESS, Status.PASSED, Status.BLOCKED].map((status) => (
+                {['ALL', 'IN_PROGRESS', 'PASSED', 'BLOCKED', 'FAILED'].map((statusKey) => (
                   <button
-                    key={status}
-                    onClick={() => setFilterStatus(status)}
+                    key={statusKey}
+                    onClick={() => setFilterStatus(statusKey)}
                     className={`px-4 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-all ${
-                      filterStatus === status ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                      filterStatus === statusKey ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
-                    {status}
+                    {statusKey === 'ALL' ? 'All' : getStatusLabel(statusKey)}
                   </button>
                 ))}
               </div>
@@ -178,6 +237,8 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                 <input 
                   type="text" 
                   placeholder="Search tasks..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 text-sm border-none bg-transparent focus:ring-0 placeholder-slate-400 text-slate-800"
                 />
               </div>
@@ -229,6 +290,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                           <span className="text-xs text-slate-600 font-medium">{getAssigneeName(task)}</span>
                        </div>
                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-slate-500">Due: {formatDateOnly(task.dueDate)}</span>
                           {(task.steps ?? []).reduce((acc, step) => acc + (step.comments?.length ?? 0), 0) > 0 && (
                              <span className="flex items-center text-xs text-slate-400 gap-1">
                                <MessageSquare size={12}/> {(task.steps ?? []).reduce((acc, step) => acc + (step.comments?.length ?? 0), 0)}

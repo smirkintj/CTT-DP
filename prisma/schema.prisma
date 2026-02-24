@@ -51,6 +51,7 @@ model User {
   signedOffTasks Task[]  @relation("TaskSignedOffBy")
   activities     Activity[] @relation("ActivityActor")
   activityReads  ActivityRead[]
+  commentReads   CommentRead[]
   comments      Comment[]
 }
 
@@ -76,6 +77,9 @@ model Task {
   id          String       @id @default(cuid())
   title       String
   description String?
+  jiraTicket  String?
+  crNumber    String?
+  developer   String?
   status      TaskStatus
   priority    TaskPriority
   countryCode String
@@ -106,6 +110,20 @@ model Comment {
 
   task   Task @relation(fields: [taskId], references: [id])
   author User @relation(fields: [authorId], references: [id])
+  reads  CommentRead[]
+}
+
+model CommentRead {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([userId, readAt])
 }
 
 model TaskStep {

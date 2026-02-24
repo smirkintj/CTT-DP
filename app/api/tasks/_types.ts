@@ -7,6 +7,12 @@ export interface TaskStepDTO {
   actualResult?: string | null;
   isPassed?: boolean | null;
   attachments?: unknown;
+  comments?: {
+    id: string;
+    userId: string;
+    text: string;
+    createdAt: string;
+  }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -20,6 +26,9 @@ export interface TaskDTO {
   countryCode: string;
   module: string;
   featureModule: string;
+  jiraTicket?: string | null;
+  crNumber?: string | null;
+  developer?: string | null;
   dueDate: string;
   createdAt: string;
   updatedAt: string;

@@ -39,24 +39,46 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
   }
 
-  await prisma.comment.create({
+  const created = await prisma.comment.create({
     data: {
       taskId: id,
       authorId: session.user.id,
-      body: text.trim()
+      body:
+        stepOrder && stepOrder > 0
+          ? `[[STEP:${stepOrder}]] ${text.trim()}`
+          : text.trim()
     }
   });
 
-  await createActivity({
-    type: ActivityType.COMMENT_ADDED,
-    message:
-      stepOrder && stepOrder > 0
-        ? `${session.user.name || session.user.email} added a comment on Step ${stepOrder} in ${task.title}.`
-        : `${session.user.name || session.user.email} added a comment on ${task.title}.`,
-    taskId: id,
-    actorId: session.user.id,
-    countryCode: task.countryCode
-  });
+  try {
+    await prisma.commentRead.create({
+      data: {
+        commentId: created.id,
+        userId: session.user.id
+      }
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('commentRead create failed:', error);
+    }
+  }
 
-  return NextResponse.json({ ok: true });
+  try {
+    await createActivity({
+      type: ActivityType.COMMENT_ADDED,
+      message:
+        stepOrder && stepOrder > 0
+          ? `${session.user.name || session.user.email} added a comment on Step ${stepOrder} in ${task.title}.`
+          : `${session.user.name || session.user.email} added a comment on ${task.title}.`,
+      taskId: id,
+      actorId: session.user.id,
+      countryCode: task.countryCode
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('activity create failed:', error);
+    }
+  }
+
+  return NextResponse.json({ ok: true, id: created.id });
 }

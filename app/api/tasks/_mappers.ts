@@ -20,6 +20,31 @@ export function mapUiStatusToDb(status: string): TaskStatus {
 export function mapTaskToUi(task: any): TaskDTO {
   const comments = Array.isArray(task.comments) ? task.comments : [];
   const steps = Array.isArray(task.steps) ? task.steps : [];
+  const stepCommentMap = new Map<number, Array<{ id: string; userId: string; text: string; createdAt: string }>>();
+
+  const extractStepComment = (body: string) => {
+    const match = body.match(/^\[\[STEP:(\d+)\]\]\s*/i);
+    if (!match) return { stepOrder: null, cleanedBody: body };
+    const stepOrder = Number(match[1]);
+    const cleanedBody = body.replace(/^\[\[STEP:\d+\]\]\s*/i, '');
+    return { stepOrder: Number.isNaN(stepOrder) ? null : stepOrder, cleanedBody };
+  };
+
+  for (const c of comments) {
+    const { stepOrder, cleanedBody } = extractStepComment(c.body ?? '');
+    if (!stepOrder) continue;
+    const authorName = c.author?.name || c.author?.email || 'User';
+    if (!stepCommentMap.has(stepOrder)) {
+      stepCommentMap.set(stepOrder, []);
+    }
+    stepCommentMap.get(stepOrder)!.push({
+      id: c.id,
+      userId: authorName,
+      text: cleanedBody,
+      createdAt: c.createdAt ? c.createdAt.toISOString() : ''
+    });
+  }
+
   return {
     id: task.id,
     title: task.title,
@@ -29,6 +54,9 @@ export function mapTaskToUi(task: any): TaskDTO {
     countryCode: task.countryCode,
     module: task.module,
     featureModule: task.module,
+    jiraTicket: task.jiraTicket ?? null,
+    crNumber: task.crNumber ?? null,
+    developer: task.developer ?? null,
     dueDate: task.dueDate ? task.dueDate.toISOString() : '',
     createdAt: task.createdAt ? task.createdAt.toISOString() : '',
     updatedAt: task.updatedAt ? task.updatedAt.toISOString() : '',
@@ -68,18 +96,19 @@ export function mapTaskToUi(task: any): TaskDTO {
       actualResult: step.actualResult ?? null,
       isPassed: step.isPassed ?? null,
       attachments: step.attachments ?? null,
+      comments: stepCommentMap.get(step.order) ?? [],
       createdAt: step.createdAt ? step.createdAt.toISOString() : '',
       updatedAt: step.updatedAt ? step.updatedAt.toISOString() : ''
     })),
 
     comments: comments.map((c: any) => ({
       id: c.id,
-      body: c.body,
+      body: extractStepComment(c.body ?? '').cleanedBody,
       createdAt: c.createdAt.toISOString(),
       author: {
-        id: c.author.id,
-        name: c.author.name,
-        email: c.author.email
+        id: c.author?.id ?? '',
+        name: c.author?.name ?? c.author?.email ?? 'User',
+        email: c.author?.email ?? ''
       }
     }))
   };

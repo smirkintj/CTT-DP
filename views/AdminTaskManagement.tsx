@@ -36,6 +36,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const [newTask, setNewTask] = useState<Partial<Task>>({
      title: '',
      description: '',
+     jiraTicket: '',
      featureModule: 'Ordering',
      priority: Priority.MEDIUM,
      dueDate: '',
@@ -155,8 +156,11 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
          body: JSON.stringify({
            title: newTask.title,
            description: newTask.description,
+           jiraTicket: newTask.jiraTicket,
            featureModule: newTask.featureModule,
            module: newTask.featureModule,
+           crNumber: newTask.crNumber,
+           developer: newTask.developer,
            priority: newTask.priority,
            dueDate: newTask.dueDate ? new Date(newTask.dueDate).toISOString() : undefined,
            countries: selectedCountries,
@@ -173,7 +177,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
        onAddTask(createdTasks);
        setIsModalOpen(false);
 
-       setNewTask({ featureModule: 'Ordering', priority: Priority.MEDIUM, targetSystem: 'Ordering Portal' });
+       setNewTask({ jiraTicket: '', featureModule: 'Ordering', priority: Priority.MEDIUM, targetSystem: 'Ordering Portal' });
        setSelectedCountries(['SG']);
        setSteps([{ id: '1', description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }]);
      } catch (error) {
@@ -324,8 +328,8 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
             <table className="w-full table-fixed text-sm text-left">
                <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
                   <tr>
-                     <th className="px-4 py-4 w-[26%]">Task</th>
-                     <th className="px-3 py-4 w-[10%]">Module</th>
+                     <th className="px-4 py-4 w-[22%]">Task</th>
+                     <th className="px-3 py-4 w-[14%]">Module</th>
                      <th className="px-3 py-4 w-[8%]">Country</th>
                      <th className="px-3 py-4 w-[11%]">Status</th>
                      <th className="px-3 py-4 w-[10%]">Priority</th>
@@ -416,8 +420,19 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                           </select>
                        </div>
                    </div>
+
+                   <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Jira Ticket (Optional)</label>
+                      <input
+                        type="text"
+                        className="w-full rounded-md border-slate-300 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                        placeholder="e.g. UAT-123"
+                        value={newTask.jiraTicket || ''}
+                        onChange={(e) => setNewTask({ ...newTask, jiraTicket: e.target.value })}
+                      />
+                   </div>
                    
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
                          <label className="block text-sm font-medium text-slate-700 mb-1">Module</label>
                          <select 
@@ -449,6 +464,16 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                             placeholder="e.g. CR-123"
                             value={newTask.crNumber}
                             onChange={(e) => setNewTask({...newTask, crNumber: e.target.value})}
+                         />
+                      </div>
+                      <div>
+                         <label className="block text-sm font-medium text-slate-700 mb-1">Developer (Optional)</label>
+                         <input 
+                            type="text" 
+                            className="w-full rounded-md border-slate-300 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                            placeholder="e.g. John Tan"
+                            value={newTask.developer || ''}
+                            onChange={(e) => setNewTask({...newTask, developer: e.target.value})}
                          />
                       </div>
                    </div>

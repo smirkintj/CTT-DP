@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { User, Role } from '../types';
 import { LogOut, LayoutGrid, UploadCloud, Bell, MessageSquare, AlertCircle, Check, Info, List, Database } from 'lucide-react';
 
@@ -12,10 +13,11 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout, onNavigate, currentView }) => {
+  const router = useRouter();
   const isAdmin = currentUser.role === Role.ADMIN;
   const [showNotifications, setShowNotifications] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
-  const [activities, setActivities] = useState<Array<{ id: string; type: string; message: string; createdAt: string; isRead: boolean }>>([]);
+  const [activities, setActivities] = useState<Array<{ id: string; type: string; message: string; createdAt: string; taskId?: string | null; isRead: boolean }>>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
   const notifRef = useRef<HTMLDivElement>(null);
   const displayName = isAdmin ? 'Admin User' : (currentUser.name || 'User');
@@ -176,12 +178,16 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                          </div>
                        ) : (
                          <div className="divide-y divide-slate-50">
-                           {activities.map(n => (
+                          {activities.map(n => (
                              <button
                                key={n.id}
                                onClick={() => {
                                  if (!n.isRead) {
                                    void markRead(n.id);
+                                 }
+                                 if (n.taskId && n.type === 'COMMENT_ADDED') {
+                                   setShowNotifications(false);
+                                   router.push(`/tasks/${n.taskId}`);
                                  }
                                }}
                                className={`w-full text-left p-4 hover:bg-slate-50 transition-colors flex gap-3 ${!n.isRead ? 'bg-brand-50/10' : ''}`}
@@ -210,7 +216,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                        )}
                      </div>
                      <div className="p-2 border-t border-slate-100 text-center">
-                       <button className="text-xs text-slate-500 hover:text-slate-800 font-medium py-1">View All History</button>
+                       <button
+                         onClick={() => {
+                           setShowNotifications(false);
+                           onNavigate('INBOX');
+                         }}
+                         className="text-xs text-slate-500 hover:text-slate-800 font-medium py-1"
+                       >
+                         View All History
+                       </button>
                      </div>
                    </div>
                  )}

@@ -54,6 +54,7 @@ export async function GET() {
       id: activity.id,
       type: activity.type,
       message: activity.message,
+      taskId: activity.taskId,
       createdAt: activity.createdAt.toISOString(),
       isRead: readSet.has(activity.id)
     }))

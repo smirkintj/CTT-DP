@@ -9,6 +9,7 @@ import { AdminTaskManagement } from './views/AdminTaskManagement';
 import { AdminDatabase } from './views/AdminDatabase';
 import { TaskDetail } from './views/TaskDetail';
 import { ImportWizard } from './views/ImportWizard';
+import { InboxView } from './views/InboxView';
 import { User, Task, Role, ViewState, CountryConfig } from './types';
 import { INITIAL_COUNTRIES, INITIAL_MODULES } from './constants';
 
@@ -287,7 +288,9 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
           tasks={tasks} 
           loading={loadingTasks}
           onSelectTask={handleTaskSelect}
-          currentUserCountry={currentUser.countryCode} 
+          currentUserCountry={currentUser.countryCode}
+          currentUserName={currentUser.name}
+          onOpenInbox={() => handleNavigation('INBOX')}
         />
       )}
       
@@ -334,6 +337,13 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
       {view === 'IMPORT_WIZARD' && (
         <ImportWizard />
+      )}
+
+      {view === 'INBOX' && (
+        <InboxView
+          onOpenTask={handleTaskSelect}
+          onBack={() => handleNavigation(currentUser.role === Role.ADMIN ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}
+        />
       )}
     </Layout>
   );

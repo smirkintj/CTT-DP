@@ -9,6 +9,7 @@ export async function middleware(req: NextRequest) {
 
   const isAdminRoute = pathname.startsWith('/admin') || pathname === '/import';
   const isTaskRoute = pathname.startsWith('/tasks');
+  const isInboxRoute = pathname.startsWith('/inbox');
 
   if (isAdminRoute) {
     if (!token || token.role !== 'ADMIN') {
@@ -18,7 +19,7 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  if (isTaskRoute) {
+  if (isTaskRoute || isInboxRoute) {
     if (!token) {
       const url = req.nextUrl.clone();
       url.pathname = '/';
@@ -30,5 +31,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/import', '/tasks/:path*']
+  matcher: ['/admin/:path*', '/import', '/tasks/:path*', '/inbox']
 };

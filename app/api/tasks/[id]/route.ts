@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
 import { mapTaskToUi } from '../_mappers';
 import { sendTaskAssignedEmail } from '../../../../lib/email';
+import { ActivityType } from '@prisma/client';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -150,6 +151,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           email: true,
           name: true
         }
+      },
+      updatedBy: {
+        select: {
+          id: true,
+          email: true,
+          name: true
+        }
       }
     }
   });
@@ -158,15 +166,29 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const data = {
+  if (existingTask.signedOffAt) {
+    return NextResponse.json({ error: 'Task is signed off and locked' }, { status: 409 });
+  }
+
+  const nextDueDate =
+    typeof body?.dueDate === 'string' && body.dueDate
+      ? new Date(body.dueDate)
+      : undefined;
+  const hasValidDueDate = !nextDueDate || !Number.isNaN(nextDueDate.getTime());
+  const data: Record<string, unknown> = {
+    title: body?.title ?? undefined,
+    description: body?.description ?? undefined,
     jiraTicket: body?.jiraTicket ?? undefined,
-    developer: body?.developer ?? undefined,
-    dueDate: body?.dueDate ? new Date(body.dueDate) : undefined,
+    crNumber: body?.crNumber ?? undefined,
+    dueDate: hasValidDueDate ? nextDueDate : undefined,
     priority: body?.priority ?? undefined,
     module: body?.module ?? body?.featureModule ?? undefined,
     assigneeId: body?.assigneeId ?? undefined,
     updatedById: session.user.id
   };
+  if (typeof body?.developer !== 'undefined') {
+    data.developer = body.developer;
+  }
 
   let task: any;
   try {
@@ -220,9 +242,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     });
   } catch {
     const fallbackData: any = {
+      title: body?.title ?? undefined,
+      description: body?.description ?? undefined,
       jiraTicket: body?.jiraTicket ?? undefined,
-      developer: body?.developer ?? undefined,
-      dueDate: body?.dueDate ? new Date(body.dueDate) : undefined,
+      crNumber: body?.crNumber ?? undefined,
+      dueDate: hasValidDueDate ? nextDueDate : undefined,
       priority: body?.priority ?? undefined,
       module: body?.module ?? body?.featureModule ?? undefined,
       assigneeId: body?.assigneeId ?? undefined
@@ -275,6 +299,28 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       taskId: task.id,
       countryCode: task.countryCode,
       dueDate: task.dueDate
+    });
+  }
+
+  const hasMetaChanges =
+    existingTask.title !== task.title ||
+    (existingTask.description ?? '') !== (task.description ?? '') ||
+    (existingTask.jiraTicket ?? '') !== (task.jiraTicket ?? '') ||
+    (existingTask.crNumber ?? '') !== (task.crNumber ?? '') ||
+    (existingTask.developer ?? '') !== (task.developer ?? '') ||
+    (existingTask.module ?? '') !== (task.module ?? '') ||
+    (existingTask.priority ?? '') !== (task.priority ?? '') ||
+    (existingTask.dueDate?.toISOString() ?? '') !== (task.dueDate?.toISOString() ?? '');
+
+  if (hasMetaChanges) {
+    await prisma.activity.create({
+      data: {
+        type: ActivityType.STATUS_CHANGED,
+        taskId: task.id,
+        actorId: session.user.id,
+        countryCode: task.countryCode,
+        message: `${session.user.name || session.user.email || 'Admin'} updated task details for "${task.title}".`
+      }
     });
   }
 

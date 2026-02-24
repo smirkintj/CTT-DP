@@ -53,6 +53,11 @@ export async function GET() {
               }
             }
           }
+        },
+        steps: {
+          orderBy: {
+            order: 'asc'
+          }
         }
       },
       orderBy: {
@@ -81,6 +86,11 @@ export async function GET() {
                 name: true
               }
             }
+          }
+        },
+        steps: {
+          orderBy: {
+            order: 'asc'
           }
         }
       },
@@ -114,6 +124,9 @@ export async function POST(req: Request) {
   const title = body?.title?.toString().trim();
   const description = body?.description?.toString() ?? '';
   const moduleName = body?.module?.toString().trim() || body?.featureModule?.toString().trim() || 'General';
+  const jiraTicket = body?.jiraTicket?.toString().trim() || null;
+  const crNumber = body?.crNumber?.toString().trim() || null;
+  const developer = body?.developer?.toString().trim() || null;
   const dueDateRaw = body?.dueDate as string | undefined;
   const priorityRaw = body?.priority?.toString().toUpperCase() as TaskPriority | undefined;
   const countries = Array.isArray(body?.countries) ? (body.countries as string[]) : [];
@@ -149,6 +162,9 @@ export async function POST(req: Request) {
       data: {
         title,
         description,
+        jiraTicket,
+        crNumber,
+        developer,
         module: moduleName,
         status: TaskStatus.READY,
         priority,

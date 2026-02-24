@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Task, Status, User, Role, TestStep, Priority } from '../types';
 import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
@@ -13,6 +13,29 @@ interface TaskDetailProps {
   onUpdateTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
 }
+
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+
+const renderTextWithLinks = (text?: string) => {
+  if (!text) return null;
+  const parts = text.split(URL_REGEX);
+  return parts.map((part, index) => {
+    if (part.match(URL_REGEX)) {
+      return (
+        <a
+          key={`${part}-${index}`}
+          href={part}
+          target="_blank"
+          rel="noreferrer"
+          className="text-blue-600 hover:underline break-all"
+        >
+          {part}
+        </a>
+      );
+    }
+    return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+  });
+};
 
 // Defensive normalization: API/DB may omit arrays or return null
 const normalizeTask = (t: Task): Task => {
@@ -44,11 +67,33 @@ const fromDateInputValue = (value?: string) => {
   return date.toISOString();
 };
 
-const formatDateTime = (value?: string) => {
+const formatDateOnly = (value?: string) => {
+  if (!value) return 'N/A';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'N/A';
+  return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
+};
+
+const formatDateTimeLocal = (value?: string) => {
   if (!value) return 'N/A';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'N/A';
   return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+};
+
+const normalizeJiraTicket = (raw?: string) => {
+  const cleaned = (raw || '').trim().toUpperCase();
+  if (!cleaned) return '';
+  if (/^\d+$/.test(cleaned)) {
+    return `EO-${cleaned}`;
+  }
+  return cleaned;
+};
+
+const getJiraUrl = (raw?: string) => {
+  const ticket = normalizeJiraTicket(raw);
+  if (!ticket) return '';
+  return `https://dkshdigital.atlassian.net/browse/${ticket}`;
 };
 
 export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBack, onUpdateTask, onDeleteTask }) => {
@@ -57,9 +102,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     const safe = normalizeTask(task);
     return safe.steps.find(s => s.isPassed === null)?.id || safe.steps[0]?.id || null;
   });
-  const [isEditingTask, setIsEditingTask] = useState(false);
   const [taskEdits, setTaskEdits] = useState({
+    title: task.title ?? '',
+    description: task.description ?? '',
     jiraTicket: task.jiraTicket ?? '',
+    crNumber: task.crNumber ?? '',
     developer: task.developer ?? '',
     dueDate: toDateInputValue(task.dueDate),
     priority: task.priority ?? Priority.MEDIUM,
@@ -71,6 +118,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   const [releaseVersion, setReleaseVersion] = useState('');
   const [commentInputs, setCommentInputs] = useState<{[key: string]: string}>({});
   const [viewImage, setViewImage] = useState<string | null>(null);
+  const [uploadStepId, setUploadStepId] = useState<string | null>(null);
+  const [mentionUsers, setMentionUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Signature State
   const [signatureData, setSignatureData] = useState<string | null>(null);
@@ -79,6 +129,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   const isAdmin = currentUser.role === Role.ADMIN;
   const isDeployed = localTask.status === Status.DEPLOYED;
   const isSignedOff = !!localTask.signedOff || !!localTask.signedOffAt;
+  const canEditTaskMeta = isAdmin && !isSignedOff;
 
   // Portal URL Logic
   const portalUrl = localTask.targetSystem === 'Admin Portal' 
@@ -115,10 +166,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     const previousStatus = localTask.status;
     const updatedTask = { ...localTask, steps: updatedSteps };
     
-    // Auto-update task status if all passed
+    // Auto-update task status from step execution.
+    // Task should only become PASSED after explicit sign-off.
     const allPassed = updatedSteps.every(s => s.isPassed === true);
-    if (allPassed && localTask.status !== Status.DEPLOYED && localTask.status !== Status.PASSED) {
-      updatedTask.status = Status.PASSED;
+    if (allPassed && localTask.status !== Status.DEPLOYED) {
+      updatedTask.status = Status.IN_PROGRESS;
     } else if (updatedSteps.some(s => s.isPassed === false)) {
       updatedTask.status = Status.FAILED;
     } else if (updatedSteps.some(s => s.isPassed === true) && localTask.status === Status.PENDING) {
@@ -171,10 +223,34 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       body: JSON.stringify({ body: text, stepOrder })
     });
 
-    if (!response.ok) return;
+    if (!response.ok) {
+      alert('Failed to add comment');
+      return;
+    }
 
     await refreshTask(localTask.id);
     setCommentInputs({ ...commentInputs, [stepId]: '' });
+  };
+
+  const handleOpenUpload = (stepId: string) => {
+    setUploadStepId(stepId);
+    fileInputRef.current?.click();
+  };
+
+  const handleUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadStepId) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      const currentStep = (localTask.steps ?? []).find((step) => step.id === uploadStepId);
+      if (currentStep) {
+        const currentAttachments = currentStep.attachments || [];
+        handleStepUpdate(uploadStepId, { attachments: [...currentAttachments, base64] });
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   // Paste handler for screenshots
@@ -257,6 +333,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     const safeUpdated = normalizeTask(updated as Task);
     setLocalTask(safeUpdated);
     onUpdateTask(safeUpdated);
+    void fetch(`/api/tasks/${taskId}/comments/read`, { method: 'POST' });
   };
 
   const persistStatus = async (status: Status, stepOrder?: number) => {
@@ -268,11 +345,16 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   };
 
   const handleSaveTaskMeta = async () => {
+    if (!canEditTaskMeta) return;
+    const normalizedTicket = normalizeJiraTicket(taskEdits.jiraTicket);
     const response = await fetch(`/api/tasks/${localTask.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        jiraTicket: taskEdits.jiraTicket,
+        title: taskEdits.title,
+        description: taskEdits.description,
+        jiraTicket: normalizedTicket,
+        crNumber: taskEdits.crNumber,
         developer: taskEdits.developer,
         dueDate: fromDateInputValue(taskEdits.dueDate),
         priority: taskEdits.priority,
@@ -280,12 +362,42 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       })
     });
 
-    if (!response.ok) return;
+    if (!response.ok) {
+      alert('Failed to save task details');
+      return;
+    }
     const updated = await response.json();
     const safeUpdated = normalizeTask(updated as Task);
     setLocalTask(safeUpdated);
     onUpdateTask(safeUpdated);
-    setIsEditingTask(false);
+    setTaskEdits({
+      title: safeUpdated.title ?? '',
+      description: safeUpdated.description ?? '',
+      jiraTicket: safeUpdated.jiraTicket ?? '',
+      crNumber: safeUpdated.crNumber ?? '',
+      developer: safeUpdated.developer ?? '',
+      dueDate: toDateInputValue(safeUpdated.dueDate),
+      priority: safeUpdated.priority ?? Priority.MEDIUM,
+      featureModule: safeUpdated.featureModule ?? ''
+    });
+    alert('Task details saved');
+  };
+
+  const isTaskMetaDirty =
+    (taskEdits.jiraTicket ?? '') !== (localTask.jiraTicket ?? '') ||
+    (taskEdits.developer ?? '') !== (localTask.developer ?? '') ||
+    (taskEdits.featureModule ?? '') !== (localTask.featureModule ?? '') ||
+    taskEdits.priority !== (localTask.priority ?? Priority.MEDIUM) ||
+    (taskEdits.dueDate ?? '') !== toDateInputValue(localTask.dueDate) ||
+    (localTask.title ?? '') !== taskEdits.title ||
+    (localTask.description ?? '') !== taskEdits.description ||
+    (localTask.crNumber ?? '') !== taskEdits.crNumber;
+
+  const handleBackClick = async () => {
+    if (canEditTaskMeta && isTaskMetaDirty) {
+      await handleSaveTaskMeta();
+    }
+    onBack();
   };
 
   const handleAddStep = async () => {
@@ -346,7 +458,10 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     const safe = normalizeTask(task);
     setLocalTask(safe);
     setTaskEdits({
+      title: safe.title ?? '',
+      description: safe.description ?? '',
       jiraTicket: safe.jiraTicket ?? '',
+      crNumber: safe.crNumber ?? '',
       developer: safe.developer ?? '',
       dueDate: toDateInputValue(safe.dueDate),
       priority: safe.priority ?? Priority.MEDIUM,
@@ -355,13 +470,25 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     void refreshTask(safe.id);
   }, [task.id]);
 
+  useEffect(() => {
+    const loadMentionUsers = async () => {
+      const response = await fetch('/api/users/mentions', { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setMentionUsers(data);
+      }
+    };
+    void loadMentionUsers();
+  }, []);
+
   return (
     <div className="max-w-5xl mx-auto animate-fade-in pb-20 print:p-0 print:max-w-none">
       
       {/* Header Nav */}
       <div className="flex justify-between items-center mb-6 print:hidden">
         <button 
-          onClick={onBack} 
+          onClick={() => void handleBackClick()}
           className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors"
         >
           <ArrowLeft size={18} /> Back
@@ -413,8 +540,25 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
 
           <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-4">
             <div>
-                 <h1 className="text-2xl font-bold text-slate-900 mb-2">{localTask.title}</h1>
-                 <p className="text-slate-600">{localTask.description}</p>
+                 {canEditTaskMeta ? (
+                   <div className="space-y-2">
+                     <input
+                       className="w-full text-2xl font-bold text-slate-900 bg-slate-50/80 border border-slate-200 rounded-xl px-4 py-2.5 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                       value={taskEdits.title}
+                       onChange={(e) => setTaskEdits({ ...taskEdits, title: e.target.value })}
+                     />
+                     <textarea
+                       className="w-full text-slate-700 bg-slate-50/80 border border-slate-200 rounded-xl px-4 py-3 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors min-h-[90px]"
+                       value={taskEdits.description}
+                       onChange={(e) => setTaskEdits({ ...taskEdits, description: e.target.value })}
+                     />
+                   </div>
+                 ) : (
+                   <div>
+                     <h1 className="text-2xl font-bold text-slate-900 mb-2">{localTask.title}</h1>
+                     <p className="text-slate-600 whitespace-pre-wrap">{renderTextWithLinks(localTask.description)}</p>
+                   </div>
+                 )}
             </div>
             {/* Launch UAT Button - Hidden in Print */}
             <a 
@@ -432,105 +576,121 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
               <div>
                 <span className="text-xs text-slate-400 block mb-1">Jira Ticket</span>
-                <a href="#" className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline">
-                  <LinkIcon size={12}/> {localTask.jiraTicket || 'N/A'}
-                </a>
+                {canEditTaskMeta ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                      value={taskEdits.jiraTicket}
+                      onChange={(e) => setTaskEdits({ ...taskEdits, jiraTicket: e.target.value })}
+                      placeholder="e.g. 3198 or EO-3198"
+                    />
+                    {taskEdits.jiraTicket && (
+                      <a
+                        href={getJiraUrl(taskEdits.jiraTicket)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-blue-600 hover:text-blue-700 hover:border-slate-300 transition-colors"
+                        title={`Open ${normalizeJiraTicket(taskEdits.jiraTicket)}`}
+                      >
+                        <LinkIcon size={14} />
+                      </a>
+                    )}
+                  </div>
+                ) : localTask.jiraTicket ? (
+                  <a
+                    href={getJiraUrl(localTask.jiraTicket)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline"
+                  >
+                    <LinkIcon size={12}/> {normalizeJiraTicket(localTask.jiraTicket)}
+                  </a>
+                ) : (
+                  <span className="text-sm text-slate-500">N/A</span>
+                )}
+              </div>
+              <div>
+                <span className="text-xs text-slate-400 block mb-1">CR No</span>
+                {canEditTaskMeta ? (
+                  <input
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                    value={taskEdits.crNumber}
+                    onChange={(e) => setTaskEdits({ ...taskEdits, crNumber: e.target.value })}
+                  />
+                ) : (
+                  <span className="text-sm text-slate-700">{localTask.crNumber || 'N/A'}</span>
+                )}
               </div>
               <div>
                 <span className="text-xs text-slate-400 block mb-1">Developer</span>
-                <span className="flex items-center gap-1 text-sm font-medium text-slate-700">
-                  <UserIcon size={12}/> {localTask.developer || 'Unassigned'}
-                </span>
+                {canEditTaskMeta ? (
+                  <input
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                    value={taskEdits.developer}
+                    onChange={(e) => setTaskEdits({ ...taskEdits, developer: e.target.value })}
+                  />
+                ) : (
+                  <span className="flex items-center gap-1 text-sm font-medium text-slate-700">
+                    <UserIcon size={12}/> {localTask.developer || 'Unassigned'}
+                  </span>
+                )}
               </div>
               <div>
                 <span className="text-xs text-slate-400 block mb-1">Due Date</span>
-                <span className="flex items-center gap-1 text-sm font-medium text-slate-700">
-                  <Calendar size={12}/> {formatDateTime(localTask.dueDate)}
-                </span>
+                {canEditTaskMeta ? (
+                  <input
+                    type="date"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                    value={taskEdits.dueDate}
+                    onChange={(e) => setTaskEdits({ ...taskEdits, dueDate: e.target.value })}
+                  />
+                ) : (
+                  <span className="flex items-center gap-1 text-sm font-medium text-slate-700">
+                    <Calendar size={12}/> {formatDateOnly(localTask.dueDate)}
+                  </span>
+                )}
               </div>
               <div>
                 <span className="text-xs text-slate-400 block mb-1">Priority</span>
-                <Badge type="priority" value={localTask.priority} />
+                {canEditTaskMeta ? (
+                  <select
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                    value={taskEdits.priority}
+                    onChange={(e) => setTaskEdits({ ...taskEdits, priority: e.target.value as Priority })}
+                  >
+                    <option value={Priority.HIGH}>High</option>
+                    <option value={Priority.MEDIUM}>Medium</option>
+                    <option value={Priority.LOW}>Low</option>
+                  </select>
+                ) : (
+                  <Badge type="priority" value={localTask.priority} />
+                )}
+              </div>
+              <div>
+                <span className="text-xs text-slate-400 block mb-1">Module</span>
+                {isAdmin ? (
+                  <input
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                    value={taskEdits.featureModule}
+                    onChange={(e) => setTaskEdits({ ...taskEdits, featureModule: e.target.value })}
+                  />
+                ) : (
+                  <span className="text-sm text-slate-700">{localTask.featureModule}</span>
+                )}
               </div>
           </div>
 
           {isAdmin && (
-            <div className="mt-6 border-t border-slate-100 pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-slate-900">Edit task details</h3>
-                {!isEditingTask ? (
-                  <button
-                    onClick={() => setIsEditingTask(true)}
-                    className="text-xs font-medium text-brand-600 hover:text-brand-700"
-                  >
-                    Edit
-                  </button>
-                ) : (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setIsEditingTask(false)}
-                      className="text-xs font-medium text-slate-500 hover:text-slate-700"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSaveTaskMeta}
-                      className="text-xs font-medium text-white bg-slate-900 px-3 py-1.5 rounded-md hover:bg-slate-800"
-                    >
-                      Save
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {isEditingTask && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Jira Ticket</label>
-                    <input
-                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
-                      value={taskEdits.jiraTicket}
-                      onChange={(e) => setTaskEdits({ ...taskEdits, jiraTicket: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Developer</label>
-                    <input
-                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
-                      value={taskEdits.developer}
-                      onChange={(e) => setTaskEdits({ ...taskEdits, developer: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Due Date</label>
-                    <input
-                      type="date"
-                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
-                      value={taskEdits.dueDate}
-                      onChange={(e) => setTaskEdits({ ...taskEdits, dueDate: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Priority</label>
-                    <select
-                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
-                      value={taskEdits.priority}
-                      onChange={(e) => setTaskEdits({ ...taskEdits, priority: e.target.value as Priority })}
-                    >
-                      <option value={Priority.HIGH}>High</option>
-                      <option value={Priority.MEDIUM}>Medium</option>
-                      <option value={Priority.LOW}>Low</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Module</label>
-                    <input
-                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
-                      value={taskEdits.featureModule}
-                      onChange={(e) => setTaskEdits({ ...taskEdits, featureModule: e.target.value })}
-                    />
-                  </div>
-                </div>
+            <div className="mt-4 flex justify-end">
+              {canEditTaskMeta ? (
+                <button
+                  onClick={handleSaveTaskMeta}
+                  className="text-xs font-medium text-white bg-slate-900 px-3 py-1.5 rounded-md hover:bg-slate-800"
+                >
+                  Save changes
+                </button>
+              ) : (
+                <span className="text-xs font-medium text-slate-500">Task is signed off and locked.</span>
               )}
             </div>
           )}
@@ -684,7 +844,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                                   <div className="space-y-4">
                                       <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 print:bg-white print:border-slate-300">
                                           <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">Expected Result</span>
-                                          <p className="text-sm text-slate-700">{step.expectedResult}</p>
+                                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{renderTextWithLinks(step.expectedResult)}</p>
                                       </div>
                                       
                                       {step.testData && (
@@ -692,8 +852,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                                               <span className="text-[10px] uppercase font-bold text-brand-600 tracking-wider mb-1 block flex items-center gap-1">
                                                   <Database size={10}/> Test Data
                                               </span>
-                                              <code className="text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-200 text-slate-700 block font-mono">
-                                                  {step.testData}
+                                              <code className="text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-200 text-slate-700 block font-mono whitespace-pre-wrap">
+                                                  {renderTextWithLinks(step.testData)}
                                               </code>
                                           </div>
                                       )}
@@ -754,7 +914,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                                           {!isSignedOff && (
                                               <div 
                                                 className="border-2 border-dashed border-slate-200 rounded-lg p-3 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-slate-50 hover:border-slate-300 transition-colors print:hidden"
-                                                onClick={() => {/* Trigger file input logic would go here */}}
+                                                onClick={() => handleOpenUpload(step.id)}
                                               >
                                                   <ImageIcon size={16} className="text-slate-400 mb-1"/>
                                                   <span className="text-xs text-slate-500">Paste image or click to upload</span>
@@ -791,7 +951,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                                       <div key={c.id} className="flex gap-2 text-xs">
                                          <span className="font-bold text-slate-800">{c.userId}</span>
                                          <span className="text-slate-600">{c.text}</span>
-                                         <span className="text-slate-400 ml-auto">{c.createdAt}</span>
+                                         <span className="text-slate-400 ml-auto">{formatDateTimeLocal(c.createdAt)}</span>
                                       </div>
                                     ))}
                                  </div>
@@ -799,13 +959,14 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                               
                               {!isSignedOff && (
                                  <div className="flex gap-2 mt-2 print:hidden">
-                                    <input 
+                                      <input 
                                       type="text" 
                                       className="flex-1 text-xs border-slate-200 rounded px-3 py-2 focus:ring-brand-500 focus:border-brand-500"
-                                      placeholder="Add a comment..."
+                                      placeholder="Add a comment... (use @Name to tag)"
                                       value={commentInputs[step.id] || ''}
                                       onChange={(e) => setCommentInputs({...commentInputs, [step.id]: e.target.value})}
                                       onKeyDown={(e) => e.key === 'Enter' && handleAddComment(step.id)}
+                                      list="mention-users"
                                     />
                                     <button onClick={() => handleAddComment(step.id)} className="text-slate-400 hover:text-brand-600 p-2">
                                       <Send size={14} />
@@ -820,6 +981,20 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
               })}
           </div>
         </div>
+
+        {/* Sign-off Section */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleUploadFile}
+        />
+        <datalist id="mention-users">
+          {mentionUsers.map((user) => (
+            <option key={user.id} value={`@${user.name}`} />
+          ))}
+        </datalist>
 
         {/* Sign-off Section */}
         <div className="bg-slate-50 rounded-xl border border-slate-200 p-6 flex flex-col items-center justify-center text-center print:border-0 print:bg-white">

@@ -41,6 +41,9 @@ export default function AppRouteShell({ initialView, initialTaskId = null }: App
             }
             router.push('/');
             return;
+          case 'INBOX':
+            router.push('/inbox');
+            return;
           default: {
             const _exhaustiveCheck: never = nextView;
             router.push('/');

@@ -1,5 +1,5 @@
  'use client';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Task, User, Role } from '../types';
 import { Badge } from '../components/Badge';
 import { AlertTriangle, TrendingUp, Clock, MessageSquare, ArrowRight, XCircle } from 'lucide-react';
@@ -42,7 +42,7 @@ const formatDate = (dateStr?: string) => {
   if (!dateStr) return 'N/A';
   const date = new Date(dateStr);
   if (Number.isNaN(date.getTime())) return 'N/A';
-  return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
 };
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, onSelectTask, onManageTasks, currentUser }) => {
@@ -50,6 +50,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState<'dueDate' | 'priority' | 'status'>('dueDate');
   const [sendingTest, setSendingTest] = useState(false);
+  const [unreadComments, setUnreadComments] = useState(0);
   
   const handleSendTestNotification = async () => {
     try {
@@ -72,22 +73,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
   };
 
   // KPI Calculations
-  const totalTasks = tasks.length;
-  const passed = tasks.filter(t => {
-    const statusKey = normalizeStatusKey(t.status as unknown as string);
+  const totalSteps = tasks.reduce((acc, task) => acc + (task.steps?.length ?? 0), 0);
+  const passedSteps = tasks.reduce(
+    (acc, task) => acc + (task.steps ?? []).filter((step) => step.isPassed === true).length,
+    0
+  );
+  const passedTasks = tasks.filter((task) => {
+    const statusKey = normalizeStatusKey(task.status as unknown as string);
     return statusKey === 'PASSED' || statusKey === 'DEPLOYED';
   }).length;
-  const progress = Math.round((passed / totalTasks) * 100) || 0;
+  const progress =
+    totalSteps > 0
+      ? Math.round((passedSteps / totalSteps) * 100)
+      : tasks.length > 0
+        ? Math.round((passedTasks / tasks.length) * 100)
+        : 0;
   
   const openUat = tasks.filter(t => {
     const statusKey = normalizeStatusKey(t.status as unknown as string);
-    return statusKey === 'READY' || statusKey === 'PENDING' || statusKey === 'IN_PROGRESS';
+    return statusKey === 'READY' || statusKey === 'PENDING' || statusKey === 'IN_PROGRESS' || statusKey === 'BLOCKED' || statusKey === 'FAILED';
   }).length;
   const blockers = tasks.filter(t => {
     const statusKey = normalizeStatusKey(t.status as unknown as string);
     return statusKey === 'BLOCKED' || statusKey === 'FAILED';
   }).length;
-  const unreadComments = Math.round(tasks.reduce((acc, t) => acc + (t.steps ?? []).reduce((sAcc, s) => sAcc + (s.comments?.length ?? 0), 0), 0) * 0.3);
+  useEffect(() => {
+    const loadUnreadCount = async () => {
+      const response = await fetch('/api/comments/unread-count', { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      setUnreadComments(typeof data?.count === 'number' ? data.count : 0);
+    };
+    void loadUnreadCount();
+  }, [tasks.length]);
 
   const isLoading = loading && tasks.length === 0;
 
