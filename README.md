@@ -1,27 +1,92 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# CTT (Cuba Try Test)
 
-# Run and deploy your AI Studio app
+CTT is a Next.js App Router web app for UAT workflow management across countries/markets.
 
-This contains everything you need to run your app locally.
+## Stack
+- Next.js 15 (App Router)
+- React 19
+- NextAuth v4 (Credentials)
+- Prisma + PostgreSQL (Neon)
+- Tailwind CSS
 
-View your app in AI Studio: https://ai.studio/apps/drive/1IQMFA1pw71DlMD7aDpUcoMoakf9h8rqz
+## Main Routes
+- `/`
+- `/admin/dashboard`
+- `/admin/tasks`
+- `/admin/database`
+- `/import`
+- `/tasks/[id]`
+
+## Prerequisites
+- Node.js 18+
+- PostgreSQL database (Neon supported)
+
+## Environment Variables
+Set in `.env` (or deployment env):
+
+- `DATABASE_URL` = PostgreSQL connection string
+- `NEXTAUTH_SECRET` = strong random secret
+- `NEXTAUTH_URL` = app base URL (required in deployed env)
+
+## Install
+```bash
+npm install
+```
+
+## Database Setup
+```bash
+npm run prisma:generate
+npm run prisma:migrate
+npm run prisma:seed
+```
 
 ## Run Locally
+```bash
+npm run dev
+```
 
-**Prerequisites:**  Node.js
+## Build
+```bash
+npm run build
+npm run start
+```
 
+## Useful Scripts
+- `npm run lint`
+- `npm run prisma:studio`
+- `npm run clean`
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Notes
+- Build script runs `prisma generate && next build` to avoid stale Prisma client issues in CI/Vercel.
+- Middleware enforces:
+  - `/admin/*` and `/import` => ADMIN only
+  - `/tasks/*` => authenticated users
+- Recent Activity is database-backed via `Activity` and `ActivityRead` tables.
 
-## Prisma
+## Troubleshooting
+### 1) Vercel build error: `Property 'activity' does not exist on type PrismaClient`
+Cause:
+- Prisma client in build environment is stale (generated before latest schema).
 
-Before running migrations, set `DATABASE_URL` in your environment or `.env`.
+Fix:
+1. Ensure `package.json` has:
+   - `postinstall: prisma generate`
+   - `build: prisma generate && next build`
+2. Redeploy after pushing latest commit.
 
-Create the initial migration:
-`npm run prisma:migrate -- --name init`
+### 2) Task detail/API returns 500 after schema changes
+Cause:
+- DB schema is behind code expectations (new Prisma fields/tables not migrated).
+
+Fix:
+1. Run:
+   - `npm run prisma:generate`
+   - `npm run prisma:migrate`
+2. If needed, run seed again:
+   - `npm run prisma:seed`
+3. Restart dev server:
+   - `npm run dev`
+
+## Documentation
+For detailed architecture and flow, see:
+- `/Users/putra/Desktop/CTT-DKSH-main/PROJECT_OVERVIEW.md`

@@ -1,45 +1,46 @@
 # CTT Web App — Developer Overview
 
-This document explains the architecture, code structure, data flow, and styling conventions so new developers can navigate the project quickly.
+This document summarizes the current architecture, data flow, API surface, and implementation conventions for the CTT UAT system.
 
 ## Tech Stack
 - Framework: Next.js 15 (App Router)
-- Auth: NextAuth v4 (Credentials provider)
-- Database: PostgreSQL (Neon) via Prisma
-- Styling: Tailwind CSS (via CDN in `app/layout.tsx`), plus a small global CSS file
+- Runtime UI: React 19 (client shell)
+- Auth: NextAuth v4 (Credentials provider + JWT session)
+- DB: PostgreSQL (Neon)
+- ORM: Prisma
+- Styling: Tailwind CSS + `app/globals.css`
 
-## High-Level Architecture
-The app is a single-page UX rendered by a client-only `App.tsx` that holds UI state and decides which view to render. Routing is handled by the App Router and a small client shell (`AppRouteShell`) that maps view changes to URLs.
+## Current App Architecture
+The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)** for the existing prototype UI state.
 
-### Entry Points
-- `app/layout.tsx`  
-  Defines global HTML structure, loads Tailwind CDN, sets font and metadata, and wraps children in `Providers` for NextAuth session context.
-- `app/Providers.tsx`  
-  Client wrapper that injects `SessionProvider`.
-- `app/page.tsx`  
-  Loads `AppRouteShell` for the root route.
+- Route pages (`app/**/page.tsx`) set initial view/task state.
+- `AppRouteShell.tsx` maps UI view transitions to URLs.
+- `App.tsx` loads session, fetches tasks, and renders view components.
 
-### Pages / Routes
-Routes are thin; they render the shared shell and a specific `initialView`:
-- `/` → `app/page.tsx`
-- `/admin/dashboard` → `app/admin/dashboard/page.tsx`
-- `/admin/tasks` → `app/admin/tasks/page.tsx`
-- `/admin/database` → `app/admin/database/page.tsx`
-- `/import` → `app/import/page.tsx`
-- `/tasks/[id]` → `app/tasks/[id]/page.tsx`
+## Entry Points
+- `app/layout.tsx`
+  - Global HTML layout + providers mounting point.
+- `app/Providers.tsx`
+  - Client provider wrapper with `SessionProvider`.
+- `app/page.tsx`
+  - Root route (`/`) mounting the shared shell.
 
-The task detail page performs server-side authorization and renders a minimal error card for 403/404 using `ErrorLayout`.
+## Route Map
+- `/` → Stakeholder landing/login shell
+- `/admin/dashboard` → Admin dashboard
+- `/admin/tasks` → Admin task management
+- `/admin/database` → Admin database view
+- `/import` → Import wizard
+- `/tasks/[id]` → Task detail route
 
-## Core UI Flow
-`App.tsx` is the main client component that:
-- reads NextAuth session
-- sets `currentUser`
-- fetches tasks from `/api/tasks`
-- tracks current view (dashboard/admin/task detail, etc.)
-- renders the appropriate view component
+## Core UI Components
+### Main App Shell
+- `App.tsx`
+  - Session-driven `currentUser`
+  - Fetches `/api/tasks`
+  - Handles view state + route callbacks
 
-### Views
-Located in `views/`:
+### Views (`views/`)
 - `StakeholderDashboard.tsx`
 - `AdminDashboard.tsx`
 - `AdminTaskManagement.tsx`
@@ -47,72 +48,130 @@ Located in `views/`:
 - `TaskDetail.tsx`
 - `ImportWizard.tsx`
 
-Most views are pure UI, driven by props and local state only.
+### Shared Components (`components/`)
+- `Layout.tsx` (top nav, notifications, profile, shell container)
+- `Badge.tsx`
+- `SignatureCanvas.tsx`
 
-### Components
-Located in `components/`:
-- `Layout.tsx`: top nav, notifications, profile, shared layout shell
-- `Badge.tsx`, `SignatureCanvas.tsx`, etc.
+## Authentication
+### NextAuth
+- Handler: `app/api/auth/[...nextauth]/route.ts`
+- Config: `lib/auth.ts`
+- Provider: Credentials (`email`, `password`)
+- Password check: `bcryptjs.compare`
+- Session strategy: JWT
+- JWT/session includes:
+  - `user.id`
+  - `user.role`
+  - `user.countryCode`
 
-## Auth & Session
-Auth is handled by NextAuth Credentials provider with Prisma:
-
-- Route: `app/api/auth/[...nextauth]/route.ts`
-- Options: `lib/auth.ts`
-  - Checks user by email
-  - Compares password with `bcryptjs`
-  - Stores `id`, `role`, `countryCode` in JWT + session
-
-Session access:
-- Client: `useSession` in `App.tsx`
-- Server: `getServerSession(authOptions)` in API routes and page-level authorization
-
-## Access Control
+## Authorization Model
 ### Middleware (`middleware.ts`)
-Enforces route protection:
-- `/admin/*` and `/import` → ADMIN only
-- `/tasks/*` → authenticated user
+- `/admin/*` + `/import` → ADMIN only
+- `/tasks/*` → authenticated users only
 
-### Page-Level Authorization
-`app/tasks/[id]/page.tsx` checks:
-- not logged in → redirect to `/`
-- task missing → render “Task not found”
-- non-admin and country mismatch → render “Access denied”
+### Server checks in task APIs/pages
+- Task read/update endpoints enforce role/country/assignee rules server-side.
+- UI filtering is not trusted for security.
 
-## Data Layer
-Prisma models live in `prisma/schema.prisma`.  
-Prisma client is in `lib/prisma.ts`.
+## Database Schema (Prisma)
+Defined in `prisma/schema.prisma`.
 
-### Task API Endpoints
-Under `app/api/tasks`:
+### Core models
+- `User`
+- `Country`
+- `Task`
+- `TaskStep`
+- `Comment`
+
+### Activity feed models
+- `Activity`
+  - tracks events (`TASK_ASSIGNED`, `STATUS_CHANGED`, `COMMENT_ADDED`, `SIGNED_OFF`, `DEPLOYED`)
+- `ActivityRead`
+  - per-user read tracking
+
+### Task audit/signoff fields
+- `Task.updatedById` → relation to `User` (`updatedBy`)
+- `Task.signedOffAt`
+- `Task.signedOffById` → relation to `User` (`signedOffBy`)
+
+## API Surface
+### Auth
+- `POST/GET /api/auth/[...nextauth]`
+
+### Tasks
 - `GET /api/tasks`
-  - Admin: all tasks
-  - Stakeholder: assigned tasks only
 - `GET /api/tasks/[id]`
-  - Admin: any
-  - Stakeholder: only tasks in their country and assigned
+- `PATCH /api/tasks/[id]`
 - `POST /api/tasks/[id]/status`
-  - Update task status
 - `POST /api/tasks/[id]/comments`
-  - Add a comment
+- `POST /api/tasks/[id]/signoff`
+- `POST /api/tasks/[id]/steps`
+- `PATCH /api/tasks/[id]/steps/[stepId]`
+- `DELETE /api/tasks/[id]/steps/[stepId]`
 
-The API maps database tasks into UI-friendly shapes in `app/api/tasks/_mappers.ts`.
+### Activities
+- `GET /api/activities`
+  - admin sees all
+  - stakeholder sees scoped activity
+- `POST /api/activities/mark-read`
+  - mark one or mark all as read
 
-## Styling
-The UI is Tailwind-based:
-- Tailwind CDN injected in `app/layout.tsx`
-- Global styles in `app/globals.css` (fonts + scrollbars)
-- Brand colors defined in Tailwind config snippet (see layout script)
+### Debug
+- `GET /api/debug/env`
 
-## Local Development
-1. Install deps: `npm install`
-2. Set `DATABASE_URL`
-3. Run migrations: `npm run prisma:migrate -- --name init`
-4. Seed: `npm run prisma:seed`
-5. Run: `npm run dev`
+## Recent Activity Behavior (Current)
+Recent activity is DB-backed (not mock).
 
-## Common Editing Patterns
-- UI changes: `views/` and `components/`
-- Auth changes: `lib/auth.ts` and `app/api/auth/[...nextauth]/route.ts`
-- Data/API changes: `app/api/tasks/*` and `app/api/tasks/_mappers.ts`
-- Routing changes: `app/*/page.tsx` + `AppRouteShell.tsx`
+Currently created events:
+- Comment added
+- Task signed off
+- Status changed to `FAILED`
+- Status changed to `DEPLOYED`
+- Seeded task assignment events (`TASK_ASSIGNED`)
+
+Additional behavior:
+- Failed events include step context when available (example: `Step 2 in <Task Title>`).
+- Comment activity can include step context.
+- No-op status changes are ignored.
+- Mark-as-read is stored per user via `ActivityRead`.
+
+## Data Mapping Layer
+- `app/api/tasks/_mappers.ts`
+  - Maps Prisma entities to UI DTO shape.
+- `app/api/tasks/_types.ts`
+  - DTO contracts used by task APIs.
+
+## Build / Scripts
+From `package.json`:
+- `npm run dev`
+- `npm run build` → runs `prisma generate && next build`
+- `npm run start`
+- `npm run lint`
+- `npm run prisma:generate`
+- `npm run prisma:migrate`
+- `npm run prisma:studio`
+- `npm run prisma:seed`
+
+Also:
+- `postinstall` runs `prisma generate` (important for Vercel consistency).
+
+## Local Setup
+1. `npm install`
+2. Set env vars:
+   - `DATABASE_URL`
+   - `NEXTAUTH_SECRET`
+   - `NEXTAUTH_URL` (for deployed env)
+3. `npm run prisma:migrate`
+4. `npm run prisma:seed`
+5. `npm run dev`
+
+## Deployment Notes (Vercel)
+- Ensure production env vars are set in Vercel.
+- Build uses Prisma client generation before Next build.
+- If schema changes are deployed, run migrations against production DB before/with deploy process.
+
+## Known Technical Debt / Next Candidates
+- Move Tailwind usage from CDN-style setup into full config-based pipeline if desired.
+- Add explicit runtime `TASK_ASSIGNED` event creation in admin task-creation API flow.
+- Consolidate TaskDetail-side optimistic updates with stricter server refresh boundaries.
