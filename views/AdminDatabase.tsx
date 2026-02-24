@@ -36,31 +36,76 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
   }, []);
 
   const handleAddCountry = () => {
-      if (newCountryName && newCountryCode) {
-          const newC: CountryConfig = {
-              name: newCountryName,
-              code: newCountryCode.toUpperCase(),
-              color: 'bg-slate-100 text-slate-600' // Default color
-          };
-          onUpdateCountries([...countries, newC]);
-          setNewCountryName('');
-          setNewCountryCode('');
-      }
+      if (!newCountryName || !newCountryCode) return;
+      void (async () => {
+        const response = await fetch('/api/admin/countries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newCountryName, code: newCountryCode })
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          alert(data?.error || 'Failed to add country');
+          return;
+        }
+
+        const next = [...countries.filter((country) => country.code !== data.code), data].sort((a, b) =>
+          a.code.localeCompare(b.code)
+        );
+        onUpdateCountries(next);
+        setNewCountryName('');
+        setNewCountryCode('');
+      })();
   };
 
   const handleDeleteCountry = (code: string) => {
-      onUpdateCountries(countries.filter(c => c.code !== code));
+      void (async () => {
+        const response = await fetch('/api/admin/countries', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          alert(data?.error || 'Failed to delete country');
+          return;
+        }
+        onUpdateCountries(countries.filter((country) => country.code !== code));
+      })();
   };
 
   const handleAddModule = () => {
-      if (newModule && !modules.includes(newModule)) {
-          onUpdateModules([...modules, newModule]);
-          setNewModule('');
-      }
+      if (!newModule || modules.includes(newModule)) return;
+      void (async () => {
+        const response = await fetch('/api/admin/modules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newModule })
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          alert(data?.error || 'Failed to add module');
+          return;
+        }
+        onUpdateModules([...modules, data.name].sort((a, b) => a.localeCompare(b)));
+        setNewModule('');
+      })();
   };
 
   const handleDeleteModule = (mod: string) => {
-      onUpdateModules(modules.filter(m => m !== mod));
+      void (async () => {
+        const response = await fetch('/api/admin/modules', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: mod })
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          alert(data?.error || 'Failed to delete module');
+          return;
+        }
+        onUpdateModules(modules.filter((module) => module !== mod));
+      })();
   };
 
   const handleSaveEmailSettings = () => {

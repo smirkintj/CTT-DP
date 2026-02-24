@@ -36,6 +36,14 @@ const seed = async () => {
     skipDuplicates: true
   });
 
+  await prisma.module.createMany({
+    data: modules.map((name) => ({
+      name,
+      isActive: true
+    })),
+    skipDuplicates: true
+  });
+
   const admin = await prisma.user.upsert({
     where: { email: 'admin@dksh.com' },
     update: {
