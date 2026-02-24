@@ -37,7 +37,21 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   // Login Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const savedEmail = window.localStorage.getItem('ctt_saved_email');
+    const savedRemember = window.localStorage.getItem('ctt_remember_me');
+    if (savedRemember === 'false') {
+      setRememberMe(false);
+      return;
+    }
+    if (savedEmail) {
+      setEmail(savedEmail);
+    }
+  }, []);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -147,6 +161,16 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       return;
     }
 
+    if (typeof window !== 'undefined') {
+      if (rememberMe) {
+        window.localStorage.setItem('ctt_saved_email', email.trim());
+        window.localStorage.setItem('ctt_remember_me', 'true');
+      } else {
+        window.localStorage.removeItem('ctt_saved_email');
+        window.localStorage.setItem('ctt_remember_me', 'false');
+      }
+    }
+
     const updatedSession = await getSession();
     const role = updatedSession?.user?.role;
 
@@ -202,28 +226,26 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   // Render Login Screen if no user
   if (!currentUser || view === 'LOGIN') {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-           <div className="flex justify-center mb-6">
-              <div className="h-12 w-auto px-4 bg-brand-500 rounded-xl flex items-center justify-center shadow-lg">
-                 <span className="text-white font-bold text-2xl tracking-wider">CTT</span>
-              </div>
-           </div>
-           <h2 className="text-center text-3xl font-extrabold text-slate-900 tracking-tight">
-             CTT
-           </h2>
-           <p className="mt-2 text-center text-sm text-slate-500 font-medium">
-             Cuba Try Test - UAT Management
-           </p>
-        </div>
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          <div className="bg-white p-8 shadow-xl border border-slate-200 rounded-2xl">
+             <div className="text-center mb-8">
+               <div className="flex justify-center mb-5">
+                  <div className="h-12 w-auto px-4 bg-brand-500 rounded-xl flex items-center justify-center shadow-md">
+                     <span className="text-white font-bold text-2xl tracking-wider">CTT</span>
+                  </div>
+               </div>
+               <p className="mt-2 text-sm text-slate-500 font-medium">
+                 Cuba Try Test - UAT Management
+               </p>
+             </div>
 
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white py-10 px-6 shadow-xl border border-slate-100 sm:rounded-2xl">
              <form className="space-y-6" onSubmit={handleLoginSubmit}>
                 <div>
                    <label className="block text-sm font-medium text-slate-700">Email address</label>
                    <input 
                      type="text" 
+                     autoComplete="username"
                      className="mt-1 appearance-none block w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm" 
                      placeholder="user@dksh.com"
                      value={email}
@@ -234,12 +256,23 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                    <label className="block text-sm font-medium text-slate-700">Password</label>
                    <input 
                      type="password" 
+                     autoComplete="current-password"
                      className="mt-1 appearance-none block w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm" 
                      placeholder="••••••••"
                      value={password}
                      onChange={(e) => setPassword(e.target.value)}
                    />
                 </div>
+
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  Remember email on this device
+                </label>
 
                 {loginError && (
                   <div className="text-sm text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
@@ -254,23 +287,9 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                    >
                      Sign in
                    </button>
-                </div>
+                 </div>
              </form>
-
-             <div className="mt-6">
-               <div className="relative">
-                 <div className="absolute inset-0 flex items-center">
-                   <div className="w-full border-t border-slate-200" />
-                 </div>
-                 <div className="relative flex justify-center text-sm">
-                   <span className="px-2 bg-white text-slate-500">
-                     Tip: Use your assigned account to sign in
-                   </span>
-                 </div>
-               </div>
-             </div>
           </div>
-          <p className="text-center text-xs text-slate-400 mt-6">&copy; 2023 Corporate IT Team</p>
         </div>
       </div>
     );

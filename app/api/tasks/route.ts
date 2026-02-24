@@ -130,6 +130,10 @@ export async function POST(req: Request) {
   const dueDateRaw = body?.dueDate as string | undefined;
   const priorityRaw = body?.priority?.toString().toUpperCase() as TaskPriority | undefined;
   const countries = Array.isArray(body?.countries) ? (body.countries as string[]) : [];
+  const assigneeByCountry =
+    body?.assigneeByCountry && typeof body.assigneeByCountry === 'object'
+      ? (body.assigneeByCountry as Record<string, string | undefined>)
+      : {};
   const steps = Array.isArray(body?.steps) ? body.steps : [];
 
   if (!title) {
@@ -146,17 +150,37 @@ export async function POST(req: Request) {
   const createdTaskIds: string[] = [];
 
   for (const countryCode of countries) {
-    const assignee = await prisma.user.findFirst({
-      where: {
-        role: UserRole.STAKEHOLDER,
-        countryCode
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true
-      }
-    });
+    const selectedAssigneeId = assigneeByCountry[countryCode];
+    let assignee = null;
+
+    if (selectedAssigneeId) {
+      assignee = await prisma.user.findFirst({
+        where: {
+          id: selectedAssigneeId,
+          role: UserRole.STAKEHOLDER,
+          countryCode
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true
+        }
+      });
+    }
+
+    if (!assignee) {
+      assignee = await prisma.user.findFirst({
+        where: {
+          role: UserRole.STAKEHOLDER,
+          countryCode
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true
+        }
+      });
+    }
 
     const created = await prisma.task.create({
       data: {

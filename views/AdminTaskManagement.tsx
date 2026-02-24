@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Task, Priority, TestStep, TargetSystem, CountryConfig } from '../types';
 import { Badge } from '../components/Badge';
 import { Trash2, Plus, UploadCloud, Search, Filter, X, Save, Globe } from 'lucide-react';
@@ -23,6 +23,8 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     availableCountries,
     availableModules 
 }) => {
+  const [stakeholders, setStakeholders] = useState<Array<{ id: string; name: string; email: string; countryCode: string }>>([]);
+  const [assigneeByCountry, setAssigneeByCountry] = useState<Record<string, string>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -50,6 +52,32 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const [steps, setSteps] = useState<Partial<TestStep>[]>([
       { id: '1', description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }
   ]);
+
+  useEffect(() => {
+    const loadStakeholders = async () => {
+      const response = await fetch('/api/admin/stakeholders', { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setStakeholders(data);
+      }
+    };
+    void loadStakeholders();
+  }, []);
+
+  useEffect(() => {
+    if (stakeholders.length === 0) return;
+    setAssigneeByCountry((prev) => {
+      const next = { ...prev };
+      for (const countryCode of selectedCountries) {
+        if (!next[countryCode]) {
+          const match = stakeholders.find((u) => u.countryCode === countryCode);
+          if (match) next[countryCode] = match.id;
+        }
+      }
+      return next;
+    });
+  }, [stakeholders, selectedCountries]);
 
   const normalizeStatusKey = (status: string) => status?.toString().trim().replace(/\s+/g, '_').toUpperCase();
   const normalizePriorityKey = (priority: string) => priority?.toString().trim().replace(/\s+/g, '_').toUpperCase();
@@ -139,9 +167,18 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       if (selectedCountries.includes(code)) {
           if (selectedCountries.length > 1) { // Prevent empty selection
               setSelectedCountries(selectedCountries.filter(c => c !== code));
+              setAssigneeByCountry((prev) => {
+                const next = { ...prev };
+                delete next[code];
+                return next;
+              });
           }
       } else {
           setSelectedCountries([...selectedCountries, code]);
+          const defaultStakeholder = stakeholders.find((u) => u.countryCode === code);
+          if (defaultStakeholder) {
+            setAssigneeByCountry((prev) => ({ ...prev, [code]: prev[code] || defaultStakeholder.id }));
+          }
       }
   };
 
@@ -164,7 +201,8 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
            priority: newTask.priority,
            dueDate: newTask.dueDate ? new Date(newTask.dueDate).toISOString() : undefined,
            countries: selectedCountries,
-           steps
+           steps,
+           assigneeByCountry
          })
        });
 
@@ -179,6 +217,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
 
        setNewTask({ jiraTicket: '', featureModule: 'Ordering', priority: Priority.MEDIUM, targetSystem: 'Ordering Portal' });
        setSelectedCountries(['SG']);
+       setAssigneeByCountry({});
        setSteps([{ id: '1', description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }]);
      } catch (error) {
        alert(error instanceof Error ? error.message : 'Failed to create tasks');
@@ -498,6 +537,32 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                             })}
                         </div>
                         <p className="text-[10px] text-slate-500 mt-2">A separate task instance will be created for each selected country.</p>
+                   </div>
+
+                   <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Assign Stakeholder By Country</label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {selectedCountries.map((countryCode) => {
+                          const options = stakeholders.filter((u) => u.countryCode === countryCode);
+                          return (
+                            <div key={countryCode} className="bg-white border border-slate-200 rounded-md p-3">
+                              <div className="text-xs text-slate-500 mb-1">{countryCode}</div>
+                              <select
+                                className="w-full rounded-md border-slate-300 text-sm"
+                                value={assigneeByCountry[countryCode] || ''}
+                                onChange={(e) => setAssigneeByCountry((prev) => ({ ...prev, [countryCode]: e.target.value }))}
+                              >
+                                <option value="">Auto-assign</option>
+                                {options.map((user) => (
+                                  <option key={user.id} value={user.id}>
+                                    {user.name || user.email}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })}
+                      </div>
                    </div>
 
                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
