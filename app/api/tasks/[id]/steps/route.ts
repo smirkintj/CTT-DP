@@ -35,6 +35,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
+  if (task.signedOffAt) {
+    return NextResponse.json({ error: 'Task is signed off and locked' }, { status: 409 });
+  }
+
   const lastStep = await prisma.taskStep.findFirst({
     where: { taskId: id },
     orderBy: { order: 'desc' }

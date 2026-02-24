@@ -63,6 +63,7 @@ model Country {
   updatedAt DateTime @updatedAt
 
   tasks Task[]
+  notificationConfig NotificationConfig?
 }
 
 model Module {
@@ -106,6 +107,7 @@ model Comment {
   taskId    String
   authorId  String
   body      String
+  stepOrder Int?
   createdAt DateTime @default(now())
 
   task   Task @relation(fields: [taskId], references: [id])
@@ -172,4 +174,19 @@ model ActivityRead {
 
   @@unique([activityId, userId])
   @@index([userId, readAt])
+}
+
+model NotificationConfig {
+  id                 String   @id @default(cuid())
+  countryCode        String   @unique
+  teamsWebhookUrl    String?
+  isActive           Boolean  @default(false)
+  notifyTaskAssigned Boolean  @default(true)
+  notifyReminder     Boolean  @default(true)
+  notifySignedOff    Boolean  @default(true)
+  notifyFailedStep   Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  country Country @relation(fields: [countryCode], references: [code], onDelete: Cascade)
 }

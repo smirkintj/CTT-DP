@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Task, User, Role } from '../types';
 import { Badge } from '../components/Badge';
 import { AlertTriangle, TrendingUp, Clock, MessageSquare, ArrowRight, XCircle } from 'lucide-react';
+import { notify } from '../lib/notify';
 
 interface AdminDashboardProps {
   tasks: Task[];
@@ -64,9 +65,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
         const raw = await res.text().catch(() => '');
         throw new Error(`Failed (${res.status})${raw ? `: ${raw}` : ''}`);
       }
-      alert('Test email sent successfully!');
+      notify('Test email sent successfully', 'success');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to send test email');
+      notify(err instanceof Error ? err.message : 'Failed to send test email', 'error');
     } finally {
       setSendingTest(false);
     }

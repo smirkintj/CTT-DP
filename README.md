@@ -57,6 +57,7 @@ npm run start
 - `npm run lint`
 - `npm run prisma:studio`
 - `npm run clean`
+- `npm run reset:dev` (kills local dev server ports and clears `.next` cache)
 
 ## Notes
 - Build script runs `prisma generate && next build` to avoid stale Prisma client issues in CI/Vercel.
@@ -98,6 +99,16 @@ Fix:
 2. If needed, run seed again:
    - `npm run prisma:seed`
 3. Restart dev server:
+   - `npm run dev`
+
+### 3) Runtime module error: `Cannot find module './vendor-chunks/...` or missing chunk files
+Cause:
+- Corrupted/stale local Next.js cache (`.next`) in dev mode.
+
+Fix:
+1. Run:
+   - `npm run reset:dev`
+2. Start dev server:
    - `npm run dev`
 
 ## Documentation

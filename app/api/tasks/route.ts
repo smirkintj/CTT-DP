@@ -5,6 +5,7 @@ import { authOptions } from '../../../lib/auth';
 import { mapTaskToUi } from './_mappers';
 import { ActivityType, TaskPriority, TaskStatus, UserRole } from '@prisma/client';
 import { sendTaskAssignedEmail } from '../../../lib/email';
+import { sendTeamsMessage } from '../../../lib/teams';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -234,6 +235,19 @@ export async function POST(req: Request) {
         taskId: created.id,
         countryCode,
         dueDate
+      });
+
+      void sendTeamsMessage({
+        countryCode,
+        eventType: 'TASK_ASSIGNED',
+        title: `New UAT Task Assigned (${countryCode})`,
+        text: `Task "${title}" has been assigned to ${assignee.name || assignee.email}.`,
+        taskId: created.id,
+        facts: [
+          { name: 'Assignee', value: assignee.name || assignee.email },
+          { name: 'Country', value: countryCode },
+          { name: 'Due Date', value: dueDate ? new Date(dueDate).toLocaleDateString() : 'N/A' }
+        ]
       });
     }
   }

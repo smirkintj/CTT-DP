@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "clean": "rm -rf .next tsconfig.tsbuildinfo",
+    "reset:dev": "bash ./scripts/reset-dev.sh",
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",

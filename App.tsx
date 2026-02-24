@@ -12,6 +12,8 @@ import { ImportWizard } from './views/ImportWizard';
 import { InboxView } from './views/InboxView';
 import { User, Task, Role, ViewState, CountryConfig } from './types';
 import { INITIAL_COUNTRIES, INITIAL_MODULES } from './constants';
+import { apiFetch } from './lib/http';
+import { notify } from './lib/notify';
 
 interface AppProps {
   initialView?: ViewState;
@@ -84,20 +86,20 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
     const loadTasks = async () => {
       setLoadingTasks(true);
-      const response = await fetch('/api/tasks', { cache: 'no-store' });
-      if (!response.ok) {
+      try {
+        const data = await apiFetch<any[]>('/api/tasks', { cache: 'no-store' });
+        const mappedTasks = Array.isArray(data)
+          ? data.map((task: any) => ({
+              ...task,
+              featureModule: task.featureModule ?? task.module ?? 'General'
+            }))
+          : [];
+        setTasks(mappedTasks);
+      } catch {
+        notify('Failed to load tasks', 'error');
+      } finally {
         setLoadingTasks(false);
-        return;
       }
-      const data = await response.json();
-      const mappedTasks = Array.isArray(data)
-        ? data.map((task: any) => ({
-            ...task,
-            featureModule: task.featureModule ?? task.module ?? 'General'
-          }))
-        : [];
-      setTasks(mappedTasks);
-      setLoadingTasks(false);
     };
 
     void loadTasks();
@@ -107,23 +109,15 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     if (!session?.user || session.user.role !== 'ADMIN') return;
 
     const loadAdminMetadata = async () => {
-      const [countriesRes, modulesRes] = await Promise.all([
-        fetch('/api/admin/countries', { cache: 'no-store' }),
-        fetch('/api/admin/modules', { cache: 'no-store' })
-      ]);
-
-      if (countriesRes.ok) {
-        const countries = await countriesRes.json();
-        if (Array.isArray(countries)) {
-          setAvailableCountries(countries);
-        }
-      }
-
-      if (modulesRes.ok) {
-        const modules = await modulesRes.json();
-        if (Array.isArray(modules)) {
-          setAvailableModules(modules);
-        }
+      try {
+        const [countries, modules] = await Promise.all([
+          apiFetch<any[]>('/api/admin/countries', { cache: 'no-store' }),
+          apiFetch<string[]>('/api/admin/modules', { cache: 'no-store' })
+        ]);
+        if (Array.isArray(countries)) setAvailableCountries(countries);
+        if (Array.isArray(modules)) setAvailableModules(modules);
+      } catch {
+        notify('Failed to load admin metadata', 'error');
       }
     };
 

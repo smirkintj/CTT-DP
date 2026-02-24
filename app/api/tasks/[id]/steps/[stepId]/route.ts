@@ -25,6 +25,10 @@ export async function PATCH(
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
+  if (task.signedOffAt) {
+    return NextResponse.json({ error: 'Task is signed off and locked' }, { status: 409 });
+  }
+
   const isAdmin = session.user.role === 'ADMIN';
   if (!isAdmin) {
     if (task.assigneeId !== session.user.id || task.countryCode !== session.user.countryCode) {
@@ -93,6 +97,14 @@ export async function DELETE(
 
   if (!stepRecord || stepRecord.taskId !== id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  const task = await prisma.task.findUnique({
+    where: { id },
+    select: { signedOffAt: true }
+  });
+  if (task?.signedOffAt) {
+    return NextResponse.json({ error: 'Task is signed off and locked' }, { status: 409 });
   }
 
   await prisma.taskStep.delete({

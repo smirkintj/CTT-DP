@@ -32,6 +32,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
+  if (task.signedOffAt) {
+    return NextResponse.json({ error: 'Task is signed off and locked' }, { status: 409 });
+  }
+
   const isAdmin = session.user.role === 'ADMIN';
   if (!isAdmin) {
     if (task.assigneeId !== session.user.id || task.countryCode !== session.user.countryCode) {
@@ -43,10 +47,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     data: {
       taskId: id,
       authorId: session.user.id,
-      body:
-        stepOrder && stepOrder > 0
-          ? `[[STEP:${stepOrder}]] ${text.trim()}`
-          : text.trim()
+      body: text.trim(),
+      stepOrder: stepOrder && stepOrder > 0 ? stepOrder : null
     }
   });
 

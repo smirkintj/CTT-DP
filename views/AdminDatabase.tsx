@@ -25,6 +25,14 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
 
   // Module Input State
   const [newModule, setNewModule] = useState('');
+  const [teamsConfigs, setTeamsConfigs] = useState<Record<string, {
+    teamsWebhookUrl: string;
+    isActive: boolean;
+    notifyTaskAssigned: boolean;
+    notifyReminder: boolean;
+    notifySignedOff: boolean;
+    notifyFailedStep: boolean;
+  }>>({});
 
   useEffect(() => {
     try {
@@ -33,6 +41,28 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
       const parsed = JSON.parse(raw);
       setEmailSettings((prev) => ({ ...prev, ...parsed }));
     } catch {}
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      const response = await fetch('/api/admin/teams-webhooks', { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!Array.isArray(data)) return;
+      const next: Record<string, any> = {};
+      for (const item of data) {
+        if (!item?.countryCode) continue;
+        next[item.countryCode] = {
+          teamsWebhookUrl: item.teamsWebhookUrl || '',
+          isActive: Boolean(item.isActive),
+          notifyTaskAssigned: item.notifyTaskAssigned !== false,
+          notifyReminder: item.notifyReminder !== false,
+          notifySignedOff: item.notifySignedOff !== false,
+          notifyFailedStep: item.notifyFailedStep !== false
+        };
+      }
+      setTeamsConfigs(next);
+    })();
   }, []);
 
   const handleAddCountry = () => {
@@ -111,6 +141,33 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
   const handleSaveEmailSettings = () => {
     window.localStorage.setItem('ctt-email-settings', JSON.stringify(emailSettings));
     alert('Email reminder settings saved.');
+  };
+
+  const saveTeamsConfig = (countryCode: string) => {
+    const config = teamsConfigs[countryCode] || {
+      teamsWebhookUrl: '',
+      isActive: false,
+      notifyTaskAssigned: true,
+      notifyReminder: true,
+      notifySignedOff: true,
+      notifyFailedStep: true
+    };
+
+    void (async () => {
+      const response = await fetch('/api/admin/teams-webhooks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          countryCode,
+          ...config
+        })
+      });
+      if (!response.ok) {
+        alert('Failed to save Teams webhook config');
+        return;
+      }
+      alert(`Teams webhook saved for ${countryCode}`);
+    })();
   };
 
   return (
@@ -290,6 +347,124 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
                     >
                       Save Settings
                     </button>
+                </div>
+
+                <div className="border-t border-slate-200 pt-5 space-y-4">
+                  <h3 className="text-sm font-semibold text-slate-900">Microsoft Teams Webhooks (per country)</h3>
+                  <p className="text-xs text-slate-500">
+                    Configure incoming webhook URLs per market channel. Supported events: assignment, reminder, sign-off, failed step.
+                  </p>
+
+                  <div className="space-y-4">
+                    {countries.map((country) => {
+                      const config = teamsConfigs[country.code] || {
+                        teamsWebhookUrl: '',
+                        isActive: false,
+                        notifyTaskAssigned: true,
+                        notifyReminder: true,
+                        notifySignedOff: true,
+                        notifyFailedStep: true
+                      };
+
+                      return (
+                        <div key={country.code} className="rounded-lg border border-slate-200 p-4 bg-slate-50">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-semibold text-slate-800">{country.code} - {country.name}</p>
+                            <label className="inline-flex items-center gap-2 text-xs text-slate-600">
+                              <input
+                                type="checkbox"
+                                checked={config.isActive}
+                                onChange={(e) =>
+                                  setTeamsConfigs((prev) => ({
+                                    ...prev,
+                                    [country.code]: { ...config, isActive: e.target.checked }
+                                  }))
+                                }
+                              />
+                              Active
+                            </label>
+                          </div>
+
+                          <input
+                            type="text"
+                            placeholder="https://outlook.office.com/webhook/..."
+                            className="w-full border-slate-300 rounded-md text-sm mb-3"
+                            value={config.teamsWebhookUrl}
+                            onChange={(e) =>
+                              setTeamsConfigs((prev) => ({
+                                ...prev,
+                                [country.code]: { ...config, teamsWebhookUrl: e.target.value }
+                              }))
+                            }
+                          />
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mb-3">
+                            <label className="inline-flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={config.notifyTaskAssigned}
+                                onChange={(e) =>
+                                  setTeamsConfigs((prev) => ({
+                                    ...prev,
+                                    [country.code]: { ...config, notifyTaskAssigned: e.target.checked }
+                                  }))
+                                }
+                              />
+                              Task assigned
+                            </label>
+                            <label className="inline-flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={config.notifyReminder}
+                                onChange={(e) =>
+                                  setTeamsConfigs((prev) => ({
+                                    ...prev,
+                                    [country.code]: { ...config, notifyReminder: e.target.checked }
+                                  }))
+                                }
+                              />
+                              Reminder
+                            </label>
+                            <label className="inline-flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={config.notifySignedOff}
+                                onChange={(e) =>
+                                  setTeamsConfigs((prev) => ({
+                                    ...prev,
+                                    [country.code]: { ...config, notifySignedOff: e.target.checked }
+                                  }))
+                                }
+                              />
+                              Signed off
+                            </label>
+                            <label className="inline-flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={config.notifyFailedStep}
+                                onChange={(e) =>
+                                  setTeamsConfigs((prev) => ({
+                                    ...prev,
+                                    [country.code]: { ...config, notifyFailedStep: e.target.checked }
+                                  }))
+                                }
+                              />
+                              Failed step
+                            </label>
+                          </div>
+
+                          <div className="flex justify-end">
+                            <button
+                              onClick={() => saveTeamsConfig(country.code)}
+                              className="bg-slate-900 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-slate-800"
+                            >
+                              Save Teams Config
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
             </div>
         )}

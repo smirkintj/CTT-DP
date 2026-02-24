@@ -3,6 +3,7 @@ import prisma from '../../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/auth';
 import { sendTaskAssignedEmail } from '../../../../../lib/email';
+import { sendTeamsMessage } from '../../../../../lib/teams';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -53,6 +54,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Failed to send assignment email' }, { status: 500 });
   }
 
+  void sendTeamsMessage({
+    countryCode: task.countryCode,
+    eventType: 'TASK_ASSIGNED',
+    title: `Task Assignment (${task.countryCode})`,
+    text: `Assignment notification sent for "${task.title}".`,
+    taskId: task.id,
+    facts: [
+      { name: 'Task', value: task.title },
+      { name: 'Assignee', value: task.assignee.name || task.assignee.email || 'User' }
+    ]
+  });
+
   return NextResponse.json({ success: true });
 }
-

@@ -4,6 +4,7 @@ import { getAuthSession } from '../../../../../lib/auth';
 import { mapUiStatusToDb } from '../../_mappers';
 import { ActivityType } from '@prisma/client';
 import { createActivity, toStatusLabel } from '../../../../../lib/activity';
+import { sendTeamsMessage } from '../../../../../lib/teams';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -31,6 +32,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (!task) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  if (task.signedOffAt) {
+    return NextResponse.json({ error: 'Task is signed off and locked' }, { status: 409 });
   }
 
   const isAdmin = session.user.role === 'ADMIN';
@@ -71,6 +76,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       actorId: session.user.id,
       countryCode: task.countryCode
     });
+
+    if (dbStatus === 'FAILED') {
+      void sendTeamsMessage({
+        countryCode: task.countryCode,
+        eventType: 'FAILED_STEP',
+        title: `UAT Step Failed (${task.countryCode})`,
+        text: failedMessage,
+        taskId: task.id,
+        facts: [
+          { name: 'Task', value: task.title },
+          { name: 'Status', value: toStatusLabel(dbStatus) },
+          { name: 'Actor', value: session.user.name || session.user.email || 'User' }
+        ]
+      });
+    }
   }
 
   return NextResponse.json({ ok: true });

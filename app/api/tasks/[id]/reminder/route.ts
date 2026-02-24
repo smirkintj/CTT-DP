@@ -3,6 +3,7 @@ import prisma from '../../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/auth';
 import { sendTaskReminderEmail } from '../../../../../lib/email';
+import { sendTeamsMessage } from '../../../../../lib/teams';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -60,6 +61,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Failed to send reminder email' }, { status: 500 });
   }
 
+  void sendTeamsMessage({
+    countryCode: task.countryCode,
+    eventType: 'REMINDER',
+    title: `UAT Reminder (${task.countryCode})`,
+    text: `Reminder sent for "${task.title}" to ${task.assignee.name || task.assignee.email}.`,
+    taskId: task.id,
+    facts: [
+      { name: 'Task', value: task.title },
+      { name: 'Assignee', value: task.assignee.name || task.assignee.email || 'User' },
+      { name: 'Due Date', value: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A' }
+    ]
+  });
+
   return NextResponse.json({ success: true });
 }
-

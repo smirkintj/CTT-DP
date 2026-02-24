@@ -5,6 +5,7 @@ import { authOptions } from '../../../../../lib/auth';
 import { ActivityType } from '@prisma/client';
 import { createActivity } from '../../../../../lib/activity';
 import { sendTaskSignedOffEmail } from '../../../../../lib/email';
+import { sendTeamsMessage } from '../../../../../lib/teams';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -75,6 +76,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       signedOffAt
     });
   }
+
+  void sendTeamsMessage({
+    countryCode: task.countryCode,
+    eventType: 'SIGNED_OFF',
+    title: `Task Signed Off (${task.countryCode})`,
+    text: `${session.user.name || session.user.email} signed off "${task.title}".`,
+    taskId: task.id,
+    facts: [
+      { name: 'Task', value: task.title },
+      { name: 'Country', value: task.countryCode },
+      { name: 'Signed Off By', value: session.user.name || session.user.email || 'User' }
+    ]
+  });
 
   return NextResponse.json({ ok: true });
 }

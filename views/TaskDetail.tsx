@@ -5,6 +5,8 @@ import { Task, Status, User, Role, TestStep, Priority } from '../types';
 import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
 import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer, Trash2 } from 'lucide-react';
+import { apiFetch } from '../lib/http';
+import { notify } from '../lib/notify';
 
 interface TaskDetailProps {
   task: Task;
@@ -117,6 +119,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   const [deploymentModalOpen, setDeploymentModalOpen] = useState(false);
   const [releaseVersion, setReleaseVersion] = useState('');
   const [commentInputs, setCommentInputs] = useState<{[key: string]: string}>({});
+  const [taskMetaSaveState, setTaskMetaSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [viewImage, setViewImage] = useState<string | null>(null);
   const [uploadStepId, setUploadStepId] = useState<string | null>(null);
   const [mentionUsers, setMentionUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
@@ -224,7 +227,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     });
 
     if (!response.ok) {
-      alert('Failed to add comment');
+      notify('Failed to add comment', 'error');
       return;
     }
 
@@ -327,13 +330,15 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   };
 
   const refreshTask = async (taskId: string) => {
-    const response = await fetch(`/api/tasks/${taskId}`, { cache: 'no-store' });
-    if (!response.ok) return;
-    const updated = await response.json();
-    const safeUpdated = normalizeTask(updated as Task);
-    setLocalTask(safeUpdated);
-    onUpdateTask(safeUpdated);
-    void fetch(`/api/tasks/${taskId}/comments/read`, { method: 'POST' });
+    try {
+      const updated = await apiFetch<Task>(`/api/tasks/${taskId}`, { cache: 'no-store' });
+      const safeUpdated = normalizeTask(updated as Task);
+      setLocalTask(safeUpdated);
+      onUpdateTask(safeUpdated);
+      void fetch(`/api/tasks/${taskId}/comments/read`, { method: 'POST' });
+    } catch {
+      notify('Failed to refresh task', 'error');
+    }
   };
 
   const persistStatus = async (status: Status, stepOrder?: number) => {
@@ -346,6 +351,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
 
   const handleSaveTaskMeta = async () => {
     if (!canEditTaskMeta) return;
+    if (!isTaskMetaDirty) return;
+    setTaskMetaSaveState('saving');
     const normalizedTicket = normalizeJiraTicket(taskEdits.jiraTicket);
     const response = await fetch(`/api/tasks/${localTask.id}`, {
       method: 'PATCH',
@@ -363,7 +370,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     });
 
     if (!response.ok) {
-      alert('Failed to save task details');
+      notify('Failed to save task details', 'error');
+      setTaskMetaSaveState('error');
       return;
     }
     const updated = await response.json();
@@ -380,7 +388,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       priority: safeUpdated.priority ?? Priority.MEDIUM,
       featureModule: safeUpdated.featureModule ?? ''
     });
-    alert('Task details saved');
+    notify('Task details saved', 'success');
+    setTaskMetaSaveState('saved');
+    window.setTimeout(() => setTaskMetaSaveState('idle'), 1600);
   };
 
   const isTaskMetaDirty =
@@ -393,12 +403,24 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     (localTask.description ?? '') !== taskEdits.description ||
     (localTask.crNumber ?? '') !== taskEdits.crNumber;
 
-  const handleBackClick = async () => {
+  const handleBackClick = () => {
     if (canEditTaskMeta && isTaskMetaDirty) {
-      await handleSaveTaskMeta();
+      const leave = window.confirm('You have unsaved changes. Leave this page without saving?');
+      if (!leave) return;
     }
     onBack();
   };
+
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (canEditTaskMeta && isTaskMetaDirty) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [canEditTaskMeta, isTaskMetaDirty]);
 
   const handleAddStep = async () => {
     const response = await fetch(`/api/tasks/${localTask.id}/steps`, {
@@ -668,7 +690,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
               </div>
               <div>
                 <span className="text-xs text-slate-400 block mb-1">Module</span>
-                {isAdmin ? (
+                {canEditTaskMeta ? (
                   <input
                     className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
                     value={taskEdits.featureModule}
@@ -683,12 +705,21 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
           {isAdmin && (
             <div className="mt-4 flex justify-end">
               {canEditTaskMeta ? (
-                <button
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-slate-500">
+                    {taskMetaSaveState === 'saving' && 'Saving...'}
+                    {taskMetaSaveState === 'saved' && 'Saved'}
+                    {taskMetaSaveState === 'error' && 'Save failed'}
+                    {taskMetaSaveState === 'idle' && isTaskMetaDirty && 'Unsaved changes'}
+                  </span>
+                  <button
                   onClick={handleSaveTaskMeta}
-                  className="text-xs font-medium text-white bg-slate-900 px-3 py-1.5 rounded-md hover:bg-slate-800"
+                  disabled={!isTaskMetaDirty || taskMetaSaveState === 'saving'}
+                  className="text-xs font-medium text-white bg-slate-900 px-3 py-1.5 rounded-md hover:bg-slate-800 disabled:opacity-50"
                 >
-                  Save changes
-                </button>
+                  {taskMetaSaveState === 'saving' ? 'Saving...' : 'Save changes'}
+                  </button>
+                </div>
               ) : (
                 <span className="text-xs font-medium text-slate-500">Task is signed off and locked.</span>
               )}

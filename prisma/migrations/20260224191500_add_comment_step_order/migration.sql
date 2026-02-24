@@ -1,0 +1,2 @@
+ALTER TABLE "Comment"
+ADD COLUMN "stepOrder" INTEGER;

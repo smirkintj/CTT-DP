@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Task, Priority, TestStep, TargetSystem, CountryConfig } from '../types';
 import { Badge } from '../components/Badge';
 import { Trash2, Plus, UploadCloud, Search, Filter, X, Save, Globe } from 'lucide-react';
+import { apiFetch } from '../lib/http';
+import { notify } from '../lib/notify';
 
 interface AdminTaskManagementProps {
   tasks: Task[];
@@ -55,11 +57,14 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
 
   useEffect(() => {
     const loadStakeholders = async () => {
-      const response = await fetch('/api/admin/stakeholders', { cache: 'no-store' });
-      if (!response.ok) return;
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        setStakeholders(data);
+      try {
+        const data = await apiFetch<Array<{ id: string; name: string; email: string; countryCode: string }>>(
+          '/api/admin/stakeholders',
+          { cache: 'no-store' }
+        );
+        if (Array.isArray(data)) setStakeholders(data);
+      } catch {
+        notify('Failed to load stakeholders', 'error');
       }
     };
     void loadStakeholders();
@@ -187,7 +192,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
 
      try {
        setCreating(true);
-       const response = await fetch('/api/tasks', {
+       const data = await apiFetch<Task[]>('/api/tasks', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({
@@ -206,11 +211,6 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
          })
        });
 
-       const data = await response.json().catch(() => null);
-       if (!response.ok) {
-         throw new Error(data?.error || 'Failed to create tasks');
-       }
-
        const createdTasks = Array.isArray(data) ? data : [];
        onAddTask(createdTasks);
        setIsModalOpen(false);
@@ -220,7 +220,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
        setAssigneeByCountry({});
        setSteps([{ id: '1', description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }]);
      } catch (error) {
-       alert(error instanceof Error ? error.message : 'Failed to create tasks');
+       notify(error instanceof Error ? error.message : 'Failed to create tasks', 'error');
      } finally {
        setCreating(false);
      }

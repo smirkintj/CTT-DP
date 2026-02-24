@@ -32,12 +32,13 @@ export function mapTaskToUi(task: any): TaskDTO {
 
   for (const c of comments) {
     const { stepOrder, cleanedBody } = extractStepComment(c.body ?? '');
-    if (!stepOrder) continue;
+    const resolvedStepOrder = typeof c.stepOrder === 'number' ? c.stepOrder : stepOrder;
+    if (!resolvedStepOrder) continue;
     const authorName = c.author?.name || c.author?.email || 'User';
-    if (!stepCommentMap.has(stepOrder)) {
-      stepCommentMap.set(stepOrder, []);
+    if (!stepCommentMap.has(resolvedStepOrder)) {
+      stepCommentMap.set(resolvedStepOrder, []);
     }
-    stepCommentMap.get(stepOrder)!.push({
+    stepCommentMap.get(resolvedStepOrder)!.push({
       id: c.id,
       userId: authorName,
       text: cleanedBody,
