@@ -103,12 +103,19 @@ Defined in `prisma/schema.prisma`.
 - `GET /api/tasks`
 - `GET /api/tasks/[id]`
 - `PATCH /api/tasks/[id]`
+- `DELETE /api/tasks/[id]` (admin only)
 - `POST /api/tasks/[id]/status`
 - `POST /api/tasks/[id]/comments`
 - `POST /api/tasks/[id]/signoff`
+- `POST /api/tasks/[id]/notify-assigned` (admin manual trigger)
+- `POST /api/tasks/[id]/reminder` (admin manual trigger)
 - `POST /api/tasks/[id]/steps`
 - `PATCH /api/tasks/[id]/steps/[stepId]`
 - `DELETE /api/tasks/[id]/steps/[stepId]`
+
+### Admin Utilities
+- `POST /api/admin/test-notification`
+  - Admin-only test email endpoint for Resend setup verification.
 
 ### Activities
 - `GET /api/activities`
@@ -129,6 +136,24 @@ Currently created events:
 - Status changed to `FAILED`
 - Status changed to `DEPLOYED`
 - Seeded task assignment events (`TASK_ASSIGNED`)
+
+## Email Notifications (Current)
+- Resend-backed utility functions in `lib/email.ts`:
+  - `sendTaskAssignedEmail`
+  - `sendTaskReminderEmail`
+  - `sendTaskSignedOffEmail`
+- Trigger points:
+  - manual test button on Admin Dashboard (`/api/admin/test-notification`)
+  - admin manual assignment/reminder actions from admin task management
+  - sign-off flow auto-sends signed-off email to admin (`to`) and assignee (`cc` when available)
+- Current delivery in local/dev follows Resend sandbox rules unless domain is verified.
+
+## Recent UI/Behavior Updates
+- Admin task table was compacted to fit within viewport better.
+- Admin task table rows are clickable to open Task Detail.
+- Delete action removed from table and moved to Task Detail (admin-only).
+- Due date in admin table shows date-only.
+- Priority badge styling standardized across levels.
 
 Additional behavior:
 - Failed events include step context when available (example: `Step 2 in <Task Title>`).

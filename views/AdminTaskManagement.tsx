@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Task, Status, Priority, TestStep, TargetSystem, CountryConfig } from '../types';
 import { Badge } from '../components/Badge';
 import { MOCK_USERS } from '../constants';
-import { Edit2, Trash2, Plus, UploadCloud, Search, Filter, X, Save, Globe } from 'lucide-react';
+import { Trash2, Plus, UploadCloud, Search, Filter, X, Save, Globe } from 'lucide-react';
 
 interface AdminTaskManagementProps {
   tasks: Task[];
@@ -58,6 +58,13 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return 'N/A';
     return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  };
+
+  const formatDateOnly = (value?: string) => {
+    if (!value) return 'N/A';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
   };
 
   const filteredTasks = useMemo(() => {
@@ -184,6 +191,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
      setSelectedCountries(['SG']);
      setSteps([{ id: '1', description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }]);
   };
+
 
   const addStepRow = () => {
       setSteps([...steps, { id: `${steps.length + 1}`, description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }]);
@@ -321,90 +329,53 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
          )}
 
          {/* Table */}
-         <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
+         <div>
+            <table className="w-full table-fixed text-sm text-left">
                <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
                   <tr>
-                     <th className="px-6 py-4">Task Title</th>
-                     <th className="px-6 py-4">Module</th>
-                     <th className="px-6 py-4">Country</th>
-                     <th className="px-6 py-4">Status</th>
-                     <th className="px-6 py-4">Priority</th>
-                     <th className="px-6 py-4">Created On</th>
-                     <th className="px-6 py-4">Last Update</th>
-                     <th className="px-6 py-4">Stakeholder Assigned</th>
-                     <th className="px-6 py-4">Signed Off On</th>
-                     <th className="px-6 py-4 text-right">Actions</th>
+                     <th className="px-4 py-4 w-[26%]">Task</th>
+                     <th className="px-3 py-4 w-[10%]">Module</th>
+                     <th className="px-3 py-4 w-[8%]">Country</th>
+                     <th className="px-3 py-4 w-[11%]">Status</th>
+                     <th className="px-3 py-4 w-[10%]">Priority</th>
+                     <th className="px-3 py-4 w-[12%]">Due</th>
+                     <th className="px-3 py-4 w-[12%]">Assignee</th>
+                     <th className="px-3 py-4 w-[8%]">Signed Off</th>
                   </tr>
                </thead>
                <tbody className="divide-y divide-slate-100">
                   {loading && filteredTasks.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="px-6 py-10 text-center text-slate-500">
+                      <td colSpan={8} className="px-6 py-10 text-center text-slate-500">
                         Loading tasks...
                       </td>
                     </tr>
                   ) : filteredTasks.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="px-6 py-10 text-center text-slate-400">
+                      <td colSpan={8} className="px-6 py-10 text-center text-slate-400">
                         No tasks found.
                       </td>
                     </tr>
                   ) : (
                     filteredTasks.map(task => (
-                      <tr key={task.id} className="hover:bg-slate-50 transition-colors">
-                         <td className="px-6 py-4 font-medium text-slate-900">{task.title}</td>
-                         <td className="px-6 py-4">
+                      <tr key={task.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => onEdit(task)}>
+                         <td className="px-4 py-4 font-medium text-slate-900 truncate" title={task.title}>{task.title}</td>
+                         <td className="px-3 py-4">
                             <Badge type="module" value={task.featureModule} />
                          </td>
-                         <td className="px-6 py-4">{task.countryCode}</td>
-                         <td className="px-6 py-4">
+                         <td className="px-3 py-4">{task.countryCode}</td>
+                         <td className="px-3 py-4">
                             <Badge type="status" value={task.status} />
                          </td>
-                         <td className="px-6 py-4">
+                         <td className="px-3 py-4">
                             <Badge type="priority" value={task.priority} />
                          </td>
-                         <td className="px-6 py-4 text-slate-600">{formatDateTime(task.createdAt)}</td>
-                         <td className="px-6 py-4 text-slate-600">
-                           <div className="flex flex-col">
-                             <span>{formatDateTime(task.updatedAt)}</span>
-                             <span className="text-[11px] text-slate-400">
-                               {task.updatedBy?.name || task.updatedBy?.email || 'System'}
-                             </span>
-                           </div>
+                         <td className="px-3 py-4 text-slate-600 text-xs">{formatDateOnly(task.dueDate)}</td>
+                         <td className="px-3 py-4 text-slate-600 text-xs truncate" title={task.assignee?.name || task.assignee?.email || 'Unassigned'}>
+                           {task.assignee?.name || task.assignee?.email || 'Unassigned'}
                          </td>
-                         <td className="px-6 py-4 text-slate-600">
-                           <div className="flex flex-col">
-                             <span>{task.assignee?.name || task.assignee?.email || 'Unassigned'}</span>
-                             <span className="text-[11px] text-slate-400">
-                               {task.assignee?.countryCode || task.countryCode}
-                             </span>
-                           </div>
-                         </td>
-                         <td className="px-6 py-4 text-slate-600">
-                           {task.signedOffAt ? (
-                             <div className="flex flex-col">
-                               <span>{formatDateTime(task.signedOffAt)}</span>
-                               <span className="text-[11px] text-slate-400">
-                                 {task.signedOffBy?.name || task.signedOffBy?.email || '—'}
-                               </span>
-                             </div>
-                           ) : (
-                             <span className="text-slate-400">—</span>
-                           )}
-                         </td>
-                         <td className="px-6 py-4 text-right">
-                            <div className="flex justify-end gap-2">
-                               <button 
-                                 onClick={() => onEdit(task)}
-                                 className="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-brand-50 rounded"
-                               >
-                                  <Edit2 size={16} />
-                               </button>
-                               <button className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded">
-                                  <Trash2 size={16} />
-                               </button>
-                            </div>
+                         <td className="px-3 py-4 text-slate-600 text-xs">
+                           {task.signedOffAt ? 'Yes' : 'No'}
                          </td>
                       </tr>
                     ))

@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/auth';
 import { ActivityType } from '@prisma/client';
 import { createActivity } from '../../../../../lib/activity';
+import { sendTaskSignedOffEmail } from '../../../../../lib/email';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,7 +18,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const task = await prisma.task.findUnique({
-    where: { id }
+    where: { id },
+    include: {
+      assignee: {
+        select: {
+          email: true,
+          name: true
+        }
+      }
+    }
   });
 
   if (!task) {
@@ -49,6 +58,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     actorId: session.user.id,
     countryCode: task.countryCode
   });
+
+  const adminUser = await prisma.user.findFirst({
+    where: { role: 'ADMIN' },
+    select: { email: true }
+  });
+
+  if (adminUser?.email) {
+    await sendTaskSignedOffEmail({
+      to: adminUser.email,
+      cc: task.assignee?.email ?? undefined,
+      recipientName: adminUser.email,
+      taskTitle: task.title,
+      taskId: task.id,
+      signedOffBy: session.user.name || session.user.email || 'User',
+      signedOffAt
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

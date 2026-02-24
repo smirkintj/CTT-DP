@@ -27,6 +27,8 @@ Set in `.env` (or deployment env):
 - `DATABASE_URL` = PostgreSQL connection string
 - `NEXTAUTH_SECRET` = strong random secret
 - `NEXTAUTH_URL` = app base URL (required in deployed env)
+- `RESEND_API_KEY` = Resend API key
+- `EMAIL_FROM` = sender email (must match Resend/domain policy)
 
 ## Install
 ```bash
@@ -62,6 +64,17 @@ npm run start
   - `/admin/*` and `/import` => ADMIN only
   - `/tasks/*` => authenticated users
 - Recent Activity is database-backed via `Activity` and `ActivityRead` tables.
+- Email notifications:
+  - Admin test email: `/api/admin/test-notification`
+  - Assignment email: `/api/tasks/[id]/notify-assigned`
+  - Manual reminder email: `/api/tasks/[id]/reminder`
+  - Sign-off email is triggered from `/api/tasks/[id]/signoff`
+
+## Admin UX Updates
+- `/admin/tasks` table rows are clickable to open task details.
+- Delete action is moved to Task Detail page (admin-only).
+- Due date in admin task table is date-only (no time).
+- Priority badges are standardized with colored dots for all levels.
 
 ## Troubleshooting
 ### 1) Vercel build error: `Property 'activity' does not exist on type PrismaClient`

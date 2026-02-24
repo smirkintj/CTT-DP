@@ -1,7 +1,7 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CountryConfig } from '../types';
-import { Trash2, Plus, Globe, Package } from 'lucide-react';
+import { Trash2, Plus, Globe, Package, Bell } from 'lucide-react';
 
 interface AdminDatabaseProps {
   countries: CountryConfig[];
@@ -11,7 +11,13 @@ interface AdminDatabaseProps {
 }
 
 export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules, onUpdateCountries, onUpdateModules }) => {
-  const [activeTab, setActiveTab] = useState<'countries' | 'modules'>('countries');
+  const [activeTab, setActiveTab] = useState<'countries' | 'modules' | 'notifications'>('countries');
+  const [emailSettings, setEmailSettings] = useState({
+    enableReminders: false,
+    cronExpression: '0 9 * * 1-5',
+    timezone: 'Asia/Singapore',
+    note: ''
+  });
   
   // Country Input State
   const [newCountryName, setNewCountryName] = useState('');
@@ -19,6 +25,15 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
 
   // Module Input State
   const [newModule, setNewModule] = useState('');
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem('ctt-email-settings');
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      setEmailSettings((prev) => ({ ...prev, ...parsed }));
+    } catch {}
+  }, []);
 
   const handleAddCountry = () => {
       if (newCountryName && newCountryCode) {
@@ -48,6 +63,11 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
       onUpdateModules(modules.filter(m => m !== mod));
   };
 
+  const handleSaveEmailSettings = () => {
+    window.localStorage.setItem('ctt-email-settings', JSON.stringify(emailSettings));
+    alert('Email reminder settings saved.');
+  };
+
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
         <div className="mb-8">
@@ -67,6 +87,12 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
               className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'modules' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
                Modules
+            </button>
+            <button 
+              onClick={() => setActiveTab('notifications')}
+              className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'notifications' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            >
+               Email Notifications
             </button>
         </div>
 
@@ -153,6 +179,72 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
                             </button>
                         </div>
                     ))}
+                </div>
+            </div>
+        )}
+
+        {activeTab === 'notifications' && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
+                <div className="flex items-start gap-3">
+                    <Bell className="text-slate-500 mt-0.5" size={18} />
+                    <div>
+                        <h3 className="text-sm font-semibold text-slate-900">Reminder Job Configuration</h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Configure cron settings in the admin portal. This is settings-only for now; scheduler wiring can be added later.
+                        </p>
+                    </div>
+                </div>
+
+                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="rounded border-slate-300"
+                      checked={emailSettings.enableReminders}
+                      onChange={(e) => setEmailSettings((prev) => ({ ...prev, enableReminders: e.target.checked }))}
+                    />
+                    Enable reminder job
+                </label>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 uppercase">Cron Expression</label>
+                        <input
+                          type="text"
+                          className="w-full mt-1 border-slate-300 rounded-md text-sm"
+                          value={emailSettings.cronExpression}
+                          onChange={(e) => setEmailSettings((prev) => ({ ...prev, cronExpression: e.target.value }))}
+                          placeholder="0 9 * * 1-5"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-semibold text-slate-500 uppercase">Timezone</label>
+                        <input
+                          type="text"
+                          className="w-full mt-1 border-slate-300 rounded-md text-sm"
+                          value={emailSettings.timezone}
+                          onChange={(e) => setEmailSettings((prev) => ({ ...prev, timezone: e.target.value }))}
+                          placeholder="Asia/Singapore"
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="text-xs font-semibold text-slate-500 uppercase">Notes</label>
+                    <textarea
+                      className="w-full mt-1 border-slate-300 rounded-md text-sm h-20"
+                      value={emailSettings.note}
+                      onChange={(e) => setEmailSettings((prev) => ({ ...prev, note: e.target.value }))}
+                      placeholder="Optional admin notes for scheduler setup."
+                    />
+                </div>
+
+                <div className="flex justify-end">
+                    <button
+                      onClick={handleSaveEmailSettings}
+                      className="bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-800"
+                    >
+                      Save Settings
+                    </button>
                 </div>
             </div>
         )}
