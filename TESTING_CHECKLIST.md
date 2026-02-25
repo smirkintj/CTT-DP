@@ -1,6 +1,6 @@
 # UAT Portal Testing Checklist (Pre-Go-Live)
 
-Last updated: 2026-02-24  
+Last updated: 2026-02-25  
 Purpose: Release readiness checklist before enabling production usage for admins and stakeholders.
 
 How to use:
@@ -98,6 +98,17 @@ How to use:
 - [ ] `PASS/FAIL` Teams config save button shows saving/saved state per country.
 - [ ] `PASS/FAIL` Switching away from Notifications tab with unsaved edits prompts for confirmation.
 - [ ] `PASS/FAIL` Browser refresh/close warns when notification settings are unsaved.
+
+## 3.6 Admin Database (Users)
+- [ ] `PASS/FAIL` Users tab loads list successfully with no console/API errors.
+- [ ] `PASS/FAIL` Search/filter (country/status) returns correct users.
+- [ ] `PASS/FAIL` Admin can create stakeholder user with temp password and correct country.
+- [ ] `PASS/FAIL` Creating an `ADMIN` user is blocked by API.
+- [ ] `PASS/FAIL` Admin can disable/enable stakeholder user.
+- [ ] `PASS/FAIL` Admin cannot disable their own admin account.
+- [ ] `PASS/FAIL` Reset password returns temp password and updates login credentials.
+- [ ] `PASS/FAIL` Reset password cooldown blocks repeated reset attempts within 60s.
+- [ ] `PASS/FAIL` Disabled user cannot log in.
 
 ---
 

@@ -23,10 +23,10 @@ This backlog tracks improvement initiatives with:
 - `Implemented`
 
 ## Progress Snapshot
-- Overall: `14/40 Implemented` (35%)
-- Active now: `4 In Progress`
+- Overall: `15/40 Implemented` (37.5%)
+- Active now: `3 In Progress`
 - Remaining: `22 Planned`
-- High-priority lane (`P0 + P1`): `12/23 Implemented`
+- High-priority lane (`P0 + P1`): `13/23 Implemented`
 - Technical debt lane (`#36-#40`): `2/5 Implemented`
 
 ---
@@ -520,16 +520,31 @@ This backlog tracks improvement initiatives with:
 - Impact if not done:
   - Manual reporting remains slow and inconsistent.
 
-## 34) Feature: Admin User Management
+## 34) ~~Feature: Admin User Management~~
 - Priority: `P1`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `Implemented`
+- Date implemented: `2026-02-25`
 - What this is for:
   - Let admin manage user lifecycle without DB scripts.
-- Implementation plan:
-  - Add user management screen (create/deactivate/reset role/country).
-  - Add guarded APIs for user provisioning and status changes.
-  - Audit all user admin actions.
+- Implementation:
+  - Added user management APIs:
+    - `GET/POST /api/admin/users`
+    - `PATCH /api/admin/users/[id]`
+    - `POST /api/admin/users/[id]/reset-password`
+  - Added admin UI in `/admin/database` with a `Users` tab:
+    - search/filter table
+    - right-side drawer for create/edit
+    - disable/enable toggle
+    - temporary password reset
+  - Added security controls:
+    - ADMIN-only route guards
+    - no creation of additional ADMIN users (current policy)
+    - prevent self-disable
+    - reset-password cooldown (60 seconds)
+  - Added `User` lifecycle fields:
+    - `isActive`
+    - `lastLoginAt`
+  - Login now blocks inactive users and records successful login timestamp.
 - Impact if not done:
   - Operational dependence on direct DB access and slower onboarding/offboarding.
 
@@ -704,3 +719,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-25`: Added top-level progress snapshot (`Implemented / Total`, active, remaining) for quick backlog health tracking.
 - `2026-02-25`: Completed #37 shared Prisma include centralization; advanced #38 (API error helper rollout) and #20 (inline validation) to Phase 1.
 - `2026-02-25`: Completed #38 API error-shape rollout across task/admin/inbox/activity routes and advanced #39 audit coverage with admin config audit events.
+- `2026-02-25`: Completed #34 admin user management (users tab + guarded APIs + disable/reset flow), including new user lifecycle fields and inactive-login enforcement.

@@ -71,6 +71,7 @@ npm run start
 - Login hardening is enabled:
   - client-side email validation + submit throttling UX
   - server-side temporary lockout after repeated failed attempts
+  - disabled users (`User.isActive = false`) cannot log in
 - Recent Activity is database-backed via `Activity` and `ActivityRead` tables.
 - Task mutation APIs enforce:
   - status transition rules (invalid transitions return `409`)
@@ -89,6 +90,17 @@ npm run start
   - Assignment email: `/api/tasks/[id]/notify-assigned`
   - Manual reminder email: `/api/tasks/[id]/reminder`
   - Sign-off email is triggered from `/api/tasks/[id]/signoff`
+- Admin user management:
+  - List/create/update/disable/reset password endpoints:
+    - `/api/admin/users`
+    - `/api/admin/users/[id]`
+    - `/api/admin/users/[id]/reset-password`
+  - UI: `/admin/database` → `Users` tab (drawer-based management)
+  - Security rules:
+    - ADMIN-only APIs
+    - cannot create additional ADMIN users (current policy)
+    - cannot disable your own admin account
+    - reset-password is rate-limited per admin/user target (60s)
 
 ## Admin UX Updates
 - `/admin/tasks` table rows are clickable to open task details.

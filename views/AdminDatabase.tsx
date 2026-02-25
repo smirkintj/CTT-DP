@@ -1,18 +1,41 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { CountryConfig } from '../types';
-import { Trash2, Plus, Globe, Package, Bell } from 'lucide-react';
+import { Trash2, Plus, Package, Bell, Users, Search, X, RotateCcw, UserPlus } from 'lucide-react';
 import { notify } from '../lib/notify';
+import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass } from '../components/ui/formClasses';
 
 interface AdminDatabaseProps {
   countries: CountryConfig[];
   modules: string[];
   onUpdateCountries: (countries: CountryConfig[]) => void;
   onUpdateModules: (modules: string[]) => void;
+  currentUserId: string;
 }
 
-export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules, onUpdateCountries, onUpdateModules }) => {
-  const [activeTab, setActiveTab] = useState<'countries' | 'modules' | 'notifications'>('countries');
+type AdminUserRow = {
+  id: string;
+  name: string;
+  email: string;
+  role: 'ADMIN' | 'STAKEHOLDER';
+  countryCode: string | null;
+  isActive: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  assignedTaskCount: number;
+};
+
+type UserDrawerMode = 'create' | 'edit';
+
+export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
+  countries,
+  modules,
+  onUpdateCountries,
+  onUpdateModules,
+  currentUserId
+}) => {
+  const [activeTab, setActiveTab] = useState<'countries' | 'modules' | 'notifications' | 'users'>('countries');
   const [emailSettings, setEmailSettings] = useState({
     enableReminders: false,
     cronExpression: '0 9 * * 1-5',
@@ -33,6 +56,23 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
 
   // Module Input State
   const [newModule, setNewModule] = useState('');
+  const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [userCountryFilter, setUserCountryFilter] = useState<'ALL' | string>('ALL');
+  const [userStatusFilter, setUserStatusFilter] = useState<'ALL' | 'ACTIVE' | 'DISABLED'>('ALL');
+  const [isUserDrawerOpen, setIsUserDrawerOpen] = useState(false);
+  const [userDrawerMode, setUserDrawerMode] = useState<UserDrawerMode>('create');
+  const [selectedUser, setSelectedUser] = useState<AdminUserRow | null>(null);
+  const [savingUser, setSavingUser] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    countryCode: '',
+    isActive: true
+  });
+  const [tempPassword, setTempPassword] = useState('');
   const [teamsConfigs, setTeamsConfigs] = useState<Record<string, {
     teamsWebhookUrl: string;
     isActive: boolean;
@@ -84,6 +124,152 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
     })();
   }, []);
 
+  const loadUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const response = await fetch('/api/admin/users', { cache: 'no-store' });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        notify(data?.error || 'Failed to load users', 'error');
+        return;
+      }
+      if (Array.isArray(data)) {
+        setUsers(data as AdminUserRow[]);
+      }
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'users') return;
+    void loadUsers();
+  }, [activeTab]);
+
+  const openCreateUserDrawer = () => {
+    setUserDrawerMode('create');
+    setSelectedUser(null);
+    setUserForm({
+      name: '',
+      email: '',
+      countryCode: countries[0]?.code || '',
+      isActive: true
+    });
+    setTempPassword('');
+    setIsUserDrawerOpen(true);
+  };
+
+  const openEditUserDrawer = (user: AdminUserRow) => {
+    setUserDrawerMode('edit');
+    setSelectedUser(user);
+    setUserForm({
+      name: user.name,
+      email: user.email,
+      countryCode: user.countryCode || '',
+      isActive: user.isActive
+    });
+    setTempPassword('');
+    setIsUserDrawerOpen(true);
+  };
+
+  const closeUserDrawer = () => {
+    if (savingUser || resettingPassword) return;
+    setIsUserDrawerOpen(false);
+  };
+
+  const saveUser = async () => {
+    const name = userForm.name.trim();
+    const email = userForm.email.trim().toLowerCase();
+    const countryCode = userForm.countryCode.trim().toUpperCase();
+    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    if (!name) {
+      notify('Name is required', 'error');
+      return;
+    }
+    if (userDrawerMode === 'create' && !isEmailValid) {
+      notify('Enter a valid email address', 'error');
+      return;
+    }
+    if (!countryCode) {
+      notify('Country is required', 'error');
+      return;
+    }
+
+    setSavingUser(true);
+    try {
+      if (userDrawerMode === 'create') {
+        const password = tempPassword.trim();
+        if (password.length < 8) {
+          notify('Temporary password must be at least 8 characters', 'error');
+          return;
+        }
+
+        const response = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            email,
+            role: 'STAKEHOLDER',
+            countryCode,
+            temporaryPassword: password
+          })
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          notify(data?.error || 'Failed to create user', 'error');
+          return;
+        }
+        notify('User created successfully', 'success');
+      } else if (selectedUser) {
+        const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            countryCode,
+            isActive: userForm.isActive,
+            role: selectedUser.role
+          })
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          notify(data?.error || 'Failed to update user', 'error');
+          return;
+        }
+        notify('User updated successfully', 'success');
+      }
+
+      await loadUsers();
+      setIsUserDrawerOpen(false);
+    } finally {
+      setSavingUser(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!selectedUser) return;
+    const confirmed = window.confirm(`Reset password for ${selectedUser.email}?`);
+    if (!confirmed) return;
+
+    setResettingPassword(true);
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/reset-password`, {
+        method: 'POST'
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        notify(data?.error || 'Failed to reset password', 'error');
+        return;
+      }
+      window.alert(`Temporary password for ${selectedUser.email}: ${data?.temporaryPassword || '-'}`);
+      notify('Password reset successful', 'success');
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
   const emailSettingsDirty =
     emailSettings.enableReminders !== savedEmailSettings.enableReminders ||
     emailSettings.cronExpression !== savedEmailSettings.cronExpression ||
@@ -102,6 +288,20 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
     };
     return JSON.stringify(current) !== JSON.stringify(saved);
   });
+
+  const filteredUsers = users.filter((user) => {
+    const query = userSearch.trim().toLowerCase();
+    const matchesSearch =
+      !query || user.name.toLowerCase().includes(query) || user.email.toLowerCase().includes(query);
+    const matchesCountry = userCountryFilter === 'ALL' || user.countryCode === userCountryFilter;
+    const matchesStatus =
+      userStatusFilter === 'ALL' ||
+      (userStatusFilter === 'ACTIVE' ? user.isActive : !user.isActive);
+    return matchesSearch && matchesCountry && matchesStatus;
+  });
+
+  const formatDateTime = (value?: string | null) =>
+    value ? new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—';
 
   const handleAddCountry = () => {
       if (!newCountryName || !newCountryCode) return;
@@ -219,7 +419,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
     })();
   };
 
-  const handleTabChange = (nextTab: 'countries' | 'modules' | 'notifications') => {
+  const handleTabChange = (nextTab: 'countries' | 'modules' | 'notifications' | 'users') => {
     if (activeTab === 'notifications' && nextTab !== 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig)) {
       const confirmed = window.confirm('You have unsaved notification settings. Leave without saving?');
       if (!confirmed) return;
@@ -263,6 +463,12 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
               className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'notifications' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
                Email Notifications
+            </button>
+            <button 
+              onClick={() => handleTabChange('users')}
+              className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'users' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            >
+               Users
             </button>
         </div>
 
@@ -545,6 +751,234 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
                   </div>
                 </div>
             </div>
+        )}
+
+        {activeTab === 'users' && (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-5">
+              <div className="flex items-center gap-2 text-slate-700">
+                <Users size={18} />
+                <h3 className="text-sm font-semibold">User Management</h3>
+              </div>
+              <button onClick={openCreateUserDrawer} className={primaryButtonClass}>
+                <span className="inline-flex items-center gap-2">
+                  <UserPlus size={16} />
+                  Add User
+                </span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+              <div className="md:col-span-2 relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={userSearch}
+                  onChange={(event) => setUserSearch(event.target.value)}
+                  placeholder="Search by name or email"
+                  className={`${fieldBaseClass} pl-9`}
+                />
+              </div>
+              <select
+                value={userCountryFilter}
+                onChange={(event) => setUserCountryFilter(event.target.value)}
+                className={selectBaseClass}
+              >
+                <option value="ALL">All countries</option>
+                {countries.map((country) => (
+                  <option key={country.code} value={country.code}>
+                    {country.code} - {country.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={userStatusFilter}
+                onChange={(event) => setUserStatusFilter(event.target.value as 'ALL' | 'ACTIVE' | 'DISABLED')}
+                className={selectBaseClass}
+              >
+                <option value="ALL">All status</option>
+                <option value="ACTIVE">Active</option>
+                <option value="DISABLED">Disabled</option>
+              </select>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50">
+                  <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                    <th className="px-4 py-3">Name</th>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Country</th>
+                    <th className="px-4 py-3">Role</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Last login</th>
+                    <th className="px-4 py-3">Tasks</th>
+                    <th className="px-4 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
+                  {usersLoading ? (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
+                        Loading users...
+                      </td>
+                    </tr>
+                  ) : filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
+                        No users found.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsers.map((user) => (
+                      <tr key={user.id}>
+                        <td className="px-4 py-3 font-medium text-slate-900">{user.name}</td>
+                        <td className="px-4 py-3">{user.email}</td>
+                        <td className="px-4 py-3">{user.countryCode || '—'}</td>
+                        <td className="px-4 py-3">{user.role}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                              user.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {user.isActive ? 'Active' : 'Disabled'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">{formatDateTime(user.lastLoginAt)}</td>
+                        <td className="px-4 py-3">{user.assignedTaskCount}</td>
+                        <td className="px-4 py-3 text-right">
+                          <button onClick={() => openEditUserDrawer(user)} className={subtleButtonClass}>
+                            Manage
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {isUserDrawerOpen && (
+          <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/20 backdrop-blur-[1px]">
+            <div className="h-full w-full max-w-md bg-white shadow-xl border-l border-slate-200 p-6 overflow-y-auto">
+              <div className="flex items-start justify-between mb-5">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900">
+                    {userDrawerMode === 'create' ? 'Create User' : 'Manage User'}
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {userDrawerMode === 'create'
+                      ? 'Create a stakeholder account with temporary password.'
+                      : 'Update profile, status, and reset password.'}
+                  </p>
+                </div>
+                <button onClick={closeUserDrawer} className="text-slate-500 hover:text-slate-700">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold uppercase text-slate-500">Name</label>
+                  <input
+                    type="text"
+                    value={userForm.name}
+                    onChange={(event) => setUserForm((prev) => ({ ...prev, name: event.target.value }))}
+                    className={`${fieldBaseClass} mt-1`}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold uppercase text-slate-500">Email</label>
+                  <input
+                    type="email"
+                    value={userForm.email}
+                    onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))}
+                    disabled={userDrawerMode === 'edit'}
+                    className={`${fieldBaseClass} mt-1 ${userDrawerMode === 'edit' ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold uppercase text-slate-500">Country</label>
+                  <select
+                    value={userForm.countryCode}
+                    onChange={(event) => setUserForm((prev) => ({ ...prev, countryCode: event.target.value }))}
+                    className={`${selectBaseClass} mt-1`}
+                  >
+                    <option value="">Select country</option>
+                    {countries.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.code} - {country.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {userDrawerMode === 'create' ? (
+                  <div>
+                    <label className="text-xs font-semibold uppercase text-slate-500">Temporary Password</label>
+                    <input
+                      type="text"
+                      value={tempPassword}
+                      onChange={(event) => setTempPassword(event.target.value)}
+                      placeholder="Minimum 8 characters"
+                      className={`${fieldBaseClass} mt-1`}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <label className="inline-flex items-center gap-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={userForm.isActive}
+                          onChange={(event) => setUserForm((prev) => ({ ...prev, isActive: event.target.checked }))}
+                          disabled={selectedUser?.id === currentUserId}
+                        />
+                        Active account
+                      </label>
+                      {selectedUser?.id === currentUserId && (
+                        <p className="text-xs text-slate-500 mt-1">Your own admin account cannot be disabled.</p>
+                      )}
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xs text-slate-500 mb-2">Last login</p>
+                      <p className="text-sm text-slate-800">{formatDateTime(selectedUser?.lastLoginAt)}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {userDrawerMode === 'edit' && (
+                <div className="mt-6">
+                  <button
+                    onClick={handleResetPassword}
+                    disabled={resettingPassword}
+                    className={subtleButtonClass}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <RotateCcw size={14} />
+                      {resettingPassword ? 'Resetting...' : 'Reset Password'}
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              <div className="mt-6 flex items-center justify-end gap-2">
+                <button onClick={closeUserDrawer} className={subtleButtonClass}>
+                  Cancel
+                </button>
+                <button onClick={saveUser} disabled={savingUser} className={primaryButtonClass}>
+                  {savingUser ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
     </div>

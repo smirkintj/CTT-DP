@@ -442,6 +442,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
            modules={availableModules}
            onUpdateCountries={setAvailableCountries}
            onUpdateModules={setAvailableModules}
+           currentUserId={currentUser.id}
         />
       )}
 

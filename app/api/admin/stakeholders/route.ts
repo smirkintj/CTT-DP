@@ -18,6 +18,7 @@ export async function GET() {
   const users = await prisma.user.findMany({
     where: {
       role: 'STAKEHOLDER',
+      isActive: true,
       countryCode: { not: null }
     },
     select: {

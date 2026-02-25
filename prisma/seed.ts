@@ -50,14 +50,16 @@ const seed = async () => {
       name: 'Admin User',
       role: 'ADMIN',
       passwordHash: adminPasswordHash,
-      countryCode: null
+      countryCode: null,
+      isActive: true
     },
     create: {
       email: 'admin@dksh.com',
       name: 'Admin User',
       role: 'ADMIN',
       passwordHash: adminPasswordHash,
-      countryCode: null
+      countryCode: null,
+      isActive: true
     }
   });
 
@@ -70,14 +72,16 @@ const seed = async () => {
         name: `UAT ${stakeholder.countryCode} User`,
         role: 'STAKEHOLDER',
         passwordHash: userPasswordHash,
-        countryCode: stakeholder.countryCode
+        countryCode: stakeholder.countryCode,
+        isActive: true
       },
       create: {
         email: stakeholder.email,
         name: `UAT ${stakeholder.countryCode} User`,
         role: 'STAKEHOLDER',
         passwordHash: userPasswordHash,
-        countryCode: stakeholder.countryCode
+        countryCode: stakeholder.countryCode,
+        isActive: true
       }
     });
 

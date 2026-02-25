@@ -107,6 +107,10 @@ Defined in `prisma/schema.prisma`.
 - `Task.signedOffAt`
 - `Task.signedOffById` → relation to `User` (`signedOffBy`)
 
+### User lifecycle fields
+- `User.isActive` (login enable/disable)
+- `User.lastLoginAt` (admin visibility for account activity)
+
 ## API Surface
 ### Auth
 - `POST/GET /api/auth/[...nextauth]`
@@ -136,6 +140,12 @@ Task mutation guarantees:
 ### Admin Utilities
 - `POST /api/admin/test-notification`
   - Admin-only test email endpoint for Resend setup verification.
+- `GET/POST /api/admin/users`
+  - Admin-only user list/create (current policy: stakeholder creation only).
+- `PATCH /api/admin/users/[id]`
+  - Admin-only user update (name/country/status).
+- `POST /api/admin/users/[id]/reset-password`
+  - Admin-only temp-password reset (rate-limited).
 
 ### Activities
 - `GET /api/activities`
@@ -174,6 +184,10 @@ Currently created events:
 - Delete action removed from table and moved to Task Detail (admin-only).
 - Due date in admin table shows date-only.
 - Priority badge styling standardized across levels.
+- Admin database includes a new `Users` tab:
+  - searchable/filterable stakeholder/user list
+  - right-side drawer for create/edit
+  - disable/enable and temporary password reset actions
 
 Additional behavior:
 - Failed events include step context when available (example: `Step 2 in <Task Title>`).

@@ -156,6 +156,7 @@ export async function POST(req: Request) {
         where: {
           id: selectedAssigneeId,
           role: UserRole.STAKEHOLDER,
+          isActive: true,
           countryCode
         },
         select: {
@@ -170,6 +171,7 @@ export async function POST(req: Request) {
       assignee = await prisma.user.findFirst({
         where: {
           role: UserRole.STAKEHOLDER,
+          isActive: true,
           countryCode
         },
         select: {

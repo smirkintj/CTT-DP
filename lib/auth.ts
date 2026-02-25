@@ -30,7 +30,7 @@ export const authOptions: NextAuthOptions = {
             where: { email }
           });
 
-          if (!user || !user.passwordHash) {
+          if (!user || !user.passwordHash || !user.isActive) {
             recordLoginFailure(email);
             return null;
           }
@@ -42,6 +42,12 @@ export const authOptions: NextAuthOptions = {
           }
 
           clearLoginFailures(email);
+          try {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { lastLoginAt: new Date() }
+            });
+          } catch {}
 
           return {
             id: user.id,
