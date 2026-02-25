@@ -15,99 +15,109 @@ export async function GET() {
   }
 
   const isAdmin = session.user.role === 'ADMIN';
-
-  let tasks: any[] = [];
-  try {
-    tasks = await prisma.task.findMany({
-      where: isAdmin ? undefined : { assigneeId: session.user.id },
-      include: {
-        country: true,
-        assignee: {
-          select: {
-            id: true,
-            email: true,
-            countryCode: true,
-            name: true
-          }
-        },
-        updatedBy: {
-          select: {
-            id: true,
-            email: true,
-            name: true
-          }
-        },
-        signedOffBy: {
-          select: {
-            id: true,
-            email: true,
-            name: true
-          }
-        },
-        comments: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                email: true,
-                name: true
-              }
-            }
-          }
-        },
-        steps: {
-          orderBy: {
-            order: 'asc'
-          }
-        }
-      },
-      orderBy: {
-        updatedAt: 'desc'
-      }
-    });
-  } catch {
-    tasks = await prisma.task.findMany({
-      where: isAdmin ? undefined : { assigneeId: session.user.id },
-      include: {
-        country: true,
-        assignee: {
-          select: {
-            id: true,
-            email: true,
-            countryCode: true,
-            name: true
-          }
-        },
-        comments: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                email: true,
-                name: true
-              }
-            }
-          }
-        },
-        steps: {
-          orderBy: {
-            order: 'asc'
-          }
-        }
-      },
-      orderBy: {
-        updatedAt: 'desc'
-      }
-    });
+  if (!isAdmin && !session.user.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const mapped = tasks.map(mapTaskToUi);
-
-  return NextResponse.json(mapped, {
-    headers: {
-      'Cache-Control': 'no-store'
+  try {
+    let tasks: any[] = [];
+    try {
+      tasks = await prisma.task.findMany({
+        where: isAdmin ? undefined : { assigneeId: session.user.id },
+        include: {
+          country: true,
+          assignee: {
+            select: {
+              id: true,
+              email: true,
+              countryCode: true,
+              name: true
+            }
+          },
+          updatedBy: {
+            select: {
+              id: true,
+              email: true,
+              name: true
+            }
+          },
+          signedOffBy: {
+            select: {
+              id: true,
+              email: true,
+              name: true
+            }
+          },
+          comments: {
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true
+                }
+              }
+            }
+          },
+          steps: {
+            orderBy: {
+              order: 'asc'
+            }
+          }
+        },
+        orderBy: {
+          updatedAt: 'desc'
+        }
+      });
+    } catch {
+      tasks = await prisma.task.findMany({
+        where: isAdmin ? undefined : { assigneeId: session.user.id },
+        include: {
+          country: true,
+          assignee: {
+            select: {
+              id: true,
+              email: true,
+              countryCode: true,
+              name: true
+            }
+          },
+          comments: {
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true
+                }
+              }
+            }
+          },
+          steps: {
+            orderBy: {
+              order: 'asc'
+            }
+          }
+        },
+        orderBy: {
+          updatedAt: 'desc'
+        }
+      });
     }
-  });
+
+    const mapped = tasks.map(mapTaskToUi);
+
+    return NextResponse.json(mapped, {
+      headers: {
+        'Cache-Control': 'no-store'
+      }
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('GET /api/tasks failed:', error);
+    }
+    return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
