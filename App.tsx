@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { signIn, getSession, useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Layout } from './components/Layout';
 import { StakeholderDashboard } from './views/StakeholderDashboard';
 import { AdminDashboard } from './views/AdminDashboard';
@@ -39,8 +40,14 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   // Login Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [lockUntil, setLockUntil] = useState<number | null>(null);
+  const [remainingLockSeconds, setRemainingLockSeconds] = useState(0);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const emailIsValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const isLocked = !!lockUntil && Date.now() < lockUntil;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -54,6 +61,42 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       setEmail(savedEmail);
     }
   }, []);
+
+  useEffect(() => {
+    if (!email) {
+      setLockUntil(null);
+      setRemainingLockSeconds(0);
+      return;
+    }
+    const key = `ctt_login_lock_${email.toLowerCase().trim()}`;
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return;
+    const until = Number(raw);
+    if (!Number.isFinite(until) || until <= Date.now()) {
+      window.localStorage.removeItem(key);
+      return;
+    }
+    setLockUntil(until);
+  }, [email]);
+
+  useEffect(() => {
+    if (!lockUntil) {
+      setRemainingLockSeconds(0);
+      return;
+    }
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((lockUntil - Date.now()) / 1000));
+      setRemainingLockSeconds(remaining);
+      if (remaining === 0) {
+        const key = `ctt_login_lock_${email.toLowerCase().trim()}`;
+        window.localStorage.removeItem(key);
+        setLockUntil(null);
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [lockUntil]);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -145,15 +188,41 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   // Handlers
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!email || !password || isLoggingIn) return;
+    if (!emailIsValid) {
+      setLoginError('Please enter a valid email address.');
+      return;
+    }
+    if (isLocked && remainingLockSeconds > 0) {
+      setLoginError(`Too many attempts. Try again in ${remainingLockSeconds}s.`);
+      return;
+    }
 
     setLoginError(null);
+    setIsLoggingIn(true);
     const result = await signIn('credentials', { email, password, redirect: false });
 
     if (!result || result.error) {
-      setLoginError('Invalid email or password. Please try again.');
+      const keyBase = email.toLowerCase().trim();
+      const attemptsKey = `ctt_login_attempts_${keyBase}`;
+      const lockKey = `ctt_login_lock_${keyBase}`;
+      const nextAttempts = Number(window.localStorage.getItem(attemptsKey) || '0') + 1;
+      if (nextAttempts >= 3) {
+        const until = Date.now() + 60_000;
+        window.localStorage.setItem(lockKey, String(until));
+        window.localStorage.removeItem(attemptsKey);
+        setLockUntil(until);
+        setLoginError('Too many failed attempts. Please retry in 60 seconds.');
+      } else {
+        window.localStorage.setItem(attemptsKey, String(nextAttempts));
+        setLoginError('Invalid email or password. Please try again.');
+      }
+      setIsLoggingIn(false);
       return;
     }
+
+    window.localStorage.removeItem(`ctt_login_attempts_${email.toLowerCase().trim()}`);
+    window.localStorage.removeItem(`ctt_login_lock_${email.toLowerCase().trim()}`);
 
     if (typeof window !== 'undefined') {
       if (rememberMe) {
@@ -170,10 +239,12 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
     if (role === 'ADMIN') {
       router.push('/admin/dashboard');
+      setIsLoggingIn(false);
       return;
     }
 
     router.push('/');
+    setIsLoggingIn(false);
   };
 
   const handleLogout = () => {
@@ -248,14 +319,26 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                 </div>
                 <div>
                    <label className="block text-sm font-medium text-slate-700">Password</label>
-                   <input 
-                     type="password" 
-                     autoComplete="current-password"
-                     className="mt-1 appearance-none block w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm" 
-                     placeholder="••••••••"
-                     value={password}
-                     onChange={(e) => setPassword(e.target.value)}
-                   />
+                   <div className="relative mt-1">
+                     <input 
+                       type={showPassword ? 'text' : 'password'} 
+                       autoComplete="current-password"
+                       className="appearance-none block w-full px-4 py-2.5 pr-12 border border-slate-300 rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm" 
+                       placeholder="••••••••"
+                       value={password}
+                       onChange={(e) => setPassword(e.target.value)}
+                     />
+                     <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                       <button
+                         type="button"
+                         onClick={() => setShowPassword((prev) => !prev)}
+                         className="text-slate-400 hover:text-slate-600"
+                         aria-label={showPassword ? 'Hide password' : 'Show password'}
+                       >
+                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                       </button>
+                     </div>
+                   </div>
                 </div>
 
                 <label className="flex items-center gap-2 text-sm text-slate-600">
@@ -275,13 +358,25 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                 )}
                 
                 <div>
-                   <button 
+                    <button 
                      type="submit"
-                     className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-all"
-                   >
-                     Sign in
+                     disabled={isLoggingIn || isLocked || !emailIsValid || !password}
+                     className={`w-full flex justify-center items-center gap-2 py-3 px-4 border rounded-xl shadow-sm text-sm font-semibold transition-all ${
+                       isLoggingIn || isLocked || !emailIsValid || !password
+                         ? 'bg-slate-300 text-slate-500 border-slate-300 cursor-not-allowed'
+                         : 'text-white bg-slate-900 border-transparent hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900'
+                     }`}
+                    >
+                     {isLoggingIn ? (
+                       <>
+                         <Loader2 size={16} className="animate-spin" />
+                         Signing in...
+                       </>
+                     ) : (
+                       'Sign in'
+                     )}
                    </button>
-                 </div>
+                </div>
              </form>
           </div>
         </div>

@@ -141,15 +141,20 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
 
   // Handle Step Updates
   const persistStepProgress = async (stepId: string, updates: Partial<TestStep>) => {
-    await fetch(`/api/tasks/${localTask.id}/steps/${stepId}`, {
+    const response = await fetch(`/api/tasks/${localTask.id}/steps/${stepId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         isPassed: updates.isPassed,
         actualResult: updates.actualResult,
-        attachments: updates.attachments
+        attachments: updates.attachments,
+        expectedUpdatedAt: localTask.updatedAt
       })
     });
+    if (response.status === 409) {
+      notify('Task changed by another user. Reloaded latest data.', 'error');
+      await refreshTask(localTask.id);
+    }
   };
 
   const handleStepUpdate = (stepId: string, updates: Partial<TestStep>) => {
@@ -223,7 +228,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     const response = await fetch(`/api/tasks/${localTask.id}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body: text, stepOrder })
+      body: JSON.stringify({ body: text, stepOrder, expectedUpdatedAt: localTask.updatedAt })
     });
 
     if (!response.ok) {
@@ -292,8 +297,19 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     };
     setLocalTask(updatedTask);
     onUpdateTask(updatedTask);
-    void persistStatus(updatedTask.status);
-    void fetch(`/api/tasks/${localTask.id}/signoff`, { method: 'POST' });
+    void (async () => {
+      const statusUpdated = await persistStatus(updatedTask.status);
+      if (!statusUpdated) return;
+      const response = await fetch(`/api/tasks/${localTask.id}/signoff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedUpdatedAt: localTask.updatedAt })
+      });
+      if (!response.ok) {
+        notify('Failed to sign off task', 'error');
+        await refreshTask(localTask.id);
+      }
+    })();
   };
 
   const handleDeploy = () => {
@@ -342,11 +358,17 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   };
 
   const persistStatus = async (status: Status, stepOrder?: number) => {
-    await fetch(`/api/tasks/${localTask.id}/status`, {
+    const response = await fetch(`/api/tasks/${localTask.id}/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, stepOrder })
+      body: JSON.stringify({ status, stepOrder, expectedUpdatedAt: localTask.updatedAt })
     });
+    if (response.status === 409) {
+      notify('Task changed by another user. Reloaded latest data.', 'error');
+      await refreshTask(localTask.id);
+      return false;
+    }
+    return response.ok;
   };
 
   const handleSaveTaskMeta = async () => {
@@ -365,7 +387,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
         developer: taskEdits.developer,
         dueDate: fromDateInputValue(taskEdits.dueDate),
         priority: taskEdits.priority,
-        module: taskEdits.featureModule
+        module: taskEdits.featureModule,
+        expectedUpdatedAt: localTask.updatedAt
       })
     });
 
@@ -429,7 +452,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       body: JSON.stringify({
         description: 'New step',
         expectedResult: 'Expected outcome',
-        testData: ''
+        testData: '',
+        expectedUpdatedAt: localTask.updatedAt
       })
     });
 
@@ -457,7 +481,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       body: JSON.stringify({
         description: edits?.description,
         expectedResult: edits?.expectedResult,
-        testData: edits?.testData
+        testData: edits?.testData,
+        expectedUpdatedAt: localTask.updatedAt
       })
     });
 
@@ -470,7 +495,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     const confirmed = window.confirm('Delete this step?');
     if (!confirmed) return;
     const response = await fetch(`/api/tasks/${localTask.id}/steps/${stepId}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expectedUpdatedAt: localTask.updatedAt })
     });
     if (!response.ok) return;
     await refreshTask(localTask.id);

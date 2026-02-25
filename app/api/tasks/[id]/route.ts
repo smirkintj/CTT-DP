@@ -5,6 +5,7 @@ import { authOptions } from '../../../../lib/auth';
 import { mapTaskToUi } from '../_mappers';
 import { sendTaskAssignedEmail } from '../../../../lib/email';
 import { ActivityType } from '@prisma/client';
+import { validateExpectedUpdatedAt } from '../../../../lib/taskGuards';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -168,6 +169,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   if (existingTask.signedOffAt) {
     return NextResponse.json({ error: 'Task is signed off and locked' }, { status: 409 });
+  }
+
+  const staleMessage = validateExpectedUpdatedAt(existingTask.updatedAt, body?.expectedUpdatedAt);
+  if (staleMessage) {
+    return NextResponse.json({ error: staleMessage }, { status: 409 });
   }
 
   const nextDueDate =

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '../../../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../../lib/auth';
+import { validateExpectedUpdatedAt } from '../../../../../../lib/taskGuards';
 
 export async function PATCH(
   req: Request,
@@ -45,6 +46,10 @@ export async function PATCH(
   }
 
   const body = await req.json().catch(() => null);
+  const staleMessage = validateExpectedUpdatedAt(task.updatedAt, body?.expectedUpdatedAt);
+  if (staleMessage) {
+    return NextResponse.json({ error: staleMessage }, { status: 409 });
+  }
 
   const data = isAdmin
     ? {
@@ -101,10 +106,16 @@ export async function DELETE(
 
   const task = await prisma.task.findUnique({
     where: { id },
-    select: { signedOffAt: true }
+    select: { signedOffAt: true, updatedAt: true }
   });
   if (task?.signedOffAt) {
     return NextResponse.json({ error: 'Task is signed off and locked' }, { status: 409 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const staleMessage = validateExpectedUpdatedAt(task.updatedAt, body?.expectedUpdatedAt);
+  if (staleMessage) {
+    return NextResponse.json({ error: staleMessage }, { status: 409 });
   }
 
   await prisma.taskStep.delete({

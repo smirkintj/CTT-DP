@@ -6,6 +6,7 @@ import { ActivityType } from '@prisma/client';
 import { createActivity } from '../../../../../lib/activity';
 import { sendTaskSignedOffEmail } from '../../../../../lib/email';
 import { sendTeamsMessage } from '../../../../../lib/teams';
+import { validateExpectedUpdatedAt } from '../../../../../lib/taskGuards';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,6 +18,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const body = await req.json().catch(() => null);
 
   const task = await prisma.task.findUnique({
     where: { id },
@@ -32,6 +35,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (!task) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  const staleMessage = validateExpectedUpdatedAt(task.updatedAt, body?.expectedUpdatedAt);
+  if (staleMessage) {
+    return NextResponse.json({ error: staleMessage }, { status: 409 });
   }
 
   const isAdmin = session.user.role === 'ADMIN';

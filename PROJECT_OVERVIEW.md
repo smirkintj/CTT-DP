@@ -60,6 +60,9 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 - Provider: Credentials (`email`, `password`)
 - Password check: `bcryptjs.compare`
 - Session strategy: JWT
+- Login abuse protection:
+  - server-side temporary lockout on repeated failed attempts (`lib/loginRateLimit.ts`)
+  - client-side email validation + lock countdown UX in `App.tsx`
 - JWT/session includes:
   - `user.id`
   - `user.role`
@@ -112,6 +115,11 @@ Defined in `prisma/schema.prisma`.
 - `POST /api/tasks/[id]/steps`
 - `PATCH /api/tasks/[id]/steps/[stepId]`
 - `DELETE /api/tasks/[id]/steps/[stepId]`
+
+Task mutation guarantees:
+- Server-enforced status transition rules (`lib/taskGuards.ts` + `/api/tasks/[id]/status`)
+- Optimistic concurrency via `expectedUpdatedAt` on task detail mutations (`409 Conflict` on stale writes)
+- Signed-off task lock enforcement across metadata, status, steps, and comments
 
 ### Admin Utilities
 - `POST /api/admin/test-notification`
@@ -166,6 +174,11 @@ Additional behavior:
   - Maps Prisma entities to UI DTO shape.
 - `app/api/tasks/_types.ts`
   - DTO contracts used by task APIs.
+
+## Concurrency + Lifecycle Rules
+- Status changes are validated server-side against allowed transitions before update.
+- Mutation endpoints accept `expectedUpdatedAt`; if the current DB value differs, API rejects with `409`.
+- Task detail UI (`views/TaskDetail.tsx`) sends `expectedUpdatedAt` and refreshes task data on conflicts.
 
 ## Build / Scripts
 From `package.json`:

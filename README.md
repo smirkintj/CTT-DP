@@ -64,7 +64,13 @@ npm run start
 - Middleware enforces:
   - `/admin/*` and `/import` => ADMIN only
   - `/tasks/*` => authenticated users
+- Login hardening is enabled:
+  - client-side email validation + submit throttling UX
+  - server-side temporary lockout after repeated failed attempts
 - Recent Activity is database-backed via `Activity` and `ActivityRead` tables.
+- Task mutation APIs enforce:
+  - status transition rules (invalid transitions return `409`)
+  - optimistic concurrency using `expectedUpdatedAt` (stale updates return `409`)
 - Email notifications:
   - Admin test email: `/api/admin/test-notification`
   - Assignment email: `/api/tasks/[id]/notify-assigned`

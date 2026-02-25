@@ -3,6 +3,7 @@ import type { NextAuthOptions } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import prisma from './prisma';
+import { clearLoginFailures, getRemainingBlockMs, recordLoginFailure } from './loginRateLimit';
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -18,18 +19,29 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         const email = credentials?.email?.toString().toLowerCase().trim();
         const password = credentials?.password?.toString();
+        const isEmailFormat = !!email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-        if (!email || !password) return null;
+        if (!isEmailFormat || !password) return null;
+
+        if (getRemainingBlockMs(email) > 0) return null;
 
         try {
           const user = await prisma.user.findUnique({
             where: { email }
           });
 
-          if (!user || !user.passwordHash) return null;
+          if (!user || !user.passwordHash) {
+            recordLoginFailure(email);
+            return null;
+          }
 
           const isValid = await bcrypt.compare(password, user.passwordHash);
-          if (!isValid) return null;
+          if (!isValid) {
+            recordLoginFailure(email);
+            return null;
+          }
+
+          clearLoginFailures(email);
 
           return {
             id: user.id,
@@ -42,6 +54,7 @@ export const authOptions: NextAuthOptions = {
           if (process.env.NODE_ENV !== 'production') {
             console.error('Credentials authorize failed:', error);
           }
+          recordLoginFailure(email);
           return null;
         }
       }

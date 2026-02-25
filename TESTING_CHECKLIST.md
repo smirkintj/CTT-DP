@@ -45,8 +45,12 @@ How to use:
 
 ## 2) Authentication and Login UX
 - [ ] `PASS/FAIL` Invalid credentials show friendly error.
+- [ ] `PASS/FAIL` Sign-in CTA stays disabled until valid email + password are entered.
+- [ ] `PASS/FAIL` Password eye icon toggles visibility inside password input correctly.
+- [ ] `PASS/FAIL` Login shows in-progress state (`Signing in...`) while request is running.
 - [ ] `PASS/FAIL` Remember-email option retains email after reload.
 - [ ] `PASS/FAIL` Password autofill works with browser password manager.
+- [ ] `PASS/FAIL` After 3 failed login attempts, account/email is temporarily locked and shows countdown.
 - [ ] `PASS/FAIL` Logout clears session and returns to login screen.
 
 ---
@@ -128,6 +132,8 @@ How to use:
 ## 6) Data Integrity and Security
 - [ ] `PASS/FAIL` No unauthorized data visible via direct API calls.
 - [ ] `PASS/FAIL` API returns 401/403/404 correctly.
+- [ ] `PASS/FAIL` Invalid status transitions are blocked with `409 Conflict`.
+- [ ] `PASS/FAIL` Concurrent stale writes are blocked with `409 Conflict` (task metadata/status/steps/comments/signoff).
 - [ ] `PASS/FAIL` No task mutation allowed after sign-off lock.
 - [ ] `PASS/FAIL` Signed-off lock blocks: status change, step mutation, comment creation.
 - [ ] `PASS/FAIL` Activity entries are recorded for key actions.

@@ -1,6 +1,6 @@
 # Product Backlog (CTT UAT Portal)
 
-Last updated: 2026-02-24  
+Last updated: 2026-02-25  
 Owner: Product + Engineering  
 Scope: Next.js App Router + Prisma + NextAuth stack
 
@@ -90,30 +90,38 @@ This backlog tracks improvement initiatives with:
 
 ---
 
-## 5) Authentication Hardening (rate limit + lockout)
+## 5) ~~Authentication Hardening (rate limit + lockout)~~
 - Priority: `P1`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `Implemented`
+- Date implemented: `2026-02-25`
 - What this is for:
   - Reduce brute-force and credential stuffing risk on credentials auth.
-- Implementation plan:
-  - Add login attempt counters by email/IP.
-  - Temporary lockout after threshold.
-  - Return generic auth error to avoid user enumeration.
+- Implementation:
+  - Added server-side in-memory login rate limiter:
+    - `lib/loginRateLimit.ts`
+    - wired in `lib/auth.ts` (`authorize`)
+  - Added client-side lock UX and validation:
+    - email format validation
+    - disable CTA until valid input
+    - temporary lock countdown after repeated failures
+    - loading state while login request is in flight
+  - Added password visibility toggle in login form.
 - Impact if not done:
   - Elevated account takeover risk.
   - Higher abuse traffic and incident likelihood.
 
-## 6) Server-Enforced Task Status Transitions
+## 6) ~~Server-Enforced Task Status Transitions~~
 - Priority: `P1`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `Implemented`
+- Date implemented: `2026-02-25`
 - What this is for:
   - Ensure task lifecycle cannot enter invalid states.
-- Implementation plan:
-  - Define transition map (from -> allowed to).
-  - Validate in status mutation API.
-  - Return `409` with rule violation reason.
+- Implementation:
+  - Added explicit transition guard map:
+    - `lib/taskGuards.ts`
+  - Enforced transition checks in status mutation route:
+    - `app/api/tasks/[id]/status/route.ts`
+  - Invalid transitions now return `409 Conflict` with a clear message.
 - Impact if not done:
   - Inconsistent state across UI/API.
   - KPI/reporting accuracy degrades.
@@ -135,16 +143,24 @@ This backlog tracks improvement initiatives with:
   - Compliance/audit risk from post sign-off edits.
   - Trust in UAT sign-off is weakened.
 
-## 8) Optimistic Concurrency Control (`updatedAt` checks)
+## 8) ~~Optimistic Concurrency Control (`updatedAt` checks)~~
 - Priority: `P1`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `Implemented`
+- Date implemented: `2026-02-25`
 - What this is for:
   - Prevent silent overwrite when 2 users edit same task.
-- Implementation plan:
-  - Include `expectedUpdatedAt` in mutation payload.
-  - Reject if server `updatedAt` differs (`409 Conflict`).
-  - UI prompt to reload latest changes.
+- Implementation:
+  - Added reusable server validation for `expectedUpdatedAt`:
+    - `lib/taskGuards.ts`
+  - Added `409 Conflict` checks on task mutation endpoints:
+    - `app/api/tasks/[id]/route.ts`
+    - `app/api/tasks/[id]/status/route.ts`
+    - `app/api/tasks/[id]/steps/route.ts`
+    - `app/api/tasks/[id]/steps/[stepId]/route.ts`
+    - `app/api/tasks/[id]/comments/route.ts`
+    - `app/api/tasks/[id]/signoff/route.ts`
+  - Client now sends `expectedUpdatedAt` for task detail mutations and auto-refreshes on conflict:
+    - `views/TaskDetail.tsx`
 - Impact if not done:
   - Data loss and unexpected edits in collaborative scenarios.
 

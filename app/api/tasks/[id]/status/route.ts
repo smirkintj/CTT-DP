@@ -5,6 +5,7 @@ import { mapUiStatusToDb } from '../../_mappers';
 import { ActivityType } from '@prisma/client';
 import { createActivity, toStatusLabel } from '../../../../../lib/activity';
 import { sendTeamsMessage } from '../../../../../lib/teams';
+import { validateExpectedUpdatedAt, validateTaskTransition } from '../../../../../lib/taskGuards';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,6 +22,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = await req.json().catch(() => null);
   const status = body?.status as string | undefined;
   const stepOrder = typeof body?.stepOrder === 'number' ? body.stepOrder : undefined;
+  const expectedUpdatedAt = body?.expectedUpdatedAt;
 
   if (!status) {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
@@ -38,6 +40,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Task is signed off and locked' }, { status: 409 });
   }
 
+  const staleMessage = validateExpectedUpdatedAt(task.updatedAt, expectedUpdatedAt);
+  if (staleMessage) {
+    return NextResponse.json({ error: staleMessage }, { status: 409 });
+  }
+
   const isAdmin = session.user.role === 'ADMIN';
   if (!isAdmin) {
     if (task.assigneeId !== session.user.id || task.countryCode !== session.user.countryCode) {
@@ -50,6 +57,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (previousStatus === dbStatus) {
     return NextResponse.json({ ok: true, unchanged: true });
+  }
+
+  const transitionError = validateTaskTransition(previousStatus, dbStatus);
+  if (transitionError) {
+    return NextResponse.json({ error: transitionError }, { status: 409 });
   }
 
   await prisma.task.update({
