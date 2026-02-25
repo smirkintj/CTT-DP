@@ -39,6 +39,7 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
   - Session-driven `currentUser`
   - Fetches `/api/tasks`
   - Handles view state + route callbacks
+  - Shows dedicated auth-loading screen while `useSession` hydrates to avoid login flicker on refresh
 
 ### Views (`views/`)
 - `StakeholderDashboard.tsx`

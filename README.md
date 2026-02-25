@@ -90,6 +90,7 @@ npm run start
   - Task Detail edits
   - Admin Task create modal
   - Admin Database notification settings (email + Teams)
+- Auth/session hydration now shows a neutral loading state to prevent brief login-page flicker on refresh.
 
 ## Troubleshooting
 ### 1) Vercel build error: `Property 'activity' does not exist on type PrismaClient`

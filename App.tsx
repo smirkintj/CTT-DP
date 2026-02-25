@@ -288,6 +288,17 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
   const selectedTask = selectedTaskId ? tasks.find(t => t.id === selectedTaskId) : null;
 
+  if (status === 'loading' || (session?.user && !currentUser)) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl px-6 py-5 flex items-center gap-3">
+          <Loader2 size={18} className="animate-spin text-slate-500" />
+          <p className="text-sm text-slate-600 font-medium">Loading your workspace…</p>
+        </div>
+      </div>
+    );
+  }
+
   // Render Login Screen if no user
   if (!currentUser || view === 'LOGIN') {
     return (
