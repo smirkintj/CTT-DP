@@ -21,27 +21,18 @@ export function mapTaskToUi(task: any): TaskDTO {
   const comments = Array.isArray(task.comments) ? task.comments : [];
   const steps = Array.isArray(task.steps) ? task.steps : [];
   const stepCommentMap = new Map<number, Array<{ id: string; userId: string; text: string; createdAt: string }>>();
-
-  const extractStepComment = (body: string) => {
-    const match = body.match(/^\[\[STEP:(\d+)\]\]\s*/i);
-    if (!match) return { stepOrder: null, cleanedBody: body };
-    const stepOrder = Number(match[1]);
-    const cleanedBody = body.replace(/^\[\[STEP:\d+\]\]\s*/i, '');
-    return { stepOrder: Number.isNaN(stepOrder) ? null : stepOrder, cleanedBody };
-  };
+  const stripLegacyMarker = (body: string) => body.replace(/^\[\[STEP:\d+\]\]\s*/i, '');
 
   for (const c of comments) {
-    const { stepOrder, cleanedBody } = extractStepComment(c.body ?? '');
-    const resolvedStepOrder = typeof c.stepOrder === 'number' ? c.stepOrder : stepOrder;
-    if (!resolvedStepOrder) continue;
+    if (typeof c.stepOrder !== 'number') continue;
     const authorName = c.author?.name || c.author?.email || 'User';
-    if (!stepCommentMap.has(resolvedStepOrder)) {
-      stepCommentMap.set(resolvedStepOrder, []);
+    if (!stepCommentMap.has(c.stepOrder)) {
+      stepCommentMap.set(c.stepOrder, []);
     }
-    stepCommentMap.get(resolvedStepOrder)!.push({
+    stepCommentMap.get(c.stepOrder)!.push({
       id: c.id,
       userId: authorName,
-      text: cleanedBody,
+      text: stripLegacyMarker(c.body ?? ''),
       createdAt: c.createdAt ? c.createdAt.toISOString() : ''
     });
   }
@@ -104,7 +95,7 @@ export function mapTaskToUi(task: any): TaskDTO {
 
     comments: comments.map((c: any) => ({
       id: c.id,
-      body: extractStepComment(c.body ?? '').cleanedBody,
+      body: stripLegacyMarker(c.body ?? ''),
       createdAt: c.createdAt.toISOString(),
       author: {
         id: c.author?.id ?? '',

@@ -192,17 +192,20 @@ This backlog tracks improvement initiatives with:
 - Impact if not done:
   - Tagging appears to work but is not reliably actionable.
 
-## 11) Step Comment Data Model Normalization
+## 11) ~~Step Comment Data Model Normalization~~
 - Priority: `P2`
-- Status: `In Progress`
-- Date implemented: `Partially on 2026-02-24`
+- Status: `Implemented`
+- Date implemented: `2026-02-25`
 - What this is for:
   - Eliminate fragile encoded step markers in comment body.
-- Implementation progress:
+- Implementation:
   - Added structured `Comment.stepOrder` field.
   - New comments now persist `stepOrder` directly.
-  - Mapper supports structured field and still reads legacy encoded markers for backward compatibility.
-  - Remaining: optional one-time backfill and eventual removal of legacy parser.
+  - Added one-time backfill script for legacy encoded comments:
+    - `scripts/backfill-comment-step-order.ts`
+    - `npm run comments:backfill-step-order`
+  - Mapper now uses structured `stepOrder` for step-level comment mapping.
+  - Legacy `[[STEP:n]]` markers are stripped for safe display only.
 - Impact if not done:
   - Parsing edge cases and future maintenance complexity.
 
@@ -566,3 +569,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-24`: Updated lock enforcement as implemented; advanced comment normalization and save-state guard progress.
 - `2026-02-25`: Marked #5 Authentication Hardening, #6 Server-Enforced Status Transitions, and #8 Optimistic Concurrency as implemented with concrete code references.
 - `2026-02-25`: Updated related verification/docs alignment in README, PROJECT_OVERVIEW, and TESTING_CHECKLIST.
+- `2026-02-25`: Completed #11 Step Comment Data Model Normalization with backfill script and mapper cleanup.

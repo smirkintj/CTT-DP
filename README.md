@@ -58,6 +58,7 @@ npm run start
 - `npm run prisma:studio`
 - `npm run clean`
 - `npm run reset:dev` (kills local dev server ports and clears `.next` cache)
+- `npm run comments:backfill-step-order` (one-time legacy comment step-order backfill)
 
 ## Notes
 - Build script runs `prisma generate && next build` to avoid stale Prisma client issues in CI/Vercel.
@@ -71,6 +72,9 @@ npm run start
 - Task mutation APIs enforce:
   - status transition rules (invalid transitions return `409`)
   - optimistic concurrency using `expectedUpdatedAt` (stale updates return `409`)
+- Step-comment normalization:
+  - `Comment.stepOrder` is the source of truth for step-level mapping.
+  - Run `npm run comments:backfill-step-order` once after upgrading old environments.
 - Email notifications:
   - Admin test email: `/api/admin/test-notification`
   - Assignment email: `/api/tasks/[id]/notify-assigned`

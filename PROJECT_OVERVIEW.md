@@ -172,8 +172,14 @@ Additional behavior:
 ## Data Mapping Layer
 - `app/api/tasks/_mappers.ts`
   - Maps Prisma entities to UI DTO shape.
+  - Step-level comments map by structured `Comment.stepOrder`.
 - `app/api/tasks/_types.ts`
   - DTO contracts used by task APIs.
+
+Comment normalization:
+- One-time legacy backfill script:
+  - `scripts/backfill-comment-step-order.ts`
+  - run via `npm run comments:backfill-step-order`
 
 ## Concurrency + Lifecycle Rules
 - Status changes are validated server-side against allowed transitions before update.

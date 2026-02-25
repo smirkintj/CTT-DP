@@ -134,6 +134,7 @@ How to use:
 - [ ] `PASS/FAIL` API returns 401/403/404 correctly.
 - [ ] `PASS/FAIL` Invalid status transitions are blocked with `409 Conflict`.
 - [ ] `PASS/FAIL` Concurrent stale writes are blocked with `409 Conflict` (task metadata/status/steps/comments/signoff).
+- [ ] `PASS/FAIL` Legacy step comments are backfilled (`npm run comments:backfill-step-order`) and still appear under the correct step.
 - [ ] `PASS/FAIL` No task mutation allowed after sign-off lock.
 - [ ] `PASS/FAIL` Signed-off lock blocks: status change, step mutation, comment creation.
 - [ ] `PASS/FAIL` Activity entries are recorded for key actions.
