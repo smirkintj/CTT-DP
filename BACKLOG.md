@@ -537,6 +537,73 @@ This backlog tracks improvement initiatives with:
 
 ---
 
+## Technical Debt Backlog
+
+## 36) Technical Debt: Dependency Audit and Pruning
+- Priority: `P1`
+- Status: `Planned`
+- Date implemented: `TBD`
+- What this is for:
+  - Reduce maintenance and security surface by removing unused packages.
+- Current finding:
+  - `recharts` appears installed but unused in codebase (no runtime imports found).
+- Implementation plan:
+  - Remove unused dependencies one-by-one.
+  - Run full build/lint and smoke test after each removal.
+  - Keep dependency inventory documented in README.
+- Impact if not done:
+  - Unnecessary attack surface and larger install/build footprint.
+
+## 37) Technical Debt: Centralize Prisma Include Shapes
+- Priority: `P1`
+- Status: `Planned`
+- Date implemented: `TBD`
+- What this is for:
+  - Avoid repeated query include blocks across task APIs.
+- Implementation plan:
+  - Create shared query include/select constants.
+  - Reuse in `/api/tasks`, `/api/tasks/[id]`, and related routes.
+- Impact if not done:
+  - Higher regression risk when schema changes.
+
+## 38) Technical Debt: API Error Shape Consistency Enforcement
+- Priority: `P1`
+- Status: `Planned`
+- Date implemented: `TBD`
+- What this is for:
+  - Keep all API failures predictable for UI handling and telemetry.
+- Implementation plan:
+  - Add shared error response helper.
+  - Migrate task/admin endpoints to use standard shape (`error`, `code`, `detail`).
+- Impact if not done:
+  - Inconsistent UX and harder production debugging.
+
+## 39) Technical Debt: Audit Logging Coverage Gaps
+- Priority: `P1`
+- Status: `Planned`
+- Date implemented: `TBD`
+- What this is for:
+  - Ensure immutable history is complete across all critical actions.
+- Implementation plan:
+  - Extend TaskHistory to notification and admin config changes where relevant.
+  - Add checklist-driven coverage tests for each mutation route.
+- Impact if not done:
+  - Partial audit trail weakens incident forensics/compliance.
+
+## 40) Technical Debt: UI Component Consolidation
+- Priority: `P2`
+- Status: `Planned`
+- Date implemented: `TBD`
+- What this is for:
+  - Keep Apple-style visual consistency and reduce duplicated styles.
+- Implementation plan:
+  - Extract reusable Input/Select/Button/Card primitives from repeated Tailwind patterns.
+  - Standardize spacing, typography, and state styles.
+- Impact if not done:
+  - UI drift and slower feature delivery.
+
+---
+
 ## Implementation Approach (Feature Roadmap)
 
 ## Phase A (2-3 weeks): Core Admin Efficiency
@@ -597,3 +664,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-25`: Added matching resilience for `GET /api/tasks/[id]` and improved Task Detail refresh error surfacing with API-derived messages.
 - `2026-02-25`: Added auth-loading screen in `App.tsx` to remove login flicker during session hydration on page refresh.
 - `2026-02-25`: Completed #9 immutable task history with DB model, API instrumentation, secure history endpoint, and admin timeline UI.
+- `2026-02-25`: Added Technical Debt backlog items (#36-#40), including dependency pruning and codebase cleanup/security hardening tasks.
