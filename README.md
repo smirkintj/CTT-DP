@@ -115,6 +115,14 @@ Fix:
 3. Restart dev server:
    - `npm run dev`
 
+### 4) Dashboard login succeeds but `/api/tasks` returns 500
+Cause:
+- Relation include or legacy data shape can break full task hydration in development.
+
+Current behavior:
+- `/api/tasks` now has a resilient fallback to return minimal task data if full relational fetch fails.
+- In development only, API response includes `detail` to help identify root cause safely.
+
 ### 3) Runtime module error: `Cannot find module './vendor-chunks/...` or missing chunk files
 Cause:
 - Corrupted/stale local Next.js cache (`.next`) in dev mode.

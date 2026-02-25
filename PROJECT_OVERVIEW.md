@@ -120,6 +120,7 @@ Task mutation guarantees:
 - Server-enforced status transition rules (`lib/taskGuards.ts` + `/api/tasks/[id]/status`)
 - Optimistic concurrency via `expectedUpdatedAt` on task detail mutations (`409 Conflict` on stale writes)
 - Signed-off task lock enforcement across metadata, status, steps, and comments
+- `GET /api/tasks` includes a resilient fallback path: if relation-heavy fetch fails, API returns minimal task payload so dashboards still load.
 
 ### Admin Utilities
 - `POST /api/admin/test-notification`

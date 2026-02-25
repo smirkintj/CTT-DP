@@ -580,3 +580,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-25`: Completed #12 save-state/unsaved-change coverage across Task Detail, Admin Task create modal, and Admin Database notification settings.
 - `2026-02-25`: Hardened task DTO date mapping to tolerate non-Date runtime values and prevent `/api/tasks` 500s from malformed timestamp shapes.
 - `2026-02-25`: Added defensive guards and error handling in `GET /api/tasks` for missing session user identifiers and safer runtime failure surfacing.
+- `2026-02-25`: Added resilient fallback path in `GET /api/tasks` (minimal task fetch) plus development-only error detail to unblock dashboard when relational includes fail.

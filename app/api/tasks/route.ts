@@ -19,11 +19,12 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const where = isAdmin ? undefined : { assigneeId: session.user.id };
   try {
     let tasks: any[] = [];
     try {
       tasks = await prisma.task.findMany({
-        where: isAdmin ? undefined : { assigneeId: session.user.id },
+        where,
         include: {
           country: true,
           assignee: {
@@ -71,7 +72,7 @@ export async function GET() {
       });
     } catch {
       tasks = await prisma.task.findMany({
-        where: isAdmin ? undefined : { assigneeId: session.user.id },
+        where,
         include: {
           country: true,
           assignee: {
@@ -113,8 +114,40 @@ export async function GET() {
       }
     });
   } catch (error) {
+    try {
+      // Last-resort fallback so dashboards remain usable even if relation includes fail.
+      const minimalTasks = await prisma.task.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' }
+      });
+
+      const mappedMinimal = minimalTasks.map((task) =>
+        mapTaskToUi({
+          ...task,
+          country: null,
+          assignee: null,
+          updatedBy: null,
+          signedOffBy: null,
+          comments: [],
+          steps: []
+        })
+      );
+
+      return NextResponse.json(mappedMinimal, {
+        headers: {
+          'Cache-Control': 'no-store'
+        }
+      });
+    } catch (fallbackError) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('GET /api/tasks fallback failed:', fallbackError);
+      }
+    }
+
     if (process.env.NODE_ENV !== 'production') {
       console.error('GET /api/tasks failed:', error);
+      const detail = error instanceof Error ? error.message : 'Unknown error';
+      return NextResponse.json({ error: 'Failed to fetch tasks', detail }, { status: 500 });
     }
     return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
   }
