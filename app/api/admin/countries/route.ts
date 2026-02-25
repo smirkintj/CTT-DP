@@ -2,14 +2,16 @@ import { NextResponse } from 'next/server';
 import prisma from '../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
+import { badRequest, forbidden, unauthorized } from '../../../../lib/apiError';
+import { createAdminAudit } from '../../../../lib/adminAudit';
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
-    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+    return { error: unauthorized('Unauthorized', 'AUTH_REQUIRED') };
   }
   if (session.user.role !== 'ADMIN') {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+    return { error: forbidden('Forbidden', 'ADMIN_REQUIRED') };
   }
   return { session };
 }
@@ -41,7 +43,7 @@ export async function POST(req: Request) {
   const name = body?.name?.toString().trim();
 
   if (!code || !name) {
-    return NextResponse.json({ error: 'Code and name are required' }, { status: 400 });
+    return badRequest('Code and name are required', 'COUNTRY_REQUIRED');
   }
 
   const country = await prisma.country.upsert({
@@ -55,6 +57,12 @@ export async function POST(req: Request) {
       name,
       isActive: true
     }
+  });
+
+  await createAdminAudit({
+    actorId: auth.session.user.id,
+    countryCode: country.code,
+    message: `${auth.session.user.name || auth.session.user.email || 'Admin'} saved country ${country.code}.`
   });
 
   return NextResponse.json({
@@ -71,7 +79,7 @@ export async function DELETE(req: Request) {
   const body = await req.json().catch(() => null);
   const code = body?.code?.toString().trim().toUpperCase();
   if (!code) {
-    return NextResponse.json({ error: 'Code is required' }, { status: 400 });
+    return badRequest('Code is required', 'COUNTRY_CODE_REQUIRED');
   }
 
   const tasksCount = await prisma.task.count({ where: { countryCode: code } });
@@ -83,6 +91,10 @@ export async function DELETE(req: Request) {
   }
 
   await prisma.country.delete({ where: { code } });
+  await createAdminAudit({
+    actorId: auth.session.user.id,
+    countryCode: code,
+    message: `${auth.session.user.name || auth.session.user.email || 'Admin'} deleted country ${code}.`
+  });
   return NextResponse.json({ success: true });
 }
-

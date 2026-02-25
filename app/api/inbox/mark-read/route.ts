@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import prisma from '../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
+import { badRequest, unauthorized } from '../../../../lib/apiError';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   }
 
   const body = await req.json().catch(() => null);
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
   const markAll = body?.all === true;
 
   if (!taskId && !markAll) {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+    return badRequest('Invalid payload', 'INBOX_MARK_READ_INVALID');
   }
 
   const isAdmin = session.user.role === 'ADMIN';

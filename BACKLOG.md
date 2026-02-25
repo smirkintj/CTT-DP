@@ -23,10 +23,10 @@ This backlog tracks improvement initiatives with:
 - `Implemented`
 
 ## Progress Snapshot
-- Overall: `13/40 Implemented` (32.5%)
-- Active now: `3 In Progress`
-- Remaining: `24 Planned`
-- High-priority lane (`P0 + P1`): `11/23 Implemented`
+- Overall: `14/40 Implemented` (35%)
+- Active now: `4 In Progress`
+- Remaining: `22 Planned`
+- High-priority lane (`P0 + P1`): `12/23 Implemented`
 - Technical debt lane (`#36-#40`): `2/5 Implemented`
 
 ---
@@ -581,32 +581,47 @@ This backlog tracks improvement initiatives with:
 - Impact if not done:
   - Higher regression risk when schema changes.
 
-## 38) Technical Debt: API Error Shape Consistency Enforcement
+## 38) ~~Technical Debt: API Error Shape Consistency Enforcement~~
 - Priority: `P1`
-- Status: `In Progress`
-- Date implemented: `Phase 1 on 2026-02-25`
+- Status: `Implemented`
+- Date implemented: `2026-02-25`
 - What this is for:
   - Keep all API failures predictable for UI handling and telemetry.
-- Implementation progress:
+- Implementation:
   - Added shared API error helper:
     - `lib/apiError.ts`
-  - Migrated key task endpoints to standardized error shape (`error`, `code`, `detail` in dev):
+  - Migrated task, admin, activity, inbox, and comment unread endpoints to standardized error shape (`error`, `code`, `detail` in dev):
     - `app/api/tasks/route.ts`
     - `app/api/tasks/[id]/route.ts`
     - `app/api/tasks/[id]/status/route.ts`
     - `app/api/tasks/[id]/comments/route.ts`
+    - `app/api/admin/countries/route.ts`
+    - `app/api/admin/modules/route.ts`
+    - `app/api/admin/stakeholders/route.ts`
+    - `app/api/admin/teams-webhooks/route.ts`
+    - `app/api/activities/route.ts`
+    - `app/api/activities/mark-read/route.ts`
+    - `app/api/inbox/route.ts`
+    - `app/api/inbox/mark-read/route.ts`
+    - `app/api/comments/unread-count/route.ts`
 - Impact if not done:
   - Inconsistent UX and harder production debugging.
 
 ## 39) Technical Debt: Audit Logging Coverage Gaps
 - Priority: `P1`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `In Progress`
+- Date implemented: `Phase 1 on 2026-02-25`
 - What this is for:
   - Ensure immutable history is complete across all critical actions.
-- Implementation plan:
-  - Extend TaskHistory to notification and admin config changes where relevant.
-  - Add checklist-driven coverage tests for each mutation route.
+- Implementation progress:
+  - Added admin audit helper:
+    - `lib/adminAudit.ts`
+  - Added admin configuration audit events for:
+    - country create/delete (`app/api/admin/countries/route.ts`)
+    - module create/delete (`app/api/admin/modules/route.ts`)
+    - Teams config save (`app/api/admin/teams-webhooks/route.ts`)
+  - Remaining:
+    - add explicit checklist-backed endpoint coverage for remaining admin flows.
 - Impact if not done:
   - Partial audit trail weakens incident forensics/compliance.
 
@@ -688,3 +703,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-25`: Completed #36 dependency audit/pruning (`recharts` removed, dev-only transitive packages validated) and started Phase 1 API error shape standardization + UI form style consolidation.
 - `2026-02-25`: Added top-level progress snapshot (`Implemented / Total`, active, remaining) for quick backlog health tracking.
 - `2026-02-25`: Completed #37 shared Prisma include centralization; advanced #38 (API error helper rollout) and #20 (inline validation) to Phase 1.
+- `2026-02-25`: Completed #38 API error-shape rollout across task/admin/inbox/activity routes and advanced #39 audit coverage with admin config audit events.

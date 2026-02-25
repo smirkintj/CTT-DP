@@ -2,17 +2,19 @@ import { NextResponse } from 'next/server';
 import prisma from '../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
+import { badRequest, forbidden, notFound, unauthorized } from '../../../../lib/apiError';
+import { createAdminAudit } from '../../../../lib/adminAudit';
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (session.user.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  return null;
+  if (!session?.user) return { error: unauthorized('Unauthorized', 'AUTH_REQUIRED') };
+  if (session.user.role !== 'ADMIN') return { error: forbidden('Forbidden', 'ADMIN_REQUIRED') };
+  return { session };
 }
 
 export async function GET() {
-  const authError = await requireAdmin();
-  if (authError) return authError;
+  const auth = await requireAdmin();
+  if ('error' in auth) return auth.error;
 
   const configs = await prisma.notificationConfig.findMany({
     include: {
@@ -27,18 +29,18 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const authError = await requireAdmin();
-  if (authError) return authError;
+  const auth = await requireAdmin();
+  if ('error' in auth) return auth.error;
 
   const body = await req.json().catch(() => null);
   const countryCode = body?.countryCode?.toString().trim().toUpperCase();
   if (!countryCode) {
-    return NextResponse.json({ error: 'countryCode is required' }, { status: 400 });
+    return badRequest('countryCode is required', 'COUNTRY_CODE_REQUIRED');
   }
 
   const country = await prisma.country.findUnique({ where: { code: countryCode } });
   if (!country) {
-    return NextResponse.json({ error: 'Country not found' }, { status: 404 });
+    return notFound('Country not found', 'COUNTRY_NOT_FOUND');
   }
 
   const config = await prisma.notificationConfig.upsert({
@@ -59,6 +61,19 @@ export async function POST(req: Request) {
       notifyReminder: body?.notifyReminder !== false,
       notifySignedOff: body?.notifySignedOff !== false,
       notifyFailedStep: body?.notifyFailedStep !== false
+    }
+  });
+
+  await createAdminAudit({
+    actorId: auth.session.user.id,
+    countryCode,
+    message: `${auth.session.user.name || auth.session.user.email || 'Admin'} updated Teams notification settings for ${countryCode}.`,
+    metadata: {
+      isActive: config.isActive,
+      notifyTaskAssigned: config.notifyTaskAssigned,
+      notifyReminder: config.notifyReminder,
+      notifySignedOff: config.notifySignedOff,
+      notifyFailedStep: config.notifyFailedStep
     }
   });
 
