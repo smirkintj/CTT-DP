@@ -564,3 +564,5 @@ This backlog tracks improvement initiatives with:
 - `2026-02-24`: Added strike-through formatting for implemented items and 10 user-centred enhancement items.
 - `2026-02-24`: Added functional feature backlog (#25-#34) and phased implementation approach.
 - `2026-02-24`: Updated lock enforcement as implemented; advanced comment normalization and save-state guard progress.
+- `2026-02-25`: Marked #5 Authentication Hardening, #6 Server-Enforced Status Transitions, and #8 Optimistic Concurrency as implemented with concrete code references.
+- `2026-02-25`: Updated related verification/docs alignment in README, PROJECT_OVERVIEW, and TESTING_CHECKLIST.
