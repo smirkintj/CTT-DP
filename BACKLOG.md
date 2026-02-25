@@ -22,6 +22,13 @@ This backlog tracks improvement initiatives with:
 - `In Progress`
 - `Implemented`
 
+## Progress Snapshot
+- Overall: `12/40 Implemented` (30%)
+- Active now: `1 In Progress`
+- Remaining: `27 Planned`
+- High-priority lane (`P0 + P1`): `9/22 Implemented`
+- Technical debt lane (`#36-#40`): `1/5 Implemented`
+
 ---
 
 ## 1) ~~Unified API Error Contract + Client Error Handling~~
@@ -665,3 +672,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-25`: Completed #9 immutable task history with DB model, API instrumentation, secure history endpoint, and admin timeline UI.
 - `2026-02-25`: Added Technical Debt backlog items (#36-#40), including dependency pruning and codebase cleanup/security hardening tasks.
 - `2026-02-25`: Completed #36 dependency audit/pruning (`recharts` removed, dev-only transitive packages validated) and started Phase 1 API error shape standardization + UI form style consolidation.
+- `2026-02-25`: Added top-level progress snapshot (`Implemented / Total`, active, remaining) for quick backlog health tracking.
