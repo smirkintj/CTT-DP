@@ -22,87 +22,129 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   let task: any = null;
   try {
-    task = await prisma.task.findUnique({
-      where: { id },
-      include: {
-        country: true,
-        assignee: {
-          select: {
-            id: true,
-            email: true,
-            countryCode: true,
-            name: true
-          }
-        },
-        updatedBy: {
-          select: {
-            id: true,
-            email: true,
-            name: true
-          }
-        },
-        signedOffBy: {
-          select: {
-            id: true,
-            email: true,
-            name: true
-          }
-        },
-        steps: {
-          orderBy: {
-            order: 'asc'
-          }
-        },
-        comments: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                email: true,
-                name: true
-              }
+    try {
+      task = await prisma.task.findUnique({
+        where: { id },
+        include: {
+          country: true,
+          assignee: {
+            select: {
+              id: true,
+              email: true,
+              countryCode: true,
+              name: true
             }
           },
-          orderBy: {
-            createdAt: 'asc'
-          }
-        }
-      }
-    });
-  } catch {
-    task = await prisma.task.findUnique({
-      where: { id },
-      include: {
-        country: true,
-        assignee: {
-          select: {
-            id: true,
-            email: true,
-            countryCode: true,
-            name: true
-          }
-        },
-        steps: {
-          orderBy: {
-            order: 'asc'
-          }
-        },
-        comments: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                email: true,
-                name: true
-              }
+          updatedBy: {
+            select: {
+              id: true,
+              email: true,
+              name: true
             }
           },
-          orderBy: {
-            createdAt: 'asc'
+          signedOffBy: {
+            select: {
+              id: true,
+              email: true,
+              name: true
+            }
+          },
+          steps: {
+            orderBy: {
+              order: 'asc'
+            }
+          },
+          comments: {
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true
+                }
+              }
+            },
+            orderBy: {
+              createdAt: 'asc'
+            }
           }
         }
+      });
+    } catch {
+      task = await prisma.task.findUnique({
+        where: { id },
+        include: {
+          country: true,
+          assignee: {
+            select: {
+              id: true,
+              email: true,
+              countryCode: true,
+              name: true
+            }
+          },
+          steps: {
+            orderBy: {
+              order: 'asc'
+            }
+          },
+          comments: {
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true
+                }
+              }
+            },
+            orderBy: {
+              createdAt: 'asc'
+            }
+          }
+        }
+      });
+    }
+  } catch (error) {
+    try {
+      const minimalTask = await prisma.task.findUnique({
+        where: { id }
+      });
+      if (!minimalTask) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
       }
-    });
+
+      const isAdmin = session.user.role === 'ADMIN';
+      if (!isAdmin) {
+        const userCountry = session.user.countryCode;
+        if (!userCountry || minimalTask.countryCode !== userCountry || minimalTask.assigneeId !== session.user.id) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+      }
+
+      return NextResponse.json(
+        mapTaskToUi({
+          ...minimalTask,
+          country: null,
+          assignee: null,
+          updatedBy: null,
+          signedOffBy: null,
+          comments: [],
+          steps: []
+        })
+      );
+    } catch (fallbackError) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('GET /api/tasks/[id] fallback failed:', fallbackError);
+      }
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('GET /api/tasks/[id] failed:', error);
+      const detail = error instanceof Error ? error.message : 'Unknown error';
+      return NextResponse.json({ error: 'Failed to fetch task', detail }, { status: 500 });
+    }
+    return NextResponse.json({ error: 'Failed to fetch task' }, { status: 500 });
   }
 
   if (!task) {

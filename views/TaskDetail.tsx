@@ -7,6 +7,7 @@ import { SignatureCanvas } from '../components/SignatureCanvas';
 import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer, Trash2 } from 'lucide-react';
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
+import { ApiError } from '../lib/http';
 
 interface TaskDetailProps {
   task: Task;
@@ -352,7 +353,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       setLocalTask(safeUpdated);
       onUpdateTask(safeUpdated);
       void fetch(`/api/tasks/${taskId}/comments/read`, { method: 'POST' });
-    } catch {
+    } catch (error) {
+      if (error instanceof ApiError) {
+        notify(error.message || 'Failed to refresh task', 'error');
+        return;
+      }
       notify('Failed to refresh task', 'error');
     }
   };

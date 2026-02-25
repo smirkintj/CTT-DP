@@ -121,6 +121,7 @@ Task mutation guarantees:
 - Optimistic concurrency via `expectedUpdatedAt` on task detail mutations (`409 Conflict` on stale writes)
 - Signed-off task lock enforcement across metadata, status, steps, and comments
 - `GET /api/tasks` includes a resilient fallback path: if relation-heavy fetch fails, API returns minimal task payload so dashboards still load.
+- `GET /api/tasks/[id]` includes the same resilient fallback path to keep task detail accessible when relation-heavy hydration fails.
 
 ### Admin Utilities
 - `POST /api/admin/test-notification`
