@@ -22,6 +22,14 @@ export function mapTaskToUi(task: any): TaskDTO {
   const steps = Array.isArray(task.steps) ? task.steps : [];
   const stepCommentMap = new Map<number, Array<{ id: string; userId: string; text: string; createdAt: string }>>();
   const stripLegacyMarker = (body: string) => body.replace(/^\[\[STEP:\d+\]\]\s*/i, '');
+  const toIso = (value: unknown): string => {
+    if (!value) return '';
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? '' : value.toISOString();
+    }
+    const parsed = new Date(value as string);
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString();
+  };
 
   for (const c of comments) {
     if (typeof c.stepOrder !== 'number') continue;
@@ -33,7 +41,7 @@ export function mapTaskToUi(task: any): TaskDTO {
       id: c.id,
       userId: authorName,
       text: stripLegacyMarker(c.body ?? ''),
-      createdAt: c.createdAt ? c.createdAt.toISOString() : ''
+      createdAt: toIso(c.createdAt)
     });
   }
 
@@ -49,10 +57,10 @@ export function mapTaskToUi(task: any): TaskDTO {
     jiraTicket: task.jiraTicket ?? null,
     crNumber: task.crNumber ?? null,
     developer: task.developer ?? null,
-    dueDate: task.dueDate ? task.dueDate.toISOString() : '',
-    createdAt: task.createdAt ? task.createdAt.toISOString() : '',
-    updatedAt: task.updatedAt ? task.updatedAt.toISOString() : '',
-    signedOffAt: task.signedOffAt ? task.signedOffAt.toISOString() : null,
+    dueDate: toIso(task.dueDate),
+    createdAt: toIso(task.createdAt),
+    updatedAt: toIso(task.updatedAt),
+    signedOffAt: toIso(task.signedOffAt) || null,
 
     assignee: task.assignee
       ? {
@@ -89,14 +97,14 @@ export function mapTaskToUi(task: any): TaskDTO {
       isPassed: step.isPassed ?? null,
       attachments: step.attachments ?? null,
       comments: stepCommentMap.get(step.order) ?? [],
-      createdAt: step.createdAt ? step.createdAt.toISOString() : '',
-      updatedAt: step.updatedAt ? step.updatedAt.toISOString() : ''
+      createdAt: toIso(step.createdAt),
+      updatedAt: toIso(step.updatedAt)
     })),
 
     comments: comments.map((c: any) => ({
       id: c.id,
       body: stripLegacyMarker(c.body ?? ''),
-      createdAt: c.createdAt.toISOString(),
+      createdAt: toIso(c.createdAt),
       author: {
         id: c.author?.id ?? '',
         name: c.author?.name ?? c.author?.email ?? 'User',
