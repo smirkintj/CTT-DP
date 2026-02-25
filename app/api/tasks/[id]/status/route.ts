@@ -7,17 +7,18 @@ import { createActivity, toStatusLabel } from '../../../../../lib/activity';
 import { sendTeamsMessage } from '../../../../../lib/teams';
 import { validateExpectedUpdatedAt, validateTaskTransition } from '../../../../../lib/taskGuards';
 import { createTaskHistory } from '../../../../../lib/taskHistory';
+import { badRequest, conflict, forbidden, notFound, unauthorized } from '../../../../../lib/apiError';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!id) {
-    return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    return badRequest('Missing id', 'TASK_ID_MISSING');
   }
 
   const session = await getAuthSession();
 
   if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   }
 
   const body = await req.json().catch(() => null);
@@ -26,7 +27,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const expectedUpdatedAt = body?.expectedUpdatedAt;
 
   if (!status) {
-    return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    return badRequest('Invalid status', 'TASK_STATUS_INVALID');
   }
 
   const task = await prisma.task.findUnique({
@@ -34,22 +35,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
 
   if (!task) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return notFound('Not found', 'TASK_NOT_FOUND');
   }
 
   if (task.signedOffAt) {
-    return NextResponse.json({ error: 'Task is signed off and locked' }, { status: 409 });
+    return conflict('Task is signed off and locked', 'TASK_LOCKED');
   }
 
   const staleMessage = validateExpectedUpdatedAt(task.updatedAt, expectedUpdatedAt);
   if (staleMessage) {
-    return NextResponse.json({ error: staleMessage }, { status: 409 });
+    return conflict(staleMessage, 'TASK_STALE');
   }
 
   const isAdmin = session.user.role === 'ADMIN';
   if (!isAdmin) {
     if (task.assigneeId !== session.user.id || task.countryCode !== session.user.countryCode) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return forbidden('Forbidden', 'TASK_FORBIDDEN');
     }
   }
 
@@ -62,7 +63,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const transitionError = validateTaskTransition(previousStatus, dbStatus);
   if (transitionError) {
-    return NextResponse.json({ error: transitionError }, { status: 409 });
+    return conflict(transitionError, 'TASK_STATUS_TRANSITION_INVALID');
   }
 
   await prisma.task.update({

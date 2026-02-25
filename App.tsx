@@ -15,6 +15,7 @@ import { User, Task, Role, ViewState, CountryConfig } from './types';
 import { INITIAL_COUNTRIES, INITIAL_MODULES } from './constants';
 import { apiFetch } from './lib/http';
 import { notify } from './lib/notify';
+import { fieldBaseClass } from './components/ui/formClasses';
 
 interface AppProps {
   initialView?: ViewState;
@@ -322,7 +323,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                    <input 
                      type="text" 
                      autoComplete="username"
-                     className="mt-1 appearance-none block w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm" 
+                     className={`${fieldBaseClass} mt-1 placeholder-slate-400`} 
                      placeholder="user@dksh.com"
                      value={email}
                      onChange={(e) => setEmail(e.target.value)}
@@ -334,7 +335,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                      <input 
                        type={showPassword ? 'text' : 'password'} 
                        autoComplete="current-password"
-                       className="appearance-none block w-full px-4 py-2.5 pr-12 border border-slate-300 rounded-lg shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-sm" 
+                       className={`${fieldBaseClass} pr-12 placeholder-slate-400`} 
                        placeholder="••••••••"
                        value={password}
                        onChange={(e) => setPassword(e.target.value)}

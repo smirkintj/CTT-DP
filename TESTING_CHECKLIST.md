@@ -159,6 +159,7 @@ How to use:
 - [ ] `PASS/FAIL` Failed comment create does not crash task page.
 - [ ] `PASS/FAIL` Failed metadata save preserves input and shows error toast.
 - [ ] `PASS/FAIL` Dev reset script recovers from local chunk issues (`npm run reset:dev`).
+- [ ] `PASS/FAIL` Key task APIs return standardized error shape (`error`, `code`, optional `detail` in dev).
 
 ---
 

@@ -7,18 +7,19 @@ import { sendTaskAssignedEmail } from '../../../../lib/email';
 import { ActivityType, TaskHistoryAction } from '@prisma/client';
 import { validateExpectedUpdatedAt } from '../../../../lib/taskGuards';
 import { createTaskHistory } from '../../../../lib/taskHistory';
+import { badRequest, conflict, forbidden, internalError, notFound, unauthorized } from '../../../../lib/apiError';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   if (!id) {
-    return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    return badRequest('Missing id', 'TASK_ID_MISSING');
   }
 
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   }
 
   let task: any = null;
@@ -112,14 +113,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         where: { id }
       });
       if (!minimalTask) {
-        return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        return notFound('Not found', 'TASK_NOT_FOUND');
       }
 
       const isAdmin = session.user.role === 'ADMIN';
       if (!isAdmin) {
         const userCountry = session.user.countryCode;
         if (!userCountry || minimalTask.countryCode !== userCountry || minimalTask.assigneeId !== session.user.id) {
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+          return forbidden('Forbidden', 'TASK_FORBIDDEN');
         }
       }
 
@@ -143,13 +144,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     if (process.env.NODE_ENV !== 'production') {
       console.error('GET /api/tasks/[id] failed:', error);
       const detail = error instanceof Error ? error.message : 'Unknown error';
-      return NextResponse.json({ error: 'Failed to fetch task', detail }, { status: 500 });
+      return internalError('Failed to fetch task', 'TASK_FETCH_FAILED', detail);
     }
-    return NextResponse.json({ error: 'Failed to fetch task' }, { status: 500 });
+    return internalError('Failed to fetch task', 'TASK_FETCH_FAILED');
   }
 
   if (!task) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return notFound('Not found', 'TASK_NOT_FOUND');
   }
 
   const isAdmin = session.user.role === 'ADMIN';
@@ -157,11 +158,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!isAdmin) {
     const userCountry = session.user.countryCode;
     if (!userCountry || task.countryCode !== userCountry) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return forbidden('Forbidden', 'TASK_FORBIDDEN');
     }
 
     if (task.assigneeId !== session.user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      return forbidden('Forbidden', 'TASK_FORBIDDEN');
     }
   }
 
@@ -172,17 +173,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
 
   if (!id) {
-    return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    return badRequest('Missing id', 'TASK_ID_MISSING');
   }
 
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   }
 
   if (session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return forbidden('Forbidden', 'ADMIN_REQUIRED');
   }
 
   const body = await req.json().catch(() => null);
@@ -207,16 +208,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   });
 
   if (!existingTask) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return notFound('Not found', 'TASK_NOT_FOUND');
   }
 
   if (existingTask.signedOffAt) {
-    return NextResponse.json({ error: 'Task is signed off and locked' }, { status: 409 });
+    return conflict('Task is signed off and locked', 'TASK_LOCKED');
   }
 
   const staleMessage = validateExpectedUpdatedAt(existingTask.updatedAt, body?.expectedUpdatedAt);
   if (staleMessage) {
-    return NextResponse.json({ error: staleMessage }, { status: 409 });
+    return conflict(staleMessage, 'TASK_STALE');
   }
 
   const nextDueDate =
@@ -409,16 +410,16 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const { id } = await params;
 
   if (!id) {
-    return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+    return badRequest('Missing id', 'TASK_ID_MISSING');
   }
 
   const session = await getServerSession(authOptions);
   if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   }
 
   if (session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return forbidden('Forbidden', 'ADMIN_REQUIRED');
   }
 
   const task = await prisma.task.findUnique({
@@ -427,7 +428,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   });
 
   if (!task) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return notFound('Not found', 'TASK_NOT_FOUND');
   }
 
   await createTaskHistory({

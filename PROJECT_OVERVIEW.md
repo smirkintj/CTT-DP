@@ -16,6 +16,8 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 - Route pages (`app/**/page.tsx`) set initial view/task state.
 - `AppRouteShell.tsx` maps UI view transitions to URLs.
 - `App.tsx` loads session, fetches tasks, and renders view components.
+- Shared API error helper (`lib/apiError.ts`) is used to standardize server error payloads.
+- Shared form classes (`components/ui/formClasses.ts`) are used for consistent minimal input/button styling.
 
 ## Entry Points
 - `app/layout.tsx`
@@ -213,6 +215,8 @@ From `package.json`:
 
 Also:
 - `postinstall` runs `prisma generate` (important for Vercel consistency).
+- Dependency cleanup:
+  - `recharts` removed (was unused).
 
 ## Local Setup
 1. `npm install`

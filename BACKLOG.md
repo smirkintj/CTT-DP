@@ -539,18 +539,17 @@ This backlog tracks improvement initiatives with:
 
 ## Technical Debt Backlog
 
-## 36) Technical Debt: Dependency Audit and Pruning
+## 36) ~~Technical Debt: Dependency Audit and Pruning~~
 - Priority: `P1`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `Implemented`
+- Date implemented: `2026-02-25`
 - What this is for:
   - Reduce maintenance and security surface by removing unused packages.
-- Current finding:
-  - `recharts` appears installed but unused in codebase (no runtime imports found).
-- Implementation plan:
-  - Remove unused dependencies one-by-one.
-  - Run full build/lint and smoke test after each removal.
-  - Keep dependency inventory documented in README.
+- Implementation:
+  - Audited transitive dependency concerns (`color-convert`, `concat-map`) and confirmed they are dev-only via `eslint` chain.
+  - Removed unused top-level dependency:
+    - `recharts` removed from `package.json` / lockfile.
+  - Re-validated production build after removal.
 - Impact if not done:
   - Unnecessary attack surface and larger install/build footprint.
 
@@ -665,3 +664,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-25`: Added auth-loading screen in `App.tsx` to remove login flicker during session hydration on page refresh.
 - `2026-02-25`: Completed #9 immutable task history with DB model, API instrumentation, secure history endpoint, and admin timeline UI.
 - `2026-02-25`: Added Technical Debt backlog items (#36-#40), including dependency pruning and codebase cleanup/security hardening tasks.
+- `2026-02-25`: Completed #36 dependency audit/pruning (`recharts` removed, dev-only transitive packages validated) and started Phase 1 API error shape standardization + UI form style consolidation.

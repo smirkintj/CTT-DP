@@ -5,6 +5,7 @@ import { Badge } from '../components/Badge';
 import { Trash2, Plus, UploadCloud, Search, Filter, X, Save, Globe } from 'lucide-react';
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
+import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
 
 interface AdminTaskManagementProps {
   tasks: Task[];
@@ -320,7 +321,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
         <div className="flex gap-2">
            <button 
              onClick={onImport}
-             className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-sm flex items-center gap-2"
+             className={`${subtleButtonClass} shadow-sm flex items-center gap-2`}
            >
              <UploadCloud size={16}/> Import Excel
            </button>
@@ -329,7 +330,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                resetCreateForm();
                setIsModalOpen(true);
              }}
-             className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 shadow-sm flex items-center gap-2"
+             className={`${primaryButtonClass} shadow-sm flex items-center gap-2`}
            >
              <Plus size={16}/> New Task
            </button>
@@ -343,7 +344,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                <input 
                  type="text" 
-                 className="w-full pl-9 pr-4 py-2 text-sm border-slate-300 rounded-lg focus:ring-slate-500 focus:border-slate-500" 
+                 className={`w-full pl-9 pr-4 py-2 ${fieldBaseClass}`} 
                  placeholder="Search tasks..."
                  value={searchTerm}
                  onChange={(e) => setSearchTerm(e.target.value)}
@@ -351,7 +352,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <select
-                className="px-2.5 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-600"
+                className="px-2.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-600"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'dueDate' | 'priority' | 'status' | 'createdAt' | 'updatedAt')}
               >
@@ -511,7 +512,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                           <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
                           <input 
                              type="text" 
-                             className="w-full rounded-md border-slate-300 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                             className={fieldBaseClass}
                              placeholder="e.g. Verify Cart Calculation"
                              value={newTask.title}
                              onChange={(e) => setNewTask({...newTask, title: e.target.value})}
@@ -520,7 +521,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                        <div>
                           <label className="block text-sm font-medium text-slate-700 mb-1">Target System</label>
                           <select 
-                             className="w-full rounded-md border-slate-300 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                             className={selectBaseClass}
                              value={newTask.targetSystem}
                              onChange={(e) => setNewTask({...newTask, targetSystem: e.target.value as TargetSystem})}
                           >
@@ -534,7 +535,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                       <label className="block text-sm font-medium text-slate-700 mb-1">Jira Ticket (Optional)</label>
                       <input
                         type="text"
-                        className="w-full rounded-md border-slate-300 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                        className={fieldBaseClass}
                         placeholder="e.g. UAT-123"
                         value={newTask.jiraTicket || ''}
                         onChange={(e) => setNewTask({ ...newTask, jiraTicket: e.target.value })}
@@ -545,7 +546,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                       <div>
                          <label className="block text-sm font-medium text-slate-700 mb-1">Module</label>
                          <select 
-                            className="w-full rounded-md border-slate-300 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                            className={selectBaseClass}
                             value={newTask.featureModule}
                             onChange={(e) => setNewTask({...newTask, featureModule: e.target.value})}
                          >
@@ -555,7 +556,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                       <div>
                          <label className="block text-sm font-medium text-slate-700 mb-1">Priority</label>
                          <select 
-                            className="w-full rounded-md border-slate-300 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                            className={selectBaseClass}
                             value={newTask.priority}
                             onChange={(e) => setNewTask({...newTask, priority: e.target.value as Priority})}
                          >
@@ -569,7 +570,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                          <label className="block text-sm font-medium text-slate-700 mb-1">CR No (Optional)</label>
                          <input 
                             type="text" 
-                            className="w-full rounded-md border-slate-300 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                            className={fieldBaseClass}
                             placeholder="e.g. CR-123"
                             value={newTask.crNumber}
                             onChange={(e) => setNewTask({...newTask, crNumber: e.target.value})}
@@ -579,7 +580,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                          <label className="block text-sm font-medium text-slate-700 mb-1">Developer (Optional)</label>
                          <input 
                             type="text" 
-                            className="w-full rounded-md border-slate-300 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                            className={fieldBaseClass}
                             placeholder="e.g. John Tan"
                             value={newTask.developer || ''}
                             onChange={(e) => setNewTask({...newTask, developer: e.target.value})}
@@ -639,7 +640,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                        <div className="md:col-span-2">
                           <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
                           <textarea 
-                             className="w-full rounded-md border-slate-300 focus:ring-slate-500 focus:border-slate-500 text-sm h-20"
+                             className={`${textareaBaseClass} h-20`}
                              placeholder="Description of the test case..."
                              value={newTask.description}
                              onChange={(e) => setNewTask({...newTask, description: e.target.value})}
@@ -649,7 +650,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                           <label className="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
                           <input 
                              type="date"
-                             className="w-full rounded-md border-slate-300 focus:ring-slate-500 focus:border-slate-500 text-sm"
+                             className={fieldBaseClass}
                              value={newTask.dueDate}
                              onChange={(e) => setNewTask({...newTask, dueDate: e.target.value})}
                           />

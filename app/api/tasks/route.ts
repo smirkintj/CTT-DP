@@ -7,17 +7,18 @@ import { ActivityType, TaskHistoryAction, TaskPriority, TaskStatus, UserRole } f
 import { sendTaskAssignedEmail } from '../../../lib/email';
 import { sendTeamsMessage } from '../../../lib/teams';
 import { createTaskHistory } from '../../../lib/taskHistory';
+import { badRequest, forbidden, internalError, unauthorized } from '../../../lib/apiError';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   }
 
   const isAdmin = session.user.role === 'ADMIN';
   if (!isAdmin && !session.user.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return unauthorized('Unauthorized', 'AUTH_INVALID_SESSION');
   }
 
   const where = isAdmin ? undefined : { assigneeId: session.user.id };
@@ -148,9 +149,9 @@ export async function GET() {
     if (process.env.NODE_ENV !== 'production') {
       console.error('GET /api/tasks failed:', error);
       const detail = error instanceof Error ? error.message : 'Unknown error';
-      return NextResponse.json({ error: 'Failed to fetch tasks', detail }, { status: 500 });
+      return internalError('Failed to fetch tasks', 'TASKS_FETCH_FAILED', detail);
     }
-    return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
+    return internalError('Failed to fetch tasks', 'TASKS_FETCH_FAILED');
   }
 }
 
@@ -158,11 +159,11 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   }
 
   if (session.user.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    return forbidden('Forbidden', 'ADMIN_REQUIRED');
   }
 
   const body = await req.json().catch(() => null);
@@ -182,10 +183,10 @@ export async function POST(req: Request) {
   const steps = Array.isArray(body?.steps) ? body.steps : [];
 
   if (!title) {
-    return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+    return badRequest('Title is required', 'TASK_TITLE_REQUIRED');
   }
   if (countries.length === 0) {
-    return NextResponse.json({ error: 'At least one country is required' }, { status: 400 });
+    return badRequest('At least one country is required', 'TASK_COUNTRY_REQUIRED');
   }
 
   const priority: TaskPriority =

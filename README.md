@@ -9,6 +9,9 @@ CTT is a Next.js App Router web app for UAT workflow management across countries
 - Prisma + PostgreSQL (Neon)
 - Tailwind CSS
 
+Dependency hygiene:
+- Unused `recharts` dependency has been removed.
+
 ## Main Routes
 - `/`
 - `/admin/dashboard`
@@ -72,6 +75,7 @@ npm run start
 - Task mutation APIs enforce:
   - status transition rules (invalid transitions return `409`)
   - optimistic concurrency using `expectedUpdatedAt` (stale updates return `409`)
+- Task APIs are being standardized to a shared error response shape via `lib/apiError.ts` (`error`, `code`, optional `detail` in dev).
 - Immutable task history is enabled:
   - all core task mutations write `TaskHistory` entries
   - admin can review history in Task Detail
@@ -95,6 +99,8 @@ npm run start
   - Admin Task create modal
   - Admin Database notification settings (email + Teams)
 - Auth/session hydration now shows a neutral loading state to prevent brief login-page flicker on refresh.
+- Form styling is being consolidated with shared Apple-style utility classes:
+  - `/Users/putra/Desktop/CTT-DKSH-main/components/ui/formClasses.ts`
 
 ## Troubleshooting
 ### 1) Vercel build error: `Property 'activity' does not exist on type PrismaClient`
