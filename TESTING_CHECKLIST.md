@@ -64,6 +64,8 @@ How to use:
 - [ ] `PASS/FAIL` Due date saves as date and displays date-only.
 - [ ] `PASS/FAIL` Country assignee dropdown appears and allows explicit selection.
 - [ ] `PASS/FAIL` Chosen assignee is reflected on created task.
+- [ ] `PASS/FAIL` Create form blocks submit for invalid Jira format and incomplete step rows.
+- [ ] `PASS/FAIL` API returns standardized validation error (`error` + `code`) for invalid create payload.
 - [ ] `PASS/FAIL` Closing task-create modal with unsaved input shows discard confirmation.
 - [ ] `PASS/FAIL` Browser refresh/close warns when task-create modal has unsaved input.
 - [ ] `PASS/FAIL` Create button shows save progress (`Creating...`) and completion feedback.
@@ -77,6 +79,7 @@ How to use:
 ## 3.3 Task Detail (Admin)
 - [ ] `PASS/FAIL` Inline edits for title/description/module/priority/developer/due date/jira/cr no work.
 - [ ] `PASS/FAIL` Save changes shows `Saving...` then success state and data refreshes.
+- [ ] `PASS/FAIL` Task detail save blocks invalid title/Jira inputs before sending API request.
 - [ ] `PASS/FAIL` Unsaved changes warning appears on back navigation.
 - [ ] `PASS/FAIL` Browser refresh/close warns when unsaved changes exist.
 - [ ] `PASS/FAIL` Jira icon opens correct link format.

@@ -23,11 +23,11 @@ This backlog tracks improvement initiatives with:
 - `Implemented`
 
 ## Progress Snapshot
-- Overall: `12/40 Implemented` (30%)
-- Active now: `1 In Progress`
-- Remaining: `27 Planned`
-- High-priority lane (`P0 + P1`): `9/22 Implemented`
-- Technical debt lane (`#36-#40`): `1/5 Implemented`
+- Overall: `13/40 Implemented` (32.5%)
+- Active now: `3 In Progress`
+- Remaining: `24 Planned`
+- High-priority lane (`P0 + P1`): `11/23 Implemented`
+- Technical debt lane (`#36-#40`): `2/5 Implemented`
 
 ---
 
@@ -338,13 +338,19 @@ This backlog tracks improvement initiatives with:
 
 ## 20) User-Centred: Inline Validation on Task Create/Edit
 - Priority: `P1`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `In Progress`
+- Date implemented: `Phase 1 on 2026-02-25`
 - What this is for:
   - Prevent invalid inputs before submit.
-- Implementation plan:
-  - Validate required fields, date constraints, Jira format, duplicate step order.
-  - Show field-level messages.
+- Implementation progress:
+  - Added client-side validation for task creation in `views/AdminTaskManagement.tsx`:
+    - required title/country
+    - Jira format
+    - step completeness
+  - Added client-side validation for task metadata save in `views/TaskDetail.tsx`.
+  - Added server-side validation for task create/update:
+    - `app/api/tasks/route.ts`
+    - `app/api/tasks/[id]/route.ts`
 - Impact if not done:
   - Late API failures and poor form usability.
 
@@ -560,27 +566,35 @@ This backlog tracks improvement initiatives with:
 - Impact if not done:
   - Unnecessary attack surface and larger install/build footprint.
 
-## 37) Technical Debt: Centralize Prisma Include Shapes
+## 37) ~~Technical Debt: Centralize Prisma Include Shapes~~
 - Priority: `P1`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `Implemented`
+- Date implemented: `2026-02-25`
 - What this is for:
   - Avoid repeated query include blocks across task APIs.
-- Implementation plan:
-  - Create shared query include/select constants.
-  - Reuse in `/api/tasks`, `/api/tasks/[id]`, and related routes.
+- Implementation:
+  - Added shared include constants:
+    - `app/api/tasks/_query.ts`
+  - Reused in:
+    - `app/api/tasks/route.ts`
+    - `app/api/tasks/[id]/route.ts`
 - Impact if not done:
   - Higher regression risk when schema changes.
 
 ## 38) Technical Debt: API Error Shape Consistency Enforcement
 - Priority: `P1`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `In Progress`
+- Date implemented: `Phase 1 on 2026-02-25`
 - What this is for:
   - Keep all API failures predictable for UI handling and telemetry.
-- Implementation plan:
-  - Add shared error response helper.
-  - Migrate task/admin endpoints to use standard shape (`error`, `code`, `detail`).
+- Implementation progress:
+  - Added shared API error helper:
+    - `lib/apiError.ts`
+  - Migrated key task endpoints to standardized error shape (`error`, `code`, `detail` in dev):
+    - `app/api/tasks/route.ts`
+    - `app/api/tasks/[id]/route.ts`
+    - `app/api/tasks/[id]/status/route.ts`
+    - `app/api/tasks/[id]/comments/route.ts`
 - Impact if not done:
   - Inconsistent UX and harder production debugging.
 
@@ -673,3 +687,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-25`: Added Technical Debt backlog items (#36-#40), including dependency pruning and codebase cleanup/security hardening tasks.
 - `2026-02-25`: Completed #36 dependency audit/pruning (`recharts` removed, dev-only transitive packages validated) and started Phase 1 API error shape standardization + UI form style consolidation.
 - `2026-02-25`: Added top-level progress snapshot (`Implemented / Total`, active, remaining) for quick backlog health tracking.
+- `2026-02-25`: Completed #37 shared Prisma include centralization; advanced #38 (API error helper rollout) and #20 (inline validation) to Phase 1.

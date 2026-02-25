@@ -51,6 +51,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   });
   const [creating, setCreating] = useState(false);
   const [createSaveState, setCreateSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const [selectedCountries, setSelectedCountries] = useState<string[]>(['SG']);
   const [steps, setSteps] = useState<Partial<TestStep>[]>([
@@ -79,6 +80,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     setAssigneeByCountry({});
     setSteps(defaultSteps);
     setCreateSaveState('idle');
+    setCreateError(null);
   };
 
   const isCreateDirty =
@@ -245,11 +247,38 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   };
 
   const handleCreate = async () => {
-     if (!newTask.title) return;
+     const title = (newTask.title || '').trim();
+     const jiraTicket = (newTask.jiraTicket || '').trim();
+     const invalidJira = jiraTicket.length > 0 && !/^(EO-\d+|\d+)$/i.test(jiraTicket);
+     const invalidSteps = steps.some(
+       (step) => !(step.description || '').trim() || !(step.expectedResult || '').trim()
+     );
+
+     if (!title) {
+       setCreateError('Title is required.');
+       return;
+     }
+     if (title.length > 200) {
+       setCreateError('Title is too long.');
+       return;
+     }
+     if (invalidJira) {
+       setCreateError('Jira ticket must be numeric or in EO-1234 format.');
+       return;
+     }
+     if (selectedCountries.length === 0) {
+       setCreateError('Please select at least one country.');
+       return;
+     }
+     if (invalidSteps) {
+       setCreateError('Each step needs description and expected result.');
+       return;
+     }
 
      try {
        setCreating(true);
        setCreateSaveState('saving');
+       setCreateError(null);
        const data = await apiFetch<Task[]>('/api/tasks', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
@@ -277,6 +306,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
        notify('Task(s) created successfully', 'success');
      } catch (error) {
        notify(error instanceof Error ? error.message : 'Failed to create tasks', 'error');
+       setCreateError(error instanceof Error ? error.message : 'Failed to create tasks');
        setCreateSaveState('error');
      } finally {
        setCreating(false);
@@ -733,6 +763,9 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
 
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 rounded-b-xl flex justify-end gap-3">
                    <button onClick={closeCreateModal} className="px-4 py-2 text-slate-600 hover:text-slate-800 text-sm font-medium">Cancel</button>
+                   {createError && (
+                     <p className="text-xs text-rose-600 mr-auto self-center">{createError}</p>
+                   )}
                    <button onClick={handleCreate} disabled={creating} className="px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800 text-sm font-medium flex items-center gap-2 disabled:opacity-60">
                       <Save size={16}/>
                       {createSaveState === 'saving' ? 'Creating...' : `Create ${selectedCountries.length} Tasks`}

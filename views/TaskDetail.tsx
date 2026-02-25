@@ -405,13 +405,27 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   const handleSaveTaskMeta = async () => {
     if (!canEditTaskMeta) return;
     if (!isTaskMetaDirty) return;
-    setTaskMetaSaveState('saving');
+    const trimmedTitle = taskEdits.title.trim();
     const normalizedTicket = normalizeJiraTicket(taskEdits.jiraTicket);
+    if (!trimmedTitle) {
+      notify('Title is required', 'error');
+      return;
+    }
+    if (trimmedTitle.length > 200) {
+      notify('Title is too long', 'error');
+      return;
+    }
+    if (normalizedTicket && !/^(EO-\d+)$/i.test(normalizedTicket)) {
+      notify('Invalid Jira ticket format', 'error');
+      return;
+    }
+
+    setTaskMetaSaveState('saving');
     const response = await fetch(`/api/tasks/${localTask.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title: taskEdits.title,
+        title: trimmedTitle,
         description: taskEdits.description,
         jiraTicket: normalizedTicket,
         crNumber: taskEdits.crNumber,

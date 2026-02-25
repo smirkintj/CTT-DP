@@ -8,6 +8,8 @@ import { ActivityType, TaskHistoryAction } from '@prisma/client';
 import { validateExpectedUpdatedAt } from '../../../../lib/taskGuards';
 import { createTaskHistory } from '../../../../lib/taskHistory';
 import { badRequest, conflict, forbidden, internalError, notFound, unauthorized } from '../../../../lib/apiError';
+import { isValidDueDate, isValidJiraTicket } from '../../../../lib/taskValidation';
+import { taskRelationIncludeFull, taskRelationIncludeSafe } from '../_query';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,84 +29,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     try {
       task = await prisma.task.findUnique({
         where: { id },
-        include: {
-          country: true,
-          assignee: {
-            select: {
-              id: true,
-              email: true,
-              countryCode: true,
-              name: true
-            }
-          },
-          updatedBy: {
-            select: {
-              id: true,
-              email: true,
-              name: true
-            }
-          },
-          signedOffBy: {
-            select: {
-              id: true,
-              email: true,
-              name: true
-            }
-          },
-          steps: {
-            orderBy: {
-              order: 'asc'
-            }
-          },
-          comments: {
-            include: {
-              author: {
-                select: {
-                  id: true,
-                  email: true,
-                  name: true
-                }
-              }
-            },
-            orderBy: {
-              createdAt: 'asc'
-            }
-          }
-        }
+        include: taskRelationIncludeFull
       });
     } catch {
       task = await prisma.task.findUnique({
         where: { id },
-        include: {
-          country: true,
-          assignee: {
-            select: {
-              id: true,
-              email: true,
-              countryCode: true,
-              name: true
-            }
-          },
-          steps: {
-            orderBy: {
-              order: 'asc'
-            }
-          },
-          comments: {
-            include: {
-              author: {
-                select: {
-                  id: true,
-                  email: true,
-                  name: true
-                }
-              }
-            },
-            orderBy: {
-              createdAt: 'asc'
-            }
-          }
-        }
+        include: taskRelationIncludeSafe
       });
     }
   } catch (error) {
@@ -225,6 +155,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ? new Date(body.dueDate)
       : undefined;
   const hasValidDueDate = !nextDueDate || !Number.isNaN(nextDueDate.getTime());
+  if (typeof body?.title === 'string' && body.title.trim().length === 0) {
+    return badRequest('Title is required', 'TASK_TITLE_REQUIRED');
+  }
+  if (typeof body?.title === 'string' && body.title.length > 200) {
+    return badRequest('Title is too long', 'TASK_TITLE_TOO_LONG');
+  }
+  if (!isValidJiraTicket(body?.jiraTicket)) {
+    return badRequest('Invalid Jira ticket format', 'TASK_JIRA_INVALID');
+  }
+  if (!isValidDueDate(body?.dueDate)) {
+    return badRequest('Invalid due date', 'TASK_DUE_DATE_INVALID');
+  }
   const data: Record<string, unknown> = {
     title: body?.title ?? undefined,
     description: body?.description ?? undefined,
@@ -246,48 +188,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       where: { id },
       data,
       include: {
-        country: true,
-        assignee: {
-          select: {
-            id: true,
-            email: true,
-            countryCode: true,
-            name: true
-          }
-        },
-        updatedBy: {
-          select: {
-            id: true,
-            email: true,
-            name: true
-          }
-        },
-        signedOffBy: {
-          select: {
-            id: true,
-            email: true,
-            name: true
-          }
-        },
-        steps: {
-          orderBy: {
-            order: 'asc'
-          }
-        },
-        comments: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                email: true,
-                name: true
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'asc'
-          }
-        }
+        ...taskRelationIncludeFull
       }
     });
   } catch {
@@ -306,34 +207,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       where: { id },
       data: fallbackData,
       include: {
-        country: true,
-        assignee: {
-          select: {
-            id: true,
-            email: true,
-            countryCode: true,
-            name: true
-          }
-        },
-        steps: {
-          orderBy: {
-            order: 'asc'
-          }
-        },
-        comments: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                email: true,
-                name: true
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'asc'
-          }
-        }
+        ...taskRelationIncludeSafe
       }
     });
   }

@@ -8,6 +8,8 @@ import { sendTaskAssignedEmail } from '../../../lib/email';
 import { sendTeamsMessage } from '../../../lib/teams';
 import { createTaskHistory } from '../../../lib/taskHistory';
 import { badRequest, forbidden, internalError, unauthorized } from '../../../lib/apiError';
+import { isValidDueDate, isValidJiraTicket } from '../../../lib/taskValidation';
+import { taskRelationIncludeFull, taskRelationIncludeSafe } from './_query';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -27,47 +29,7 @@ export async function GET() {
     try {
       tasks = await prisma.task.findMany({
         where,
-        include: {
-          country: true,
-          assignee: {
-            select: {
-              id: true,
-              email: true,
-              countryCode: true,
-              name: true
-            }
-          },
-          updatedBy: {
-            select: {
-              id: true,
-              email: true,
-              name: true
-            }
-          },
-          signedOffBy: {
-            select: {
-              id: true,
-              email: true,
-              name: true
-            }
-          },
-          comments: {
-            include: {
-              author: {
-                select: {
-                  id: true,
-                  email: true,
-                  name: true
-                }
-              }
-            }
-          },
-          steps: {
-            orderBy: {
-              order: 'asc'
-            }
-          }
-        },
+        include: taskRelationIncludeFull,
         orderBy: {
           updatedAt: 'desc'
         }
@@ -75,33 +37,7 @@ export async function GET() {
     } catch {
       tasks = await prisma.task.findMany({
         where,
-        include: {
-          country: true,
-          assignee: {
-            select: {
-              id: true,
-              email: true,
-              countryCode: true,
-              name: true
-            }
-          },
-          comments: {
-            include: {
-              author: {
-                select: {
-                  id: true,
-                  email: true,
-                  name: true
-                }
-              }
-            }
-          },
-          steps: {
-            orderBy: {
-              order: 'asc'
-            }
-          }
-        },
+        include: taskRelationIncludeSafe,
         orderBy: {
           updatedAt: 'desc'
         }
@@ -185,8 +121,24 @@ export async function POST(req: Request) {
   if (!title) {
     return badRequest('Title is required', 'TASK_TITLE_REQUIRED');
   }
+  if (title.length > 200) {
+    return badRequest('Title is too long', 'TASK_TITLE_TOO_LONG');
+  }
   if (countries.length === 0) {
     return badRequest('At least one country is required', 'TASK_COUNTRY_REQUIRED');
+  }
+  if (!isValidJiraTicket(body?.jiraTicket)) {
+    return badRequest('Invalid Jira ticket format', 'TASK_JIRA_INVALID');
+  }
+  if (!isValidDueDate(dueDateRaw)) {
+    return badRequest('Invalid due date', 'TASK_DUE_DATE_INVALID');
+  }
+
+  const invalidStep = steps.some(
+    (step: any) => !step?.description?.toString()?.trim() || !step?.expectedResult?.toString()?.trim()
+  );
+  if (steps.length > 0 && invalidStep) {
+    return badRequest('Each step must include description and expected result', 'TASK_STEP_INVALID');
   }
 
   const priority: TaskPriority =
@@ -321,33 +273,7 @@ export async function POST(req: Request) {
     where: {
       id: { in: createdTaskIds }
     },
-    include: {
-      country: true,
-      assignee: {
-        select: {
-          id: true,
-          email: true,
-          countryCode: true,
-          name: true
-        }
-      },
-      comments: {
-        include: {
-          author: {
-            select: {
-              id: true,
-              email: true,
-              name: true
-            }
-          }
-        }
-      },
-      steps: {
-        orderBy: {
-          order: 'asc'
-        }
-      }
-    },
+    include: taskRelationIncludeSafe,
     orderBy: {
       createdAt: 'desc'
     }

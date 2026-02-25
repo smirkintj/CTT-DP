@@ -18,6 +18,7 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 - `App.tsx` loads session, fetches tasks, and renders view components.
 - Shared API error helper (`lib/apiError.ts`) is used to standardize server error payloads.
 - Shared form classes (`components/ui/formClasses.ts`) are used for consistent minimal input/button styling.
+- Shared task query include shapes are centralized in `app/api/tasks/_query.ts`.
 
 ## Entry Points
 - `app/layout.tsx`
@@ -191,6 +192,8 @@ Additional behavior:
   - Step-level comments map by structured `Comment.stepOrder`.
 - `app/api/tasks/_types.ts`
   - DTO contracts used by task APIs.
+- `app/api/tasks/_query.ts`
+  - central include maps reused by task list/detail APIs.
 
 Comment normalization:
 - One-time legacy backfill script:
