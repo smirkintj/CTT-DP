@@ -86,6 +86,10 @@ npm run start
 - Delete action is moved to Task Detail page (admin-only).
 - Due date in admin task table is date-only (no time).
 - Priority badges are standardized with colored dots for all levels.
+- Save-state + unsaved-change guards are active on:
+  - Task Detail edits
+  - Admin Task create modal
+  - Admin Database notification settings (email + Teams)
 
 ## Troubleshooting
 ### 1) Vercel build error: `Property 'activity' does not exist on type PrismaClient`

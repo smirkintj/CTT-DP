@@ -168,6 +168,10 @@ Additional behavior:
 - Comment activity can include step context.
 - No-op status changes are ignored.
 - Mark-as-read is stored per user via `ActivityRead`.
+- Save-state + unsaved-change guards are implemented in:
+  - `views/TaskDetail.tsx`
+  - `views/AdminTaskManagement.tsx` (create modal)
+  - `views/AdminDatabase.tsx` (notification settings)
 
 ## Data Mapping Layer
 - `app/api/tasks/_mappers.ts`

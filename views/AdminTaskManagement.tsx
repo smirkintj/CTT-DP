@@ -49,11 +49,67 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
      crNumber: '',
   });
   const [creating, setCreating] = useState(false);
+  const [createSaveState, setCreateSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   const [selectedCountries, setSelectedCountries] = useState<string[]>(['SG']);
   const [steps, setSteps] = useState<Partial<TestStep>[]>([
       { id: '1', description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }
   ]);
+
+  const defaultNewTask: Partial<Task> = {
+    title: '',
+    description: '',
+    jiraTicket: '',
+    featureModule: 'Ordering',
+    priority: Priority.MEDIUM,
+    dueDate: '',
+    scope: 'Local',
+    targetSystem: 'Ordering Portal',
+    crNumber: '',
+    developer: ''
+  };
+  const defaultSteps: Partial<TestStep>[] = [
+    { id: '1', description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }
+  ];
+
+  const resetCreateForm = () => {
+    setNewTask(defaultNewTask);
+    setSelectedCountries(['SG']);
+    setAssigneeByCountry({});
+    setSteps(defaultSteps);
+    setCreateSaveState('idle');
+  };
+
+  const isCreateDirty =
+    (newTask.title ?? '') !== (defaultNewTask.title ?? '') ||
+    (newTask.description ?? '') !== (defaultNewTask.description ?? '') ||
+    (newTask.jiraTicket ?? '') !== (defaultNewTask.jiraTicket ?? '') ||
+    (newTask.featureModule ?? '') !== (defaultNewTask.featureModule ?? '') ||
+    (newTask.priority ?? Priority.MEDIUM) !== (defaultNewTask.priority ?? Priority.MEDIUM) ||
+    (newTask.dueDate ?? '') !== (defaultNewTask.dueDate ?? '') ||
+    (newTask.targetSystem ?? 'Ordering Portal') !== (defaultNewTask.targetSystem ?? 'Ordering Portal') ||
+    (newTask.crNumber ?? '') !== (defaultNewTask.crNumber ?? '') ||
+    (newTask.developer ?? '') !== (defaultNewTask.developer ?? '') ||
+    selectedCountries.length !== 1 ||
+    selectedCountries[0] !== 'SG' ||
+    Object.keys(assigneeByCountry).length > 0 ||
+    steps.some((step) =>
+      (step.description ?? '').trim() !== '' ||
+      (step.expectedResult ?? '').trim() !== '' ||
+      (step.testData ?? '').trim() !== '' ||
+      (step.countryFilter ?? 'ALL') !== 'ALL'
+    ) ||
+    steps.length !== 1;
+
+  const closeCreateModal = () => {
+    if (creating) return;
+    if (isCreateDirty) {
+      const confirmed = window.confirm('You have unsaved task inputs. Discard them?');
+      if (!confirmed) return;
+    }
+    setIsModalOpen(false);
+    resetCreateForm();
+  };
 
   useEffect(() => {
     const loadStakeholders = async () => {
@@ -192,6 +248,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
 
      try {
        setCreating(true);
+       setCreateSaveState('saving');
        const data = await apiFetch<Task[]>('/api/tasks', {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
@@ -214,13 +271,12 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
        const createdTasks = Array.isArray(data) ? data : [];
        onAddTask(createdTasks);
        setIsModalOpen(false);
-
-       setNewTask({ jiraTicket: '', featureModule: 'Ordering', priority: Priority.MEDIUM, targetSystem: 'Ordering Portal' });
-       setSelectedCountries(['SG']);
-       setAssigneeByCountry({});
-       setSteps([{ id: '1', description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }]);
+       resetCreateForm();
+       setCreateSaveState('saved');
+       notify('Task(s) created successfully', 'success');
      } catch (error) {
        notify(error instanceof Error ? error.message : 'Failed to create tasks', 'error');
+       setCreateSaveState('error');
      } finally {
        setCreating(false);
      }
@@ -243,6 +299,17 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       setSteps(newSteps);
   };
 
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (isModalOpen && isCreateDirty) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [isModalOpen, isCreateDirty]);
+
   return (
     <div className="space-y-6 animate-fade-in relative">
       <div className="flex justify-between items-center">
@@ -258,7 +325,10 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
              <UploadCloud size={16}/> Import Excel
            </button>
            <button 
-             onClick={() => setIsModalOpen(true)}
+             onClick={() => {
+               resetCreateForm();
+               setIsModalOpen(true);
+             }}
              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 shadow-sm flex items-center gap-2"
            >
              <Plus size={16}/> New Task
@@ -428,7 +498,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
              <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl animate-in zoom-in-95 my-8">
                 <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
                    <h2 className="text-lg font-bold text-slate-900">Create New Task</h2>
-                   <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                   <button onClick={closeCreateModal} className="text-slate-400 hover:text-slate-600">
                       <X size={20} />
                    </button>
                 </div>
@@ -661,9 +731,10 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                 </div>
 
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 rounded-b-xl flex justify-end gap-3">
-                   <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 hover:text-slate-800 text-sm font-medium">Cancel</button>
+                   <button onClick={closeCreateModal} className="px-4 py-2 text-slate-600 hover:text-slate-800 text-sm font-medium">Cancel</button>
                    <button onClick={handleCreate} disabled={creating} className="px-4 py-2 bg-slate-900 text-white rounded-md hover:bg-slate-800 text-sm font-medium flex items-center gap-2 disabled:opacity-60">
-                      <Save size={16}/> Create {selectedCountries.length} Tasks
+                      <Save size={16}/>
+                      {createSaveState === 'saving' ? 'Creating...' : `Create ${selectedCountries.length} Tasks`}
                    </button>
                 </div>
              </div>

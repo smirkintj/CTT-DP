@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { CountryConfig } from '../types';
 import { Trash2, Plus, Globe, Package, Bell } from 'lucide-react';
+import { notify } from '../lib/notify';
 
 interface AdminDatabaseProps {
   countries: CountryConfig[];
@@ -18,6 +19,13 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
     timezone: 'Asia/Singapore',
     note: ''
   });
+  const [savedEmailSettings, setSavedEmailSettings] = useState({
+    enableReminders: false,
+    cronExpression: '0 9 * * 1-5',
+    timezone: 'Asia/Singapore',
+    note: ''
+  });
+  const [emailSaveState, setEmailSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   
   // Country Input State
   const [newCountryName, setNewCountryName] = useState('');
@@ -33,6 +41,15 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
     notifySignedOff: boolean;
     notifyFailedStep: boolean;
   }>>({});
+  const [savedTeamsConfigs, setSavedTeamsConfigs] = useState<Record<string, {
+    teamsWebhookUrl: string;
+    isActive: boolean;
+    notifyTaskAssigned: boolean;
+    notifyReminder: boolean;
+    notifySignedOff: boolean;
+    notifyFailedStep: boolean;
+  }>>({});
+  const [teamsSaveStateByCountry, setTeamsSaveStateByCountry] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
 
   useEffect(() => {
     try {
@@ -40,6 +57,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
       if (!raw) return;
       const parsed = JSON.parse(raw);
       setEmailSettings((prev) => ({ ...prev, ...parsed }));
+      setSavedEmailSettings((prev) => ({ ...prev, ...parsed }));
     } catch {}
   }, []);
 
@@ -62,8 +80,28 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
         };
       }
       setTeamsConfigs(next);
+      setSavedTeamsConfigs(next);
     })();
   }, []);
+
+  const emailSettingsDirty =
+    emailSettings.enableReminders !== savedEmailSettings.enableReminders ||
+    emailSettings.cronExpression !== savedEmailSettings.cronExpression ||
+    emailSettings.timezone !== savedEmailSettings.timezone ||
+    emailSettings.note !== savedEmailSettings.note;
+
+  const hasUnsavedTeamsConfig = Object.keys(teamsConfigs).some((countryCode) => {
+    const current = teamsConfigs[countryCode];
+    const saved = savedTeamsConfigs[countryCode] || {
+      teamsWebhookUrl: '',
+      isActive: false,
+      notifyTaskAssigned: true,
+      notifyReminder: true,
+      notifySignedOff: true,
+      notifyFailedStep: true
+    };
+    return JSON.stringify(current) !== JSON.stringify(saved);
+  });
 
   const handleAddCountry = () => {
       if (!newCountryName || !newCountryCode) return;
@@ -75,7 +113,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
         });
         const data = await response.json().catch(() => null);
         if (!response.ok) {
-          alert(data?.error || 'Failed to add country');
+          notify(data?.error || 'Failed to add country', 'error');
           return;
         }
 
@@ -97,7 +135,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
         });
         const data = await response.json().catch(() => null);
         if (!response.ok) {
-          alert(data?.error || 'Failed to delete country');
+          notify(data?.error || 'Failed to delete country', 'error');
           return;
         }
         onUpdateCountries(countries.filter((country) => country.code !== code));
@@ -114,7 +152,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
         });
         const data = await response.json().catch(() => null);
         if (!response.ok) {
-          alert(data?.error || 'Failed to add module');
+          notify(data?.error || 'Failed to add module', 'error');
           return;
         }
         onUpdateModules([...modules, data.name].sort((a, b) => a.localeCompare(b)));
@@ -131,7 +169,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
         });
         const data = await response.json().catch(() => null);
         if (!response.ok) {
-          alert(data?.error || 'Failed to delete module');
+          notify(data?.error || 'Failed to delete module', 'error');
           return;
         }
         onUpdateModules(modules.filter((module) => module !== mod));
@@ -139,8 +177,12 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
   };
 
   const handleSaveEmailSettings = () => {
+    setEmailSaveState('saving');
     window.localStorage.setItem('ctt-email-settings', JSON.stringify(emailSettings));
-    alert('Email reminder settings saved.');
+    setSavedEmailSettings(emailSettings);
+    setEmailSaveState('saved');
+    notify('Email reminder settings saved.', 'success');
+    window.setTimeout(() => setEmailSaveState('idle'), 1500);
   };
 
   const saveTeamsConfig = (countryCode: string) => {
@@ -154,6 +196,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
     };
 
     void (async () => {
+      setTeamsSaveStateByCountry((prev) => ({ ...prev, [countryCode]: 'saving' }));
       const response = await fetch('/api/admin/teams-webhooks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -163,12 +206,37 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
         })
       });
       if (!response.ok) {
-        alert('Failed to save Teams webhook config');
+        setTeamsSaveStateByCountry((prev) => ({ ...prev, [countryCode]: 'error' }));
+        notify(`Failed to save Teams webhook for ${countryCode}`, 'error');
         return;
       }
-      alert(`Teams webhook saved for ${countryCode}`);
+      setSavedTeamsConfigs((prev) => ({ ...prev, [countryCode]: config }));
+      setTeamsSaveStateByCountry((prev) => ({ ...prev, [countryCode]: 'saved' }));
+      notify(`Teams webhook saved for ${countryCode}`, 'success');
+      window.setTimeout(() => {
+        setTeamsSaveStateByCountry((prev) => ({ ...prev, [countryCode]: 'idle' }));
+      }, 1500);
     })();
   };
+
+  const handleTabChange = (nextTab: 'countries' | 'modules' | 'notifications') => {
+    if (activeTab === 'notifications' && nextTab !== 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig)) {
+      const confirmed = window.confirm('You have unsaved notification settings. Leave without saving?');
+      if (!confirmed) return;
+    }
+    setActiveTab(nextTab);
+  };
+
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (activeTab === 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig)) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [activeTab, emailSettingsDirty, hasUnsavedTeamsConfig]);
 
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
@@ -179,19 +247,19 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
 
         <div className="flex gap-4 mb-6 border-b border-slate-200">
             <button 
-              onClick={() => setActiveTab('countries')}
+              onClick={() => handleTabChange('countries')}
               className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'countries' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
                Countries
             </button>
             <button 
-              onClick={() => setActiveTab('modules')}
+              onClick={() => handleTabChange('modules')}
               className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'modules' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
                Modules
             </button>
             <button 
-              onClick={() => setActiveTab('notifications')}
+              onClick={() => handleTabChange('notifications')}
               className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'notifications' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
                Email Notifications
@@ -343,9 +411,14 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
                 <div className="flex justify-end">
                     <button
                       onClick={handleSaveEmailSettings}
+                      disabled={!emailSettingsDirty || emailSaveState === 'saving'}
                       className="bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-800"
                     >
-                      Save Settings
+                      {emailSaveState === 'saving'
+                        ? 'Saving...'
+                        : emailSaveState === 'saved'
+                          ? 'Saved'
+                          : 'Save Settings'}
                     </button>
                 </div>
 
@@ -456,9 +529,14 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({ countries, modules
                           <div className="flex justify-end">
                             <button
                               onClick={() => saveTeamsConfig(country.code)}
+                              disabled={teamsSaveStateByCountry[country.code] === 'saving'}
                               className="bg-slate-900 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-slate-800"
                             >
-                              Save Teams Config
+                              {teamsSaveStateByCountry[country.code] === 'saving'
+                                ? 'Saving...'
+                                : teamsSaveStateByCountry[country.code] === 'saved'
+                                  ? 'Saved'
+                                  : 'Save Teams Config'}
                             </button>
                           </div>
                         </div>

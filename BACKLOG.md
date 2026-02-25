@@ -209,17 +209,24 @@ This backlog tracks improvement initiatives with:
 - Impact if not done:
   - Parsing edge cases and future maintenance complexity.
 
-## 12) UX Save State + Unsaved Changes Guard
+## 12) ~~UX Save State + Unsaved Changes Guard~~
 - Priority: `P2`
-- Status: `In Progress`
-- Date implemented: `Partially on 2026-02-24`
+- Status: `Implemented`
+- Date implemented: `2026-02-25`
 - What this is for:
   - Improve confidence for inline editing workflows.
-- Implementation progress:
+- Implementation:
   - Added explicit save states in task detail: `Saving...`, `Saved`, `Save failed`.
   - Added in-app back-navigation confirm when edits are unsaved.
   - Added browser unload guard (`beforeunload`) for unsaved edits.
-  - Remaining: extend same pattern to other editable screens.
+  - Extended save state + unsaved-change guards to Admin Task create modal:
+    - confirm on modal close with unsaved input
+    - browser unload guard while modal has unsaved input
+    - explicit create button save-state feedback
+  - Extended save-state/unsaved-change handling to Admin Database notification settings:
+    - save-state feedback for reminder settings and Teams webhook config
+    - confirm on tab switch when unsaved notification changes exist
+    - browser unload guard for unsaved notification settings
 - Impact if not done:
   - Users unsure if updates persisted.
   - Increased accidental data loss.
@@ -570,3 +577,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-25`: Marked #5 Authentication Hardening, #6 Server-Enforced Status Transitions, and #8 Optimistic Concurrency as implemented with concrete code references.
 - `2026-02-25`: Updated related verification/docs alignment in README, PROJECT_OVERVIEW, and TESTING_CHECKLIST.
 - `2026-02-25`: Completed #11 Step Comment Data Model Normalization with backfill script and mapper cleanup.
+- `2026-02-25`: Completed #12 save-state/unsaved-change coverage across Task Detail, Admin Task create modal, and Admin Database notification settings.

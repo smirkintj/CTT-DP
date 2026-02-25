@@ -64,6 +64,9 @@ How to use:
 - [ ] `PASS/FAIL` Due date saves as date and displays date-only.
 - [ ] `PASS/FAIL` Country assignee dropdown appears and allows explicit selection.
 - [ ] `PASS/FAIL` Chosen assignee is reflected on created task.
+- [ ] `PASS/FAIL` Closing task-create modal with unsaved input shows discard confirmation.
+- [ ] `PASS/FAIL` Browser refresh/close warns when task-create modal has unsaved input.
+- [ ] `PASS/FAIL` Create button shows save progress (`Creating...`) and completion feedback.
 
 ## 3.2 Task Management Table
 - [ ] `PASS/FAIL` Search returns correct tasks.
@@ -86,6 +89,12 @@ How to use:
 - [ ] `PASS/FAIL` Open task count includes required statuses (per current rule).
 - [ ] `PASS/FAIL` Unread comments KPI updates after comments/read actions.
 - [ ] `PASS/FAIL` Due dates displayed in date-only format.
+
+## 3.5 Admin Database (Notifications)
+- [ ] `PASS/FAIL` Reminder settings save button shows saving/saved state and persists values.
+- [ ] `PASS/FAIL` Teams config save button shows saving/saved state per country.
+- [ ] `PASS/FAIL` Switching away from Notifications tab with unsaved edits prompts for confirmation.
+- [ ] `PASS/FAIL` Browser refresh/close warns when notification settings are unsaved.
 
 ---
 
