@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import prisma from '../../../../../lib/prisma';
 import { getAuthSession } from '../../../../../lib/auth';
 import { createActivity } from '../../../../../lib/activity';
-import { ActivityType } from '@prisma/client';
+import { ActivityType, TaskHistoryAction } from '@prisma/client';
 import { validateExpectedUpdatedAt } from '../../../../../lib/taskGuards';
+import { createTaskHistory } from '../../../../../lib/taskHistory';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -95,6 +96,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       console.error('activity create failed:', error);
     }
   }
+
+  await createTaskHistory({
+    taskId: id,
+    actorId: session.user.id,
+    action: TaskHistoryAction.COMMENT_ADDED,
+    message:
+      stepOrder && stepOrder > 0
+        ? `${session.user.name || session.user.email || 'User'} added a comment on Step ${stepOrder}.`
+        : `${session.user.name || session.user.email || 'User'} added a comment.`,
+    after: {
+      commentId: created.id,
+      stepOrder: stepOrder && stepOrder > 0 ? stepOrder : null,
+      body: text.trim()
+    }
+  });
 
   return NextResponse.json({ ok: true, id: created.id });
 }

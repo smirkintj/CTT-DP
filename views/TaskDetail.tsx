@@ -17,6 +17,18 @@ interface TaskDetailProps {
   onDeleteTask: (taskId: string) => void;
 }
 
+interface TaskHistoryEntry {
+  id: string;
+  action: string;
+  message: string;
+  createdAt: string;
+  actor: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+}
+
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 
 const renderTextWithLinks = (text?: string) => {
@@ -121,6 +133,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   const [releaseVersion, setReleaseVersion] = useState('');
   const [commentInputs, setCommentInputs] = useState<{[key: string]: string}>({});
   const [taskMetaSaveState, setTaskMetaSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [historyItems, setHistoryItems] = useState<TaskHistoryEntry[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [viewImage, setViewImage] = useState<string | null>(null);
   const [uploadStepId, setUploadStepId] = useState<string | null>(null);
   const [mentionUsers, setMentionUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
@@ -362,6 +376,18 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     }
   };
 
+  const refreshHistory = async (taskId: string) => {
+    setLoadingHistory(true);
+    try {
+      const history = await apiFetch<TaskHistoryEntry[]>(`/api/tasks/${taskId}/history`, { cache: 'no-store' });
+      setHistoryItems(Array.isArray(history) ? history : []);
+    } catch {
+      setHistoryItems([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   const persistStatus = async (status: Status, stepOrder?: number) => {
     const response = await fetch(`/api/tasks/${localTask.id}/status`, {
       method: 'POST',
@@ -522,7 +548,12 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       featureModule: safe.featureModule ?? ''
     });
     void refreshTask(safe.id);
-  }, [task.id]);
+    if (safe && isAdmin) {
+      void refreshHistory(safe.id);
+    } else {
+      setHistoryItems([]);
+    }
+  }, [task.id, isAdmin]);
 
   useEffect(() => {
     const loadMentionUsers = async () => {
@@ -1044,6 +1075,28 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
               })}
           </div>
         </div>
+
+        {isAdmin && (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 print:hidden">
+            <h3 className="text-base font-semibold text-slate-900 mb-4">Task History</h3>
+            {loadingHistory ? (
+              <p className="text-sm text-slate-500">Loading history…</p>
+            ) : historyItems.length === 0 ? (
+              <p className="text-sm text-slate-500">No history entries yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {historyItems.slice(0, 12).map((entry) => (
+                  <div key={entry.id} className="rounded-lg border border-slate-200 p-3">
+                    <p className="text-sm text-slate-800">{entry.message}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {entry.actor?.name || entry.actor?.email || 'System'} • {formatDateTimeLocal(entry.createdAt)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Sign-off Section */}
         <input

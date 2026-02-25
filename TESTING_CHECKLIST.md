@@ -147,6 +147,9 @@ How to use:
 - [ ] `PASS/FAIL` No task mutation allowed after sign-off lock.
 - [ ] `PASS/FAIL` Signed-off lock blocks: status change, step mutation, comment creation.
 - [ ] `PASS/FAIL` Activity entries are recorded for key actions.
+- [ ] `PASS/FAIL` TaskHistory entries are recorded for create/update/status/steps/comments/sign-off actions.
+- [ ] `PASS/FAIL` Admin sees Task History timeline in task detail with newest entries first.
+- [ ] `PASS/FAIL` Stakeholder cannot access unauthorized task history via direct API call.
 - [ ] `PASS/FAIL` DB entries match UI after CRUD operations.
 
 ---

@@ -36,6 +36,19 @@ enum ActivityType {
   DEPLOYED
 }
 
+enum TaskHistoryAction {
+  TASK_CREATED
+  TASK_UPDATED
+  STATUS_CHANGED
+  STEP_CREATED
+  STEP_UPDATED
+  STEP_DELETED
+  COMMENT_ADDED
+  SIGNED_OFF
+  DEPLOYED
+  TASK_DELETED
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -50,6 +63,7 @@ model User {
   updatedTasks  Task[]   @relation("TaskUpdatedBy")
   signedOffTasks Task[]  @relation("TaskSignedOffBy")
   activities     Activity[] @relation("ActivityActor")
+  taskHistories  TaskHistory[]
   activityReads  ActivityRead[]
   commentReads   CommentRead[]
   comments      Comment[]
@@ -189,4 +203,21 @@ model NotificationConfig {
   updatedAt          DateTime @updatedAt
 
   country Country @relation(fields: [countryCode], references: [code], onDelete: Cascade)
+}
+
+model TaskHistory {
+  id        String            @id @default(cuid())
+  taskId    String
+  actorId   String?
+  action    TaskHistoryAction
+  message   String
+  before    Json?
+  after     Json?
+  metadata  Json?
+  createdAt DateTime          @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, createdAt])
+  @@index([actorId, createdAt])
 }

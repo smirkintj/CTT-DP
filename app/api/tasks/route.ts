@@ -3,9 +3,10 @@ import prisma from '../../../lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth';
 import { mapTaskToUi } from './_mappers';
-import { ActivityType, TaskPriority, TaskStatus, UserRole } from '@prisma/client';
+import { ActivityType, TaskHistoryAction, TaskPriority, TaskStatus, UserRole } from '@prisma/client';
 import { sendTaskAssignedEmail } from '../../../lib/email';
 import { sendTeamsMessage } from '../../../lib/teams';
+import { createTaskHistory } from '../../../lib/taskHistory';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -245,6 +246,26 @@ export async function POST(req: Request) {
     });
 
     createdTaskIds.push(created.id);
+
+    await createTaskHistory({
+      taskId: created.id,
+      actorId: session.user.id,
+      action: TaskHistoryAction.TASK_CREATED,
+      message: `${session.user.name || session.user.email || 'Admin'} created "${title}" for ${countryCode}.`,
+      after: {
+        title,
+        description,
+        jiraTicket,
+        crNumber,
+        developer,
+        module: moduleName,
+        status: TaskStatus.READY,
+        priority,
+        countryCode,
+        dueDate: dueDate ? dueDate.toISOString() : null,
+        assigneeId: assignee?.id ?? null
+      }
+    });
 
     if (steps.length > 0) {
       await prisma.taskStep.createMany({

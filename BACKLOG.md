@@ -164,16 +164,29 @@ This backlog tracks improvement initiatives with:
 - Impact if not done:
   - Data loss and unexpected edits in collaborative scenarios.
 
-## 9) Immutable Task History (field-level audit trail)
+## 9) ~~Immutable Task History (field-level audit trail)~~
 - Priority: `P1`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `Implemented`
+- Date implemented: `2026-02-25`
 - What this is for:
   - Forensic trace of who changed what and when.
-- Implementation plan:
-  - Add `TaskHistory` model (actor, action, before/after snapshot, timestamp).
-  - Write log entries in task/step/status/sign-off APIs.
-  - Add admin timeline viewer.
+- Implementation:
+  - Added `TaskHistory` model + `TaskHistoryAction` enum:
+    - `prisma/schema.prisma`
+    - `prisma/migrations/20260225100000_add_task_history/migration.sql`
+  - Added centralized history writer helper:
+    - `lib/taskHistory.ts`
+  - Added history writes in task mutation paths:
+    - task create: `app/api/tasks/route.ts`
+    - task update/delete: `app/api/tasks/[id]/route.ts`
+    - status update: `app/api/tasks/[id]/status/route.ts`
+    - step create/update/delete: `app/api/tasks/[id]/steps/route.ts`, `app/api/tasks/[id]/steps/[stepId]/route.ts`
+    - comment add: `app/api/tasks/[id]/comments/route.ts`
+    - sign-off: `app/api/tasks/[id]/signoff/route.ts`
+  - Added secured history read endpoint:
+    - `app/api/tasks/[id]/history/route.ts`
+  - Added admin timeline UI in task detail:
+    - `views/TaskDetail.tsx`
 - Impact if not done:
   - Limited incident analysis and compliance reporting.
 
@@ -583,3 +596,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-25`: Added resilient fallback path in `GET /api/tasks` (minimal task fetch) plus development-only error detail to unblock dashboard when relational includes fail.
 - `2026-02-25`: Added matching resilience for `GET /api/tasks/[id]` and improved Task Detail refresh error surfacing with API-derived messages.
 - `2026-02-25`: Added auth-loading screen in `App.tsx` to remove login flicker during session hydration on page refresh.
+- `2026-02-25`: Completed #9 immutable task history with DB model, API instrumentation, secure history endpoint, and admin timeline UI.

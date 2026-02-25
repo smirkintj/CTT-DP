@@ -94,6 +94,11 @@ Defined in `prisma/schema.prisma`.
 - `ActivityRead`
   - per-user read tracking
 
+### Audit models
+- `TaskHistory`
+  - immutable audit entries for task mutations
+  - stores actor, action, message, before/after snapshots, metadata, timestamp
+
 ### Task audit/signoff fields
 - `Task.updatedById` → relation to `User` (`updatedBy`)
 - `Task.signedOffAt`
@@ -108,6 +113,7 @@ Defined in `prisma/schema.prisma`.
 - `GET /api/tasks/[id]`
 - `PATCH /api/tasks/[id]`
 - `DELETE /api/tasks/[id]` (admin only)
+- `GET /api/tasks/[id]/history` (secured; admin/stakeholder scoped like task access)
 - `POST /api/tasks/[id]/status`
 - `POST /api/tasks/[id]/comments`
 - `POST /api/tasks/[id]/signoff`
@@ -175,6 +181,7 @@ Additional behavior:
   - `views/TaskDetail.tsx`
   - `views/AdminTaskManagement.tsx` (create modal)
   - `views/AdminDatabase.tsx` (notification settings)
+- Admin task detail shows recent immutable task history timeline from `/api/tasks/[id]/history`.
 
 ## Data Mapping Layer
 - `app/api/tasks/_mappers.ts`

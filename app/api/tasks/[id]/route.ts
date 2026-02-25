@@ -4,8 +4,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
 import { mapTaskToUi } from '../_mappers';
 import { sendTaskAssignedEmail } from '../../../../lib/email';
-import { ActivityType } from '@prisma/client';
+import { ActivityType, TaskHistoryAction } from '@prisma/client';
 import { validateExpectedUpdatedAt } from '../../../../lib/taskGuards';
+import { createTaskHistory } from '../../../../lib/taskHistory';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -370,6 +371,35 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         message: `${session.user.name || session.user.email || 'Admin'} updated task details for "${task.title}".`
       }
     });
+
+    await createTaskHistory({
+      taskId: task.id,
+      actorId: session.user.id,
+      action: TaskHistoryAction.TASK_UPDATED,
+      message: `${session.user.name || session.user.email || 'Admin'} updated task details.`,
+      before: {
+        title: existingTask.title,
+        description: existingTask.description,
+        jiraTicket: existingTask.jiraTicket,
+        crNumber: existingTask.crNumber,
+        developer: existingTask.developer,
+        module: existingTask.module,
+        priority: existingTask.priority,
+        dueDate: existingTask.dueDate?.toISOString() ?? null,
+        assigneeId: existingTask.assigneeId ?? null
+      },
+      after: {
+        title: task.title,
+        description: task.description,
+        jiraTicket: task.jiraTicket,
+        crNumber: task.crNumber,
+        developer: task.developer,
+        module: task.module,
+        priority: task.priority,
+        dueDate: task.dueDate?.toISOString() ?? null,
+        assigneeId: task.assigneeId ?? null
+      }
+    });
   }
 
   return NextResponse.json(mapTaskToUi(task));
@@ -393,12 +423,23 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
   const task = await prisma.task.findUnique({
     where: { id },
-    select: { id: true }
+    select: { id: true, title: true, countryCode: true }
   });
 
   if (!task) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
+
+  await createTaskHistory({
+    taskId: id,
+    actorId: session.user.id,
+    action: TaskHistoryAction.TASK_DELETED,
+    message: `${session.user.name || session.user.email || 'Admin'} deleted "${task.title}".`,
+    before: {
+      title: task.title,
+      countryCode: task.countryCode
+    }
+  });
 
   await prisma.$transaction([
     prisma.comment.deleteMany({ where: { taskId: id } }),

@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import prisma from '../../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/auth';
-import { ActivityType } from '@prisma/client';
+import { ActivityType, TaskHistoryAction } from '@prisma/client';
 import { createActivity } from '../../../../../lib/activity';
 import { sendTaskSignedOffEmail } from '../../../../../lib/email';
 import { sendTeamsMessage } from '../../../../../lib/teams';
 import { validateExpectedUpdatedAt } from '../../../../../lib/taskGuards';
+import { createTaskHistory } from '../../../../../lib/taskHistory';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -66,6 +67,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     taskId: id,
     actorId: session.user.id,
     countryCode: task.countryCode
+  });
+
+  await createTaskHistory({
+    taskId: id,
+    actorId: session.user.id,
+    action: TaskHistoryAction.SIGNED_OFF,
+    message: `${session.user.name || session.user.email || 'User'} signed off the task.`,
+    after: {
+      signedOffAt: signedOffAt.toISOString(),
+      signedOffById: session.user.id
+    }
   });
 
   const adminUser = await prisma.user.findFirst({

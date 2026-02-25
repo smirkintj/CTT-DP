@@ -3,6 +3,8 @@ import prisma from '../../../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../../lib/auth';
 import { validateExpectedUpdatedAt } from '../../../../../../lib/taskGuards';
+import { createTaskHistory } from '../../../../../../lib/taskHistory';
+import { TaskHistoryAction } from '@prisma/client';
 
 export async function PATCH(
   req: Request,
@@ -75,6 +77,27 @@ export async function PATCH(
     }
   });
 
+  await createTaskHistory({
+    taskId: id,
+    actorId: session.user.id,
+    action: TaskHistoryAction.STEP_UPDATED,
+    message: `${session.user.name || session.user.email || 'User'} updated Step ${stepRecord.order}.`,
+    before: {
+      description: stepRecord.description,
+      expectedResult: stepRecord.expectedResult,
+      testData: stepRecord.testData,
+      actualResult: stepRecord.actualResult,
+      isPassed: stepRecord.isPassed
+    },
+    after: {
+      description: step.description,
+      expectedResult: step.expectedResult,
+      testData: step.testData,
+      actualResult: step.actualResult,
+      isPassed: step.isPassed
+    }
+  });
+
   return NextResponse.json(step);
 }
 
@@ -120,6 +143,19 @@ export async function DELETE(
 
   await prisma.taskStep.delete({
     where: { id: stepId }
+  });
+
+  await createTaskHistory({
+    taskId: id,
+    actorId: session.user.id,
+    action: TaskHistoryAction.STEP_DELETED,
+    message: `${session.user.name || session.user.email || 'Admin'} deleted Step ${stepRecord.order}.`,
+    before: {
+      order: stepRecord.order,
+      description: stepRecord.description,
+      expectedResult: stepRecord.expectedResult,
+      testData: stepRecord.testData
+    }
   });
 
   const remainingSteps = await prisma.taskStep.findMany({

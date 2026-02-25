@@ -72,6 +72,10 @@ npm run start
 - Task mutation APIs enforce:
   - status transition rules (invalid transitions return `409`)
   - optimistic concurrency using `expectedUpdatedAt` (stale updates return `409`)
+- Immutable task history is enabled:
+  - all core task mutations write `TaskHistory` entries
+  - admin can review history in Task Detail
+  - API endpoint: `/api/tasks/[id]/history`
 - Step-comment normalization:
   - `Comment.stepOrder` is the source of truth for step-level mapping.
   - Run `npm run comments:backfill-step-order` once after upgrading old environments.
@@ -115,6 +119,9 @@ Fix:
    - `npm run prisma:seed`
 3. Restart dev server:
    - `npm run dev`
+4. If pulling latest history feature changes, run migration:
+   - `npx prisma migrate deploy` (production/staging)
+   - or `npm run prisma:migrate` (local dev)
 
 ### 4) Dashboard login succeeds but `/api/tasks` returns 500
 Cause:

@@ -3,6 +3,8 @@ import prisma from '../../../../../lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/auth';
 import { validateExpectedUpdatedAt } from '../../../../../lib/taskGuards';
+import { createTaskHistory } from '../../../../../lib/taskHistory';
+import { TaskHistoryAction } from '@prisma/client';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -65,6 +67,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     where: { id },
     data: {
       updatedById: session.user.id
+    }
+  });
+
+  await createTaskHistory({
+    taskId: id,
+    actorId: session.user.id,
+    action: TaskHistoryAction.STEP_CREATED,
+    message: `${session.user.name || session.user.email || 'Admin'} added Step ${nextOrder}.`,
+    after: {
+      order: nextOrder,
+      description,
+      expectedResult,
+      testData: testData ?? null
     }
   });
 

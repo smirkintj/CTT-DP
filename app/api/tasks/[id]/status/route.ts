@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import prisma from '../../../../../lib/prisma';
 import { getAuthSession } from '../../../../../lib/auth';
 import { mapUiStatusToDb } from '../../_mappers';
-import { ActivityType } from '@prisma/client';
+import { ActivityType, TaskHistoryAction } from '@prisma/client';
 import { createActivity, toStatusLabel } from '../../../../../lib/activity';
 import { sendTeamsMessage } from '../../../../../lib/teams';
 import { validateExpectedUpdatedAt, validateTaskTransition } from '../../../../../lib/taskGuards';
+import { createTaskHistory } from '../../../../../lib/taskHistory';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -104,6 +105,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       });
     }
   }
+
+  await createTaskHistory({
+    taskId: id,
+    actorId: session.user.id,
+    action: dbStatus === 'DEPLOYED' ? TaskHistoryAction.DEPLOYED : TaskHistoryAction.STATUS_CHANGED,
+    message: `${session.user.name || session.user.email || 'User'} changed status from ${toStatusLabel(previousStatus)} to ${toStatusLabel(dbStatus)}.`,
+    before: { status: previousStatus },
+    after: { status: dbStatus },
+    metadata: stepOrder ? { stepOrder } : undefined
+  });
 
   return NextResponse.json({ ok: true });
 }
