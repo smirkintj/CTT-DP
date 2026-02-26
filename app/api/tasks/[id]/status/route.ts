@@ -4,6 +4,7 @@ import { getAuthSession } from '../../../../../lib/auth';
 import { mapUiStatusToDb } from '../../_mappers';
 import { ActivityType, TaskHistoryAction } from '@prisma/client';
 import { createActivity, toStatusLabel } from '../../../../../lib/activity';
+import { sendTaskAssignedEmail } from '../../../../../lib/email';
 import { sendTeamsMessage } from '../../../../../lib/teams';
 import { validateExpectedUpdatedAt, validateTaskTransition } from '../../../../../lib/taskGuards';
 import { createTaskHistory } from '../../../../../lib/taskHistory';
@@ -31,7 +32,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const task = await prisma.task.findUnique({
-    where: { id }
+    where: { id },
+    include: {
+      assignee: {
+        select: {
+          email: true,
+          name: true
+        }
+      }
+    }
   });
 
   if (!task) {
@@ -52,10 +61,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (task.assigneeId !== session.user.id || task.countryCode !== session.user.countryCode) {
       return forbidden('Forbidden', 'TASK_FORBIDDEN');
     }
+    if (task.status === 'DRAFT') {
+      return conflict('Task is not ready for stakeholder actions', 'TASK_NOT_READY');
+    }
   }
 
   const dbStatus = mapUiStatusToDb(status);
   const previousStatus = task.status;
+
+  if (previousStatus === 'DRAFT' && dbStatus === 'READY' && !task.assigneeId) {
+    return badRequest('Cannot mark task as READY without an assignee', 'TASK_ASSIGNEE_REQUIRED');
+  }
 
   if (previousStatus === dbStatus) {
     return NextResponse.json({ ok: true, unchanged: true });
@@ -73,6 +89,38 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       updatedById: session.user.id
     }
   });
+
+  if (previousStatus === 'DRAFT' && dbStatus === 'READY' && task.assignee?.email) {
+    await sendTaskAssignedEmail({
+      to: task.assignee.email,
+      assigneeName: task.assignee.name ?? undefined,
+      taskTitle: task.title,
+      taskId: task.id,
+      countryCode: task.countryCode,
+      dueDate: task.dueDate
+    });
+
+    await createActivity({
+      type: ActivityType.TASK_ASSIGNED,
+      message: `Admin marked "${task.title}" as Ready and assigned it to ${task.assignee.email}.`,
+      taskId: id,
+      actorId: session.user.id,
+      countryCode: task.countryCode
+    });
+
+    void sendTeamsMessage({
+      countryCode: task.countryCode,
+      eventType: 'TASK_ASSIGNED',
+      title: `UAT Task Ready (${task.countryCode})`,
+      text: `Task "${task.title}" is ready for testing and assigned to ${task.assignee.name || task.assignee.email}.`,
+      taskId: task.id,
+      facts: [
+        { name: 'Task', value: task.title },
+        { name: 'Assignee', value: task.assignee.name || task.assignee.email },
+        { name: 'Due Date', value: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A' }
+      ]
+    });
+  }
 
   if (dbStatus === 'DEPLOYED' || dbStatus === 'FAILED') {
     const failedMessage =

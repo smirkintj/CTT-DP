@@ -108,7 +108,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
   const commentRows =
     task.comments.length === 0
-      ? `<tr><td colspan="3" class="muted">No comments found.</td></tr>`
+      ? ''
       : Array.from(groupedComments.entries())
           .map(([group, comments]) => {
             const rows = comments
@@ -126,6 +126,24 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       ${rows}`;
           })
           .join('');
+
+  const commentsSection =
+    task.comments.length === 0
+      ? ''
+      : `
+    <div class="section-title">Comments</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:170px;">When</th>
+          <th style="width:150px;">By</th>
+          <th>Comment</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${commentRows}
+      </tbody>
+    </table>`;
 
   const html = `<!doctype html>
 <html>
@@ -199,19 +217,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         ${historyRows}
       </tbody>
     </table>
-    <div class="section-title">Comments</div>
-    <table>
-      <thead>
-        <tr>
-          <th style="width:170px;">When</th>
-          <th style="width:150px;">By</th>
-          <th>Comment</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${commentRows}
-      </tbody>
-    </table>
+    ${commentsSection}
     <div class="footer">This report is generated from CTT UAT Portal task data.</div>
   </div>
 </body>

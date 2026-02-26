@@ -291,9 +291,9 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                        </div>
                        <div className="flex items-center gap-3">
                           <span className="text-xs text-slate-500">Due: {formatDateOnly(task.dueDate)}</span>
-                          {(task.steps ?? []).reduce((acc, step) => acc + (step.comments?.length ?? 0), 0) > 0 && (
+                          {(task.commentCount ?? (task.steps ?? []).reduce((acc, step) => acc + (step.comments?.length ?? 0), 0)) > 0 && (
                              <span className="flex items-center text-xs text-slate-400 gap-1">
-                               <MessageSquare size={12}/> {(task.steps ?? []).reduce((acc, step) => acc + (step.comments?.length ?? 0), 0)}
+                               <MessageSquare size={12}/> {task.commentCount ?? (task.steps ?? []).reduce((acc, step) => acc + (step.comments?.length ?? 0), 0)}
                              </span>
                           )}
                           <Badge type="priority" value={task.priority} />

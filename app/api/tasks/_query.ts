@@ -43,6 +43,46 @@ export const taskRelationIncludeFull = {
   }
 } as const;
 
+export const taskRelationIncludeList = {
+  assignee: {
+    select: {
+      id: true,
+      email: true,
+      countryCode: true,
+      name: true
+    }
+  },
+  updatedBy: {
+    select: {
+      id: true,
+      email: true,
+      name: true
+    }
+  },
+  signedOffBy: {
+    select: {
+      id: true,
+      email: true,
+      name: true
+    }
+  },
+  steps: {
+    select: {
+      id: true,
+      order: true,
+      isPassed: true
+    },
+    orderBy: {
+      order: 'asc' as const
+    }
+  },
+  _count: {
+    select: {
+      comments: true
+    }
+  }
+} as const;
+
 export const taskRelationIncludeSafe = {
   country: true,
   assignee: {

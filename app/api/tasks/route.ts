@@ -4,14 +4,13 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth';
 import { mapTaskToUi } from './_mappers';
 import { ActivityType, TaskHistoryAction, TaskPriority, TaskStatus, UserRole } from '@prisma/client';
-import { sendTaskAssignedEmail } from '../../../lib/email';
-import { sendTeamsMessage } from '../../../lib/teams';
 import { createTaskHistory } from '../../../lib/taskHistory';
 import { badRequest, forbidden, internalError, unauthorized } from '../../../lib/apiError';
 import { isValidDueDate, isValidJiraTicket } from '../../../lib/taskValidation';
-import { taskRelationIncludeFull, taskRelationIncludeSafe } from './_query';
+import { taskRelationIncludeList, taskRelationIncludeSafe } from './_query';
 
 export async function GET() {
+  const startedAt = Date.now();
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
@@ -29,7 +28,7 @@ export async function GET() {
     try {
       tasks = await prisma.task.findMany({
         where,
-        include: taskRelationIncludeFull,
+        include: taskRelationIncludeList,
         orderBy: {
           updatedAt: 'desc'
         }
@@ -45,10 +44,15 @@ export async function GET() {
     }
 
     const mapped = tasks.map(mapTaskToUi);
+    const durationMs = Date.now() - startedAt;
+    if (process.env.NODE_ENV !== 'production') {
+      console.info(`[perf] GET /api/tasks ${durationMs}ms (rows=${mapped.length})`);
+    }
 
     return NextResponse.json(mapped, {
       headers: {
-        'Cache-Control': 'no-store'
+        'Cache-Control': 'private, max-age=5',
+        'X-Query-Time-Ms': String(durationMs)
       }
     });
   } catch (error) {
@@ -70,10 +74,15 @@ export async function GET() {
           steps: []
         })
       );
+      const durationMs = Date.now() - startedAt;
+      if (process.env.NODE_ENV !== 'production') {
+        console.info(`[perf] GET /api/tasks fallback ${durationMs}ms (rows=${mappedMinimal.length})`);
+      }
 
       return NextResponse.json(mappedMinimal, {
         headers: {
-          'Cache-Control': 'no-store'
+          'Cache-Control': 'private, max-age=5',
+          'X-Query-Time-Ms': String(durationMs)
         }
       });
     } catch (fallbackError) {
@@ -190,7 +199,7 @@ export async function POST(req: Request) {
         crNumber,
         developer,
         module: moduleName,
-        status: TaskStatus.READY,
+        status: TaskStatus.DRAFT,
         priority,
         countryCode,
         dueDate,
@@ -214,7 +223,7 @@ export async function POST(req: Request) {
         crNumber,
         developer,
         module: moduleName,
-        status: TaskStatus.READY,
+        status: TaskStatus.DRAFT,
         priority,
         countryCode,
         dueDate: dueDate ? dueDate.toISOString() : null,
@@ -236,39 +245,15 @@ export async function POST(req: Request) {
       });
     }
 
-    if (assignee?.email) {
-      await prisma.activity.create({
-        data: {
-          type: ActivityType.TASK_ASSIGNED,
-          taskId: created.id,
-          actorId: session.user.id,
-          countryCode,
-          message: `Admin assigned "${title}" to ${assignee.email}.`
-        }
-      });
-
-      await sendTaskAssignedEmail({
-        to: assignee.email,
-        assigneeName: assignee.name ?? undefined,
-        taskTitle: title,
+    await prisma.activity.create({
+      data: {
+        type: ActivityType.STATUS_CHANGED,
         taskId: created.id,
+        actorId: session.user.id,
         countryCode,
-        dueDate
-      });
-
-      void sendTeamsMessage({
-        countryCode,
-        eventType: 'TASK_ASSIGNED',
-        title: `New UAT Task Assigned (${countryCode})`,
-        text: `Task "${title}" has been assigned to ${assignee.name || assignee.email}.`,
-        taskId: created.id,
-        facts: [
-          { name: 'Assignee', value: assignee.name || assignee.email },
-          { name: 'Country', value: countryCode },
-          { name: 'Due Date', value: dueDate ? new Date(dueDate).toLocaleDateString() : 'N/A' }
-        ]
-      });
-    }
+        message: `Admin created draft task "${title}" for ${countryCode}.`
+      }
+    });
   }
 
   const createdTasks = await prisma.task.findMany({

@@ -23,11 +23,11 @@ This backlog tracks improvement initiatives with:
 - `Implemented`
 
 ## Progress Snapshot
-- Overall: `15/40 Implemented` (37.5%)
-- Active now: `4 In Progress`
-- Remaining: `21 Planned`
+- Overall: `15/41 Implemented` (36.6%)
+- Active now: `5 In Progress`
+- Remaining: `22 Planned`
 - High-priority lane (`P0 + P1`): `13/23 Implemented`
-- Technical debt lane (`#36-#40`): `2/5 Implemented`
+- Technical debt lane (`#36-#41`): `2/6 Implemented`
 
 ---
 
@@ -637,8 +637,14 @@ This backlog tracks improvement initiatives with:
     - country create/delete (`app/api/admin/countries/route.ts`)
     - module create/delete (`app/api/admin/modules/route.ts`)
     - Teams config save (`app/api/admin/teams-webhooks/route.ts`)
+  - Added admin audit coverage for notification trigger flows:
+    - assignment mail trigger (`app/api/tasks/[id]/notify-assigned/route.ts`)
+    - reminder mail trigger (`app/api/tasks/[id]/reminder/route.ts`)
+    - admin test notification (`app/api/admin/test-notification/route.ts`)
+  - Added checklist-backed endpoint coverage map:
+    - `ADMIN_AUDIT_COVERAGE.md`
   - Remaining:
-    - add explicit checklist-backed endpoint coverage for remaining admin flows.
+    - add CI guard to enforce audit calls for newly introduced admin write endpoints.
 - Impact if not done:
   - Partial audit trail weakens incident forensics/compliance.
 
@@ -653,6 +659,48 @@ This backlog tracks improvement initiatives with:
   - Standardize spacing, typography, and state styles.
 - Impact if not done:
   - UI drift and slower feature delivery.
+
+## 41) Technical Debt: Performance Baseline + Query/Fetch Optimization
+- Priority: `P1`
+- Status: `In Progress`
+- Date implemented: `Phase 1 on 2026-02-26`
+- What this is for:
+  - Reduce dashboard/task loading time and remove avoidable latency before adding new infra.
+- Implementation plan:
+  - Add endpoint-level timing instrumentation for key APIs:
+    - `/api/tasks`
+    - `/api/tasks/[id]`
+    - `/api/tasks/[id]/history`
+  - Split list vs detail query shape more aggressively:
+    - list API returns only fields needed for table/dashboard cards
+    - task detail API keeps full relation payload
+  - Remove redundant client refreshes/re-fetch loops in dashboard/task detail.
+  - Add lightweight cache strategy for safe reads (short TTL/revalidate where appropriate).
+  - Re-measure before/after; only then evaluate Prisma Accelerate adoption.
+- Implementation progress:
+  - Added query timing response headers (`X-Query-Time-Ms`) and dev perf logs on:
+    - `/api/tasks`
+    - `/api/tasks/[id]`
+    - `/api/tasks/[id]/history`
+  - Added lighter list query include shape for `/api/tasks`:
+    - reduced payload to relation metadata + step status summary + minimal comment metadata
+    - retained full detail payload on `/api/tasks/[id]`
+  - Further reduced task list payload:
+    - replaced full comment payload in `/api/tasks` with DB-side `commentCount` only
+    - kept full comment data only on task detail/report APIs
+  - Reduced `/api/tasks/[id]/history` default fetch window from 100 to 40 rows for faster task detail load.
+  - Reduced unnecessary task detail re-fetch when rich step data already exists.
+  - Added DB index migration for high-frequency filters/sorts:
+    - `Task(assigneeId, updatedAt)`
+    - `Task(countryCode, updatedAt)`
+    - `Task(status, updatedAt)`
+    - `Task(countryCode, status, updatedAt)`
+    - `Task(dueDate)`
+    - `Comment(taskId, createdAt)`
+    - `Comment(taskId, stepOrder, createdAt)`
+- Impact if not done:
+  - Slow perceived performance even on low data volume.
+  - Higher risk of unnecessary infra spend without root-cause optimization.
 
 ---
 
@@ -729,3 +777,8 @@ This backlog tracks improvement initiatives with:
 - `2026-02-26`: Replaced browser-native import confirm with in-app modal and hardened step-import API refresh path to reduce internal-error risk on import completion.
 - `2026-02-26`: Fixed sign-off race condition causing false stale-update conflicts by removing stale timestamp coupling between status and sign-off calls, and improved sign-off failure/success feedback.
 - `2026-02-26`: Replaced remaining browser-native confirms with in-app modals, added bulk delete in admin task table, and updated admin delete navigation to return to task management.
+- `2026-02-26`: Added performance improvement item (#41) to backlog, including baseline measurement-first approach, query-shape optimization, client fetch cleanup, and decision gate for Prisma Accelerate.
+- `2026-02-26`: Started #41 Phase 1: instrumented key task endpoints with query timing, introduced lighter task-list query shape, and reduced unnecessary task-detail hydration fetches.
+- `2026-02-26`: Continued #41 with lower-latency list payload changes (`commentCount` aggregation instead of full comments on `/api/tasks`) and reduced task-history fetch size for task detail.
+- `2026-02-26`: Added performance index migration (`20260226190000_add_task_comment_performance_indexes`) for task/comment hot paths.
+- `2026-02-26`: Advanced #39 audit coverage by adding admin audit events for manual email-trigger endpoints and publishing `ADMIN_AUDIT_COVERAGE.md` checklist.

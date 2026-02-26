@@ -160,8 +160,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   });
   
   const isAdmin = currentUser.role === Role.ADMIN;
+  const statusKey = (localTask.status ?? '').toString().trim().replace(/\s+/g, '_').toUpperCase();
   const isDeployed = localTask.status === Status.DEPLOYED;
   const isSignedOff = !!localTask.signedOff || !!localTask.signedOffAt;
+  const isDraft = statusKey === 'DRAFT';
+  const canRunTestActions = !isSignedOff && !isDraft;
   const canEditTaskMeta = isAdmin && !isSignedOff;
 
   // Portal URL Logic
@@ -188,7 +191,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   };
 
   const handleStepUpdate = (stepId: string, updates: Partial<TestStep>) => {
-    if (isSignedOff) return; // Prevent edits if signed
+    if (!canRunTestActions) return;
 
     const updatedSteps = (localTask.steps ?? []).map(step => {
       if (step.id === stepId) {
@@ -211,7 +214,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       updatedTask.status = Status.IN_PROGRESS;
     } else if (updatedSteps.some(s => s.isPassed === false)) {
       updatedTask.status = Status.FAILED;
-    } else if (updatedSteps.some(s => s.isPassed === true) && localTask.status === Status.PENDING) {
+    } else if (updatedSteps.some(s => s.isPassed === true) && statusKey === 'READY') {
       updatedTask.status = Status.IN_PROGRESS;
     }
 
@@ -242,7 +245,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   };
 
   const deleteAttachment = (stepId: string, index: number) => {
-    if (isSignedOff) return;
+    if (!canRunTestActions) return;
     const currentStep = (localTask.steps ?? []).find(s => s.id === stepId);
     if (!currentStep || !currentStep.attachments) return;
     
@@ -252,6 +255,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   };
 
   const handleAddComment = async (stepId: string) => {
+    if (!canRunTestActions) return;
     const text = commentInputs[stepId];
     if (!text || !text.trim()) return;
     const stepOrder = (localTask.steps ?? []).find((step) => step.id === stepId)?.order;
@@ -293,7 +297,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
 
   // Paste handler for screenshots
   const handlePaste = (e: React.ClipboardEvent, stepId: string) => {
-    if (isSignedOff) return;
+    if (!canRunTestActions) return;
     const items = e.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf('image') !== -1) {
@@ -314,6 +318,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   };
 
   const handleSignOff = () => {
+    if (!canRunTestActions) return;
     if (!signatureData || !acknowledged) return;
     void (async () => {
       const statusUpdated = await persistStatus(Status.PASSED);
@@ -348,6 +353,20 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     onUpdateTask(deployedTask);
     void persistStatus(deployedTask.status);
     setDeploymentModalOpen(false);
+  };
+
+  const handleMarkReady = () => {
+    if (!isAdmin || isSignedOff || !isDraft) return;
+    void (async () => {
+      if (!localTask.assignee?.id) {
+        notify('Assign a stakeholder before marking task as READY.', 'error');
+        return;
+      }
+      const statusUpdated = await persistStatus('READY' as unknown as Status);
+      if (!statusUpdated) return;
+      await refreshTask(localTask.id);
+      notify('Task is now READY. Assignment email has been sent.', 'success');
+    })();
   };
 
   const handlePrint = () => {
@@ -590,7 +609,20 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       priority: safe.priority ?? Priority.MEDIUM,
       featureModule: safe.featureModule ?? ''
     });
-    void refreshTask(safe.id);
+    const needsHydration =
+      (safe.steps ?? []).length === 0 ||
+      (safe.steps ?? []).some(
+        (step) =>
+          !step.description &&
+          !step.expectedResult &&
+          !step.testData &&
+          !step.actualResult &&
+          (step.attachments?.length ?? 0) === 0 &&
+          (step.comments?.length ?? 0) === 0
+      );
+    if (needsHydration) {
+      void refreshTask(safe.id);
+    }
     if (safe && isAdmin) {
       void refreshHistory(safe.id);
     } else {
@@ -622,6 +654,14 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
           <ArrowLeft size={18} /> Back
         </button>
         <div className="flex items-center gap-2">
+          {isAdmin && isDraft && !isSignedOff && (
+            <button
+              onClick={handleMarkReady}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
+            >
+              <CheckCircle size={16} /> Mark as READY
+            </button>
+          )}
           {isAdmin && (
             <button
               onClick={handleDeleteTask}
@@ -642,6 +682,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       </div>
 
       <div className="space-y-6">
+        {isDraft && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 print:hidden">
+            This task is in Draft. Stakeholders can view it, but testing actions are locked until admin marks it as READY.
+          </div>
+        )}
           
         {/* Task Header Card */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 relative overflow-hidden print:border-0 print:shadow-none">
@@ -998,7 +1043,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
 
                                   {/* Right Col: Evidence & Actual */}
                                   <div className="space-y-3">
-                                      {!isSignedOff ? (
+                                      {canRunTestActions ? (
                                         <div className="print:hidden">
                                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1 block">Actual Result</label>
                                             <textarea 
@@ -1021,7 +1066,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                                       <div>
                                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 block flex justify-between print:hidden">
                                               <span>Evidence</span>
-                                              {!isSignedOff && <span className="font-normal text-[10px] normal-case text-slate-400">Ctrl+V to paste</span>}
+                                              {canRunTestActions && <span className="font-normal text-[10px] normal-case text-slate-400">Ctrl+V to paste</span>}
                                           </label>
                                           
                                           {/* Thumbnails */}
@@ -1035,7 +1080,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                                                             className="w-full h-full object-cover cursor-pointer" 
                                                             onClick={() => setViewImage(src)}
                                                           />
-                                                          {!isSignedOff && (
+                                                          {canRunTestActions && (
                                                             <button 
                                                               onClick={(e) => { e.stopPropagation(); deleteAttachment(step.id, i); }}
                                                               className="absolute top-0 right-0 bg-red-500 text-white p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1048,7 +1093,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                                               </div>
                                           )}
 
-                                          {!isSignedOff && (
+                                          {canRunTestActions && (
                                               <div 
                                                 className="border-2 border-dashed border-slate-200 rounded-lg p-3 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-slate-50 hover:border-slate-300 transition-colors print:hidden"
                                                 onClick={() => handleOpenUpload(step.id)}
@@ -1062,7 +1107,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                               </div>
 
                               {/* Action Bar */}
-                              {!isSignedOff && (
+                              {canRunTestActions && (
                                 <div className="flex justify-end pt-2 border-t border-slate-50 print:hidden">
                                     <div className="flex gap-2">
                                       <button 
@@ -1094,7 +1139,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                                  </div>
                               )}
                               
-                              {!isSignedOff && (
+                              {canRunTestActions && (
                                  <div className="flex gap-2 mt-2 print:hidden">
                                       <input 
                                       type="text" 
@@ -1177,6 +1222,13 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                 >
                     <Printer size={16} /> Download PDF Report
                 </button>
+             </div>
+           ) : isDraft ? (
+             <div className="w-full max-w-md print:hidden">
+               <h3 className="font-semibold text-slate-900 mb-2">Sign-off Locked</h3>
+               <p className="text-sm text-slate-600">
+                 Admin must mark this task as READY before testing and sign-off can begin.
+               </p>
              </div>
            ) : (
              <div className="w-full max-w-md print:hidden">

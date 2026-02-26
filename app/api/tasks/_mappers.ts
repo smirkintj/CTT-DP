@@ -90,12 +90,12 @@ export function mapTaskToUi(task: any): TaskDTO {
     steps: steps.map((step: any) => ({
       id: step.id,
       order: step.order,
-      description: step.description,
-      expectedResult: step.expectedResult,
+      description: step.description ?? '',
+      expectedResult: step.expectedResult ?? '',
       testData: step.testData ?? null,
       actualResult: step.actualResult ?? null,
       isPassed: step.isPassed ?? null,
-      attachments: step.attachments ?? null,
+      attachments: step.attachments ?? [],
       comments: stepCommentMap.get(step.order) ?? [],
       createdAt: toIso(step.createdAt),
       updatedAt: toIso(step.updatedAt)
@@ -110,6 +110,10 @@ export function mapTaskToUi(task: any): TaskDTO {
         name: c.author?.name ?? c.author?.email ?? 'User',
         email: c.author?.email ?? ''
       }
-    }))
+    })),
+    commentCount:
+      typeof task?._count?.comments === 'number'
+        ? task._count.comments
+        : comments.length
   };
 }

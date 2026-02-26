@@ -38,6 +38,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
+  if (task.status === 'DRAFT') {
+    return NextResponse.json({ error: 'Task is not ready for stakeholder actions' }, { status: 409 });
+  }
+
   const staleMessage = validateExpectedUpdatedAt(task.updatedAt, body?.expectedUpdatedAt);
   if (staleMessage) {
     return NextResponse.json({ error: staleMessage }, { status: 409 });

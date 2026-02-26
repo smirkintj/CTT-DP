@@ -37,6 +37,9 @@ export async function PATCH(
     if (task.assigneeId !== session.user.id || task.countryCode !== session.user.countryCode) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    if (task.status === 'DRAFT') {
+      return NextResponse.json({ error: 'Task is not ready for stakeholder actions' }, { status: 409 });
+    }
   }
 
   const stepRecord = await prisma.taskStep.findUnique({

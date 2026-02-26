@@ -43,6 +43,7 @@ export interface Task {
   dueDate: string;
   createdAt?: string;
   steps: TestStep[];
+  commentCount?: number;
   updatedAt: string;
   updatedBy?: {
     id: string;

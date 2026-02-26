@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { createAdminAudit } from '@/lib/adminAudit';
 
 export async function POST() {
   const session = await getServerSession(authOptions);
@@ -52,6 +53,15 @@ export async function POST() {
         resendError = parsed?.message || parsed?.error || raw;
       } catch {}
       console.error('Resend send failed:', response.status, resendError);
+      await createAdminAudit({
+        actorId: session.user.id,
+        message: 'Admin test notification failed.',
+        metadata: {
+          action: 'TEST_NOTIFICATION_FAILED',
+          status: response.status,
+          to
+        }
+      });
       return NextResponse.json(
         {
           error: `Resend error ${response.status}: ${resendError}`
@@ -61,9 +71,19 @@ export async function POST() {
     }
 
     console.log('Test notification sent by ADMIN', session.user.email);
+    await createAdminAudit({
+      actorId: session.user.id,
+      message: 'Admin sent test notification email.',
+      metadata: { action: 'TEST_NOTIFICATION_SENT', to }
+    });
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Test notification error:', err);
+    await createAdminAudit({
+      actorId: session.user.id,
+      message: 'Admin test notification failed.',
+      metadata: { action: 'TEST_NOTIFICATION_FAILED', reason: err instanceof Error ? err.message : 'unknown' }
+    });
     return NextResponse.json(
       {
         error: err instanceof Error ? err.message : 'Failed to send email'

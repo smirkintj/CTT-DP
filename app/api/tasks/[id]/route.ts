@@ -12,6 +12,7 @@ import { isValidDueDate, isValidJiraTicket } from '../../../../lib/taskValidatio
 import { taskRelationIncludeFull, taskRelationIncludeSafe } from '../_query';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const startedAt = Date.now();
   const { id } = await params;
 
   if (!id) {
@@ -63,7 +64,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           signedOffBy: null,
           comments: [],
           steps: []
-        })
+        }),
+        {
+          headers: {
+            'X-Query-Time-Ms': String(Date.now() - startedAt)
+          }
+        }
       );
     } catch (fallbackError) {
       if (process.env.NODE_ENV !== 'production') {
@@ -96,7 +102,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }
   }
 
-  return NextResponse.json(mapTaskToUi(task));
+  const durationMs = Date.now() - startedAt;
+  if (process.env.NODE_ENV !== 'production') {
+    console.info(`[perf] GET /api/tasks/${id} ${durationMs}ms`);
+  }
+  return NextResponse.json(mapTaskToUi(task), {
+    headers: {
+      'X-Query-Time-Ms': String(durationMs)
+    }
+  });
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -215,7 +229,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const nextAssignee = task.assignee;
   const assignmentChanged =
     typeof body?.assigneeId === 'string' && body.assigneeId !== existingTask.assigneeId;
-  if (assignmentChanged && nextAssignee?.email) {
+  const shouldSendAssignmentEmail = assignmentChanged && nextAssignee?.email && task.status !== 'DRAFT';
+  if (shouldSendAssignmentEmail && nextAssignee?.email) {
     await sendTaskAssignedEmail({
       to: nextAssignee.email,
       assigneeName: nextAssignee.name ?? undefined,

@@ -65,4 +65,6 @@ export interface TaskDTO {
       email: string;
     };
   }[];
+
+  commentCount?: number;
 }

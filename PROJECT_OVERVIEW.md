@@ -19,6 +19,7 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 - Shared API error helper (`lib/apiError.ts`) is used to standardize server error payloads.
 - Shared form classes (`components/ui/formClasses.ts`) are used for consistent minimal input/button styling.
 - Shared task query include shapes are centralized in `app/api/tasks/_query.ts`.
+  - includes separate list-vs-detail query shapes for task performance tuning.
 
 ## Entry Points
 - `app/layout.tsx`
@@ -118,7 +119,10 @@ Defined in `prisma/schema.prisma`.
 
 ### Tasks
 - `GET /api/tasks`
+  - optimized for dashboard/list usage with lightweight relation payload
+  - includes DB-side `commentCount` summary (full comments are fetched only on detail/report endpoints)
 - `GET /api/tasks/[id]`
+  - full task detail payload for task execution screen
 - `PATCH /api/tasks/[id]`
 - `DELETE /api/tasks/[id]` (admin only)
 - `GET /api/tasks/[id]/history` (secured; admin/stakeholder scoped like task access)
@@ -134,13 +138,28 @@ Defined in `prisma/schema.prisma`.
   - Admin-only bulk replace of task steps from import wizard.
 - `GET /api/tasks/[id]/signoff-report`
   - Printable portrait sign-off report template with latest task history and step-grouped comment section.
+  - Comments section is hidden automatically when no comments exist.
 
 Task mutation guarantees:
 - Server-enforced status transition rules (`lib/taskGuards.ts` + `/api/tasks/[id]/status`)
 - Optimistic concurrency via `expectedUpdatedAt` on task detail mutations (`409 Conflict` on stale writes)
 - Signed-off task lock enforcement across metadata, status, steps, and comments
+- Draft workflow enforcement:
+  - new tasks are created in `DRAFT`
+  - `DRAFT` tasks are visible but stakeholder actions are blocked (status updates, step execution, comments, sign-off)
+  - admin promotes task to `READY` explicitly from task detail
+  - assignment email is sent on `DRAFT -> READY` transition
 - `GET /api/tasks` includes a resilient fallback path: if relation-heavy fetch fails, API returns minimal task payload so dashboards still load.
 - `GET /api/tasks/[id]` includes the same resilient fallback path to keep task detail accessible when relation-heavy hydration fails.
+- Performance observability:
+  - key endpoints return `X-Query-Time-Ms` header:
+    - `/api/tasks`
+    - `/api/tasks/[id]`
+    - `/api/tasks/[id]/history`
+  - development server logs perf lines for quick baseline comparison.
+  - task history endpoint fetch window is intentionally capped for task detail latency.
+  - DB indexes added for task/comment hot paths via:
+    - `prisma/migrations/20260226190000_add_task_comment_performance_indexes/migration.sql`
 
 ### Admin Utilities
 - `POST /api/admin/test-notification`
@@ -153,6 +172,13 @@ Task mutation guarantees:
   - Admin-only temp-password reset (rate-limited).
 - `POST /api/users/change-password`
   - Authenticated password change endpoint; clears `mustChangePassword`.
+
+Admin audit checklist:
+- `ADMIN_AUDIT_COVERAGE.md` tracks coverage status for admin/task write endpoints.
+- Notification trigger routes now emit explicit admin audit entries:
+  - `/api/tasks/[id]/notify-assigned`
+  - `/api/tasks/[id]/reminder`
+  - `/api/admin/test-notification`
 
 ### Activities
 - `GET /api/activities`
@@ -253,6 +279,11 @@ Also:
 - `postinstall` runs `prisma generate` (important for Vercel consistency).
 - Dependency cleanup:
   - `recharts` removed (was unused).
+- Browser automation:
+  - `scripts/playwright_admin_flow.sh` runs a Playwright CLI-based admin smoke flow.
+  - checks login then validates `/admin/dashboard`, `/admin/tasks`, `/admin/database`.
+  - stores run artifacts in `output/playwright/`.
+  - security: credentials are passed via environment variables (`ADMIN_EMAIL`, `ADMIN_PASSWORD`), not hardcoded.
 
 ## Local Setup
 1. `npm install`

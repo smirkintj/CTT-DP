@@ -117,6 +117,12 @@ model Task {
   comments   Comment[]
   steps      TaskStep[]
   activities Activity[]
+
+  @@index([assigneeId, updatedAt])
+  @@index([countryCode, updatedAt])
+  @@index([status, updatedAt])
+  @@index([countryCode, status, updatedAt])
+  @@index([dueDate])
 }
 
 model Comment {
@@ -130,6 +136,9 @@ model Comment {
   task   Task @relation(fields: [taskId], references: [id])
   author User @relation(fields: [authorId], references: [id])
   reads  CommentRead[]
+
+  @@index([taskId, createdAt])
+  @@index([taskId, stepOrder, createdAt])
 }
 
 model CommentRead {

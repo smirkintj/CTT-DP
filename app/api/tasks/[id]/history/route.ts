@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/auth';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const startedAt = Date.now();
   const { id } = await params;
   if (!id) {
     return NextResponse.json({ error: 'Missing id' }, { status: 400 });
@@ -49,7 +50,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       orderBy: {
         createdAt: 'desc'
       },
-      take: 100
+      take: 40
     });
 
     return NextResponse.json(
@@ -71,7 +72,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       })),
       {
         headers: {
-          'Cache-Control': 'no-store'
+          'Cache-Control': 'private, max-age=5',
+          'X-Query-Time-Ms': String(Date.now() - startedAt)
         }
       }
     );
@@ -81,7 +83,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }
     return NextResponse.json([], {
       headers: {
-        'Cache-Control': 'no-store'
+        'Cache-Control': 'private, max-age=5',
+        'X-Query-Time-Ms': String(Date.now() - startedAt)
       }
     });
   }

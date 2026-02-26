@@ -50,6 +50,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (task.assigneeId !== session.user.id || task.countryCode !== session.user.countryCode) {
       return forbidden('Forbidden', 'TASK_FORBIDDEN');
     }
+    if (task.status === 'DRAFT') {
+      return conflict('Task is not ready for stakeholder actions', 'TASK_NOT_READY');
+    }
   }
 
   const created = await prisma.comment.create({

@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/auth';
 import { sendTaskAssignedEmail } from '../../../../../lib/email';
 import { sendTeamsMessage } from '../../../../../lib/teams';
+import { createAdminAudit } from '../../../../../lib/adminAudit';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -51,8 +52,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
 
   if (!sent) {
+    await createAdminAudit({
+      actorId: session.user.id,
+      countryCode: task.countryCode,
+      message: `Admin failed assignment email trigger for "${task.title}".`,
+      metadata: { action: 'TASK_ASSIGNMENT_EMAIL_FAILED', taskId: task.id }
+    });
     return NextResponse.json({ error: 'Failed to send assignment email' }, { status: 500 });
   }
+
+  await createAdminAudit({
+    actorId: session.user.id,
+    countryCode: task.countryCode,
+    message: `Admin triggered assignment email for "${task.title}".`,
+    metadata: {
+      action: 'TASK_ASSIGNMENT_EMAIL_TRIGGERED',
+      taskId: task.id,
+      assigneeEmail: task.assignee.email
+    }
+  });
 
   void sendTeamsMessage({
     countryCode: task.countryCode,

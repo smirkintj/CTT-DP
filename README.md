@@ -62,6 +62,40 @@ npm run start
 - `npm run clean`
 - `npm run reset:dev` (kills local dev server ports and clears `.next` cache)
 - `npm run comments:backfill-step-order` (one-time legacy comment step-order backfill)
+- `scripts/playwright_admin_flow.sh` (automates admin browser smoke flow with Playwright CLI wrapper)
+
+## Playwright Browser Automation (Admin Flow)
+Technical dependencies:
+- Node.js/npm with `npx` available
+- running local app (`npm run dev`)
+- valid admin credentials
+
+Run steps:
+```bash
+# 1) start app in a separate terminal
+npm run dev
+
+# 2) run browser flow (credentials via env vars for security)
+export APP_URL="http://localhost:3000"
+export ADMIN_EMAIL="your-admin-email"
+export ADMIN_PASSWORD="your-admin-password"
+export HEADED=1
+./scripts/playwright_admin_flow.sh
+```
+
+What it validates:
+- login page and credential submit
+- `/admin/dashboard`
+- `/admin/tasks`
+- `/admin/database`
+
+Artifacts:
+- saved in `output/playwright/<run-label>-<timestamp>/`
+- includes snapshots, screenshots, console warnings, and network logs
+
+Security notes:
+- credentials are not hardcoded
+- use environment variables and avoid committing secrets
 
 ## Notes
 - Build script runs `prisma generate && next build` to avoid stale Prisma client issues in CI/Vercel.
@@ -79,6 +113,13 @@ npm run start
   - optimistic concurrency using `expectedUpdatedAt` (stale updates return `409`)
 - Task APIs are being standardized to a shared error response shape via `lib/apiError.ts` (`error`, `code`, optional `detail` in dev).
 - Shared Prisma include maps are centralized at `app/api/tasks/_query.ts` to reduce query-shape drift.
+- Performance baseline work (Phase 1):
+  - `/api/tasks` now uses a lighter list query shape (summary fields only).
+  - `/api/tasks` now returns `commentCount` summary instead of full comments payload for faster list response.
+  - `/api/tasks`, `/api/tasks/[id]`, and `/api/tasks/[id]/history` return `X-Query-Time-Ms` response header for quick latency checks.
+  - Task detail avoids redundant hydration fetch when already opened with rich step data.
+  - Added DB performance index migration:
+    - `prisma/migrations/20260226190000_add_task_comment_performance_indexes/migration.sql`
 - Immutable task history is enabled:
   - all core task mutations write `TaskHistory` entries
   - admin can review history in Task Detail
@@ -103,6 +144,12 @@ npm run start
     - cannot disable your own admin account
     - reset-password is rate-limited per admin/user target (60s)
     - reset password emails temporary password and forces password change on next login
+- Admin audit coverage:
+  - Checklist file: `/Users/putra/Desktop/CTT-DKSH-main/ADMIN_AUDIT_COVERAGE.md`
+  - Manual notification trigger endpoints now emit admin audit events:
+    - `/api/tasks/[id]/notify-assigned`
+    - `/api/tasks/[id]/reminder`
+    - `/api/admin/test-notification`
 - Import wizard:
   - `/import` supports CSV files exported from Excel (header row required).
   - Admin maps columns (description/expected result/actual result/test data), manually fixes missing preview fields inline, and then either:
@@ -114,6 +161,18 @@ npm run start
 - Reporting:
   - Admin task table supports filtered CSV export.
   - Sign-off report uses a dedicated portrait printable template via `/api/tasks/[id]/signoff-report`, includes recent task history plus step-grouped comments, and supports auto print prompt (`?autoprint=1`).
+  - If a task has no comments, the comments section is omitted from the PDF output.
+
+## Task Workflow
+- New tasks are created as `DRAFT`.
+- `DRAFT` tasks are visible to assigned stakeholders for anticipation, but stakeholder testing actions are locked.
+- Admin finalizes task details/steps, then uses `Mark as READY` in Task Detail.
+- When `DRAFT -> READY`:
+  - assignment email is automatically triggered to the assignee
+  - Teams assignment notification is triggered (if configured)
+- Security guardrails:
+  - stakeholder comment/step/sign-off actions are blocked for `DRAFT` tasks
+  - signed-off tasks remain locked for edits
 
 ## Admin UX Updates
 - `/admin/tasks` table rows are clickable to open task details.
