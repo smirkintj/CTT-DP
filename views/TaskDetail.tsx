@@ -300,30 +300,21 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
 
   const handleSignOff = () => {
     if (!signatureData || !acknowledged) return;
-
-    const updatedTask: Task = {
-      ...localTask,
-      status: Status.PASSED,
-      signedOff: {
-        signedBy: currentUser.name,
-        signedAt: new Date().toLocaleString(),
-        signatureData: signatureData
-      }
-    };
-    setLocalTask(updatedTask);
-    onUpdateTask(updatedTask);
     void (async () => {
-      const statusUpdated = await persistStatus(updatedTask.status);
+      const statusUpdated = await persistStatus(Status.PASSED);
       if (!statusUpdated) return;
       const response = await fetch(`/api/tasks/${localTask.id}/signoff`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ expectedUpdatedAt: localTask.updatedAt })
+        headers: { 'Content-Type': 'application/json' }
       });
       if (!response.ok) {
-        notify('Failed to sign off task', 'error');
+        const data = await response.json().catch(() => null);
+        notify(data?.error || 'Failed to sign off task', 'error');
         await refreshTask(localTask.id);
+        return;
       }
+      await refreshTask(localTask.id);
+      notify('Task signed off successfully.', 'success');
     })();
   };
 
