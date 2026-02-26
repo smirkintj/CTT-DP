@@ -23,9 +23,9 @@ This backlog tracks improvement initiatives with:
 - `Implemented`
 
 ## Progress Snapshot
-- Overall: `15/42 Implemented` (35.7%)
+- Overall: `16/42 Implemented` (38.1%)
 - Active now: `5 In Progress`
-- Remaining: `23 Planned`
+- Remaining: `22 Planned`
 - High-priority lane (`P0 + P1`): `13/23 Implemented`
 - Technical debt lane (`#36-#41`): `2/6 Implemented`
 
@@ -264,15 +264,23 @@ This backlog tracks improvement initiatives with:
 - Impact if not done:
   - Slow mean-time-to-resolution for incidents.
 
-## 14) Ops Runbook + Deployment Checklist
+## 14) ~~Ops Runbook + Deployment Checklist~~
 - Priority: `P2`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `Implemented`
+- Date implemented: `2026-02-26`
 - What this is for:
   - Repeatable, safer releases and migrations.
-- Implementation plan:
-  - Document migration order, seed behavior, rollback plan.
-  - Add smoke test checklist for post-deploy validation.
+- Implementation:
+  - Added production readiness checklist:
+    - `PRODUCTION_READINESS.md`
+  - Added operations troubleshooting runbook:
+    - `OPS_RUNBOOK.md`
+  - Added runtime health check endpoint:
+    - `app/api/health/route.ts`
+  - Linked operational docs and health endpoint in:
+    - `README.md`
+    - `PROJECT_OVERVIEW.md`
+    - `TESTING_CHECKLIST.md`
 - Impact if not done:
   - Higher deployment risk and inconsistent operator behavior.
 
@@ -824,3 +832,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-26`: Advanced #20 validation consistency by reusing shared Jira validation/normalization helpers in UI and adding import-create due-date/title checks.
 - `2026-02-26`: Added #42 gamified leaderboard concept backlog item (user + market rankings, badges, fairness guardrails).
 - `2026-02-26`: Hardened task assignment flow: invalid assignee selections now fail fast, non-draft tasks cannot be unassigned, and manual notify/reminder triggers now reject draft/completed tasks.
+- `2026-02-26`: Completed #14 by adding production checklist + ops runbook + `/api/health` runtime health endpoint and linked them in docs/testing checklist.

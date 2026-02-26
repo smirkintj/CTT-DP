@@ -24,6 +24,7 @@ How to use:
 
 ## 1.1 App Boot and Navigation
 - [ ] `PASS/FAIL` Login page loads without console runtime errors.
+- [ ] `PASS/FAIL` Health endpoint returns expected status: `/api/health`.
 - [ ] `PASS/FAIL` Admin can log in and reach `/admin/dashboard`.
 - [ ] `PASS/FAIL` Stakeholder can log in and reach `/`.
 - [ ] `PASS/FAIL` Core routes resolve: `/`, `/admin/dashboard`, `/admin/tasks`, `/tasks/[id]`, `/inbox`.
@@ -191,6 +192,8 @@ How to use:
 ---
 
 ## 9) Production Readiness Gate
+- [ ] `PASS/FAIL` `PRODUCTION_READINESS.md` checklist completed.
+- [ ] `PASS/FAIL` `OPS_RUNBOOK.md` reviewed by admin owner.
 - [ ] `PASS/FAIL` Latest deployment matches expected commit hash.
 - [ ] `PASS/FAIL` All required env vars present in production.
 - [ ] `PASS/FAIL` Prisma migrations applied in production DB.

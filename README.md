@@ -19,6 +19,7 @@ Dependency hygiene:
 - `/admin/database`
 - `/import`
 - `/tasks/[id]`
+- `/api/health` (runtime + dependency health checks)
 
 ## Prerequisites
 - Node.js 18+
@@ -154,6 +155,9 @@ Security notes:
     - `/api/tasks/[id]/notify-assigned`
     - `/api/tasks/[id]/reminder`
     - `/api/admin/test-notification`
+- Operational docs:
+  - Production checklist: `/Users/putra/Desktop/CTT-DKSH-main/PRODUCTION_READINESS.md`
+  - Incident runbook: `/Users/putra/Desktop/CTT-DKSH-main/OPS_RUNBOOK.md`
 - Import wizard:
   - `/import` supports CSV files exported from Excel (header row required).
   - Admin maps columns (description/expected result/actual result/test data), manually fixes missing preview fields inline, and then either:

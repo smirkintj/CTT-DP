@@ -193,6 +193,8 @@ Admin audit checklist:
 
 ### Debug
 - `GET /api/debug/env`
+- `GET /api/health`
+  - non-cached runtime health signal (DB reachability + auth/env configuration checks).
 
 ## Recent Activity Behavior (Current)
 Recent activity is DB-backed (not mock).
@@ -307,6 +309,9 @@ Also:
 - Ensure production env vars are set in Vercel.
 - Build uses Prisma client generation before Next build.
 - If schema changes are deployed, run migrations against production DB before/with deploy process.
+- Operational reference docs:
+  - `PRODUCTION_READINESS.md`
+  - `OPS_RUNBOOK.md`
 
 ## Known Technical Debt / Next Candidates
 - Move Tailwind usage from CDN-style setup into full config-based pipeline if desired.
