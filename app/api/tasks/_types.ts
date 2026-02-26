@@ -19,6 +19,7 @@ export interface TaskStepDTO {
 
 export interface TaskDTO {
   id: string;
+  taskGroupId?: string | null;
   title: string;
   description: string;
   status: string;

@@ -8,6 +8,7 @@ import { createTaskHistory } from '../../../lib/taskHistory';
 import { badRequest, forbidden, internalError, unauthorized } from '../../../lib/apiError';
 import { isValidDueDate, isValidJiraTicket } from '../../../lib/taskValidation';
 import { taskRelationIncludeList, taskRelationIncludeSafe } from './_query';
+import { randomUUID } from 'crypto';
 
 export async function GET() {
   const startedAt = Date.now();
@@ -155,6 +156,7 @@ export async function POST(req: Request) {
   const dueDate = dueDateRaw ? new Date(dueDateRaw) : null;
 
   const createdTaskIds: string[] = [];
+  const taskGroupId = countries.length > 1 ? randomUUID() : null;
 
   for (const countryCode of countries) {
     const selectedAssigneeId = assigneeByCountry[countryCode];
@@ -210,6 +212,7 @@ export async function POST(req: Request) {
         countryCode,
         dueDate,
         assigneeId: assignee?.id ?? null,
+        taskGroupId,
         updatedById: session.user.id
       },
       select: { id: true }
@@ -233,7 +236,8 @@ export async function POST(req: Request) {
         priority,
         countryCode,
         dueDate: dueDate ? dueDate.toISOString() : null,
-        assigneeId: assignee?.id ?? null
+        assigneeId: assignee?.id ?? null,
+        taskGroupId
       }
     });
 

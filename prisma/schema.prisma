@@ -93,6 +93,7 @@ model Module {
 
 model Task {
   id          String       @id @default(cuid())
+  taskGroupId String?
   title       String
   description String?
   jiraTicket  String?
@@ -123,6 +124,7 @@ model Task {
   @@index([status, updatedAt])
   @@index([countryCode, status, updatedAt])
   @@index([dueDate])
+  @@index([taskGroupId, updatedAt])
 }
 
 model Comment {

@@ -31,6 +31,15 @@ interface TaskHistoryEntry {
   } | null;
 }
 
+interface GroupUpdatePreview {
+  enabled: boolean;
+  reason?: string;
+  total: number;
+  updatable: number;
+  signedOffLocked: number;
+  countries: string[];
+}
+
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 
 const renderTextWithLinks = (text?: string) => {
@@ -126,6 +135,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   const [releaseVersion, setReleaseVersion] = useState('');
   const [commentInputs, setCommentInputs] = useState<{[key: string]: string}>({});
   const [taskMetaSaveState, setTaskMetaSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [applyGlobalMetaUpdate, setApplyGlobalMetaUpdate] = useState(false);
+  const [groupPreview, setGroupPreview] = useState<GroupUpdatePreview | null>(null);
+  const [loadingGroupPreview, setLoadingGroupPreview] = useState(false);
   const [historyItems, setHistoryItems] = useState<TaskHistoryEntry[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [viewImage, setViewImage] = useState<string | null>(null);
@@ -447,45 +459,72 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       return;
     }
 
-    setTaskMetaSaveState('saving');
-    const response = await fetch(`/api/tasks/${localTask.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: trimmedTitle,
-        description: taskEdits.description,
-        jiraTicket: normalizedTicket,
-        crNumber: taskEdits.crNumber,
-        developer: taskEdits.developer,
-        dueDate: fromDateInputValue(taskEdits.dueDate),
-        priority: taskEdits.priority,
-        module: taskEdits.featureModule,
-        expectedUpdatedAt: localTask.updatedAt
-      })
-    });
+    const performSave = async () => {
+      setTaskMetaSaveState('saving');
+      const response = await fetch(`/api/tasks/${localTask.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: trimmedTitle,
+          description: taskEdits.description,
+          jiraTicket: normalizedTicket,
+          crNumber: taskEdits.crNumber,
+          developer: taskEdits.developer,
+          dueDate: fromDateInputValue(taskEdits.dueDate),
+          priority: taskEdits.priority,
+          module: taskEdits.featureModule,
+          expectedUpdatedAt: localTask.updatedAt,
+          applyToGroup: applyGlobalMetaUpdate
+        })
+      });
 
-    if (!response.ok) {
-      notify('Failed to save task details', 'error');
-      setTaskMetaSaveState('error');
+      if (!response.ok) {
+        notify('Failed to save task details', 'error');
+        setTaskMetaSaveState('error');
+        return;
+      }
+      const updated = await response.json();
+      const safeUpdated = normalizeTask(updated as Task);
+      setLocalTask(safeUpdated);
+      onUpdateTask(safeUpdated);
+      setTaskEdits({
+        title: safeUpdated.title ?? '',
+        description: safeUpdated.description ?? '',
+        jiraTicket: safeUpdated.jiraTicket ?? '',
+        crNumber: safeUpdated.crNumber ?? '',
+        developer: safeUpdated.developer ?? '',
+        dueDate: toDateInputValue(safeUpdated.dueDate),
+        priority: safeUpdated.priority ?? Priority.MEDIUM,
+        featureModule: safeUpdated.featureModule ?? ''
+      });
+      const summary = (updated as any)?.globalUpdateSummary;
+      if (summary?.requested) {
+        notify(
+          `Global update: ${summary.updated}/${summary.total} tasks updated` +
+            (summary.skippedSignedOff > 0 ? `, ${summary.skippedSignedOff} signed-off skipped.` : '.'),
+          'success'
+        );
+      } else {
+        notify('Task details saved', 'success');
+      }
+      setTaskMetaSaveState('saved');
+      window.setTimeout(() => setTaskMetaSaveState('idle'), 1600);
+    };
+
+    if (applyGlobalMetaUpdate && groupPreview?.enabled) {
+      setConfirmDialog({
+        open: true,
+        title: 'Apply Global Update',
+        message: `Apply these updates to ${groupPreview.total} tasks (${groupPreview.updatable} editable, ${groupPreview.signedOffLocked} signed-off locked)?`,
+        confirmLabel: 'Apply to all',
+        onConfirm: async () => {
+          await performSave();
+        }
+      });
       return;
     }
-    const updated = await response.json();
-    const safeUpdated = normalizeTask(updated as Task);
-    setLocalTask(safeUpdated);
-    onUpdateTask(safeUpdated);
-    setTaskEdits({
-      title: safeUpdated.title ?? '',
-      description: safeUpdated.description ?? '',
-      jiraTicket: safeUpdated.jiraTicket ?? '',
-      crNumber: safeUpdated.crNumber ?? '',
-      developer: safeUpdated.developer ?? '',
-      dueDate: toDateInputValue(safeUpdated.dueDate),
-      priority: safeUpdated.priority ?? Priority.MEDIUM,
-      featureModule: safeUpdated.featureModule ?? ''
-    });
-    notify('Task details saved', 'success');
-    setTaskMetaSaveState('saved');
-    window.setTimeout(() => setTaskMetaSaveState('idle'), 1600);
+
+    await performSave();
   };
 
   const isTaskMetaDirty =
@@ -621,6 +660,34 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       setHistoryItems([]);
     }
   }, [task.id, isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    const loadGroupPreview = async () => {
+      setLoadingGroupPreview(true);
+      try {
+        const data = await apiFetch<GroupUpdatePreview>(`/api/tasks/${localTask.id}/group-preview`, { cache: 'no-store' });
+        if (!active) return;
+        setGroupPreview(data);
+      } catch {
+        if (!active) return;
+        setGroupPreview(null);
+      } finally {
+        if (active) setLoadingGroupPreview(false);
+      }
+    };
+    void loadGroupPreview();
+    return () => {
+      active = false;
+    };
+  }, [isAdmin, localTask.id]);
+
+  useEffect(() => {
+    if (!groupPreview?.enabled) {
+      setApplyGlobalMetaUpdate(false);
+    }
+  }, [groupPreview?.enabled]);
 
   useEffect(() => {
     const loadMentionUsers = async () => {
@@ -866,6 +933,30 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                 </div>
               ) : (
                 <span className="text-xs font-medium text-slate-500">Task is signed off and locked.</span>
+              )}
+            </div>
+          )}
+
+          {isAdmin && canEditTaskMeta && (
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                  checked={applyGlobalMetaUpdate}
+                  onChange={(e) => setApplyGlobalMetaUpdate(e.target.checked)}
+                  disabled={!groupPreview?.enabled}
+                />
+                Apply supported fields to all markets in this task group
+              </label>
+              {loadingGroupPreview ? (
+                <span>Checking group…</span>
+              ) : groupPreview?.enabled ? (
+                <span>
+                  {groupPreview.total} tasks in group ({groupPreview.updatable} editable, {groupPreview.signedOffLocked} locked)
+                </span>
+              ) : (
+                <span>{groupPreview?.reason ?? 'No multi-market group for this task.'}</span>
               )}
             </div>
           )}

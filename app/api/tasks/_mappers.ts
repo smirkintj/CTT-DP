@@ -47,6 +47,7 @@ export function mapTaskToUi(task: any): TaskDTO {
 
   return {
     id: task.id,
+    taskGroupId: task.taskGroupId ?? null,
     title: task.title,
     description: task.description,
     status: task.status,

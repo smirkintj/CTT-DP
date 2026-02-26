@@ -33,6 +33,7 @@ export type TargetSystem = 'Ordering Portal' | 'Admin Portal';
 
 export interface Task {
   id: string;
+  taskGroupId?: string | null;
   title: string;
   description: string;
   featureModule: string; 

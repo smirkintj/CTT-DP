@@ -435,14 +435,22 @@ This backlog tracks improvement initiatives with:
 
 ## 25) Admin Feature: Bulk Task Actions
 - Priority: `P1`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `In Progress`
+- Date implemented: `Phase 1 on 2026-02-26`
 - What this is for:
   - Let admins update many tasks at once (assign, due date, status, reminders).
 - Implementation plan:
   - Add row selection in Admin Task Management.
   - Add bulk action bar with guarded actions.
   - Add backend endpoint(s) for transactional bulk updates with per-item result summary.
+- Implementation progress:
+  - Added multi-market task grouping (`taskGroupId`) on multi-country task creation.
+  - Added ADMIN-only group preview API: `/api/tasks/[id]/group-preview`.
+  - Added task detail option to apply supported metadata to all tasks in the group:
+    - title, description, jiraTicket, crNumber, developer, dueDate
+  - Added signed-off-safe behavior:
+    - signed-off tasks are skipped (not failed) and returned in summary.
+  - Added post-save summary feedback to admin (updated vs skipped counts).
 - Impact if not done:
   - Admin operations remain slow and error-prone for large rollouts.
 
@@ -854,3 +862,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-26`: Hardened task assignment flow: invalid assignee selections now fail fast, non-draft tasks cannot be unassigned, and manual notify/reminder triggers now reject draft/completed tasks.
 - `2026-02-26`: Completed #14 by adding production checklist + ops runbook + `/api/health` runtime health endpoint and linked them in docs/testing checklist.
 - `2026-02-26`: Advanced #24 accessibility Phase 1 for login, admin task management, and task detail keyboard/ARIA support.
+- `2026-02-26`: Advanced #25 with phase-1 multi-market global metadata update (shared `taskGroupId`, group preview API, signed-off skip handling, and admin save summary).

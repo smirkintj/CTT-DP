@@ -63,7 +63,7 @@ interface AppProps {
 
 const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, onRouteChange }) => {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const sessionUserId = session?.user?.id ?? null;
 
   // State Management
@@ -359,12 +359,17 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
         return;
       }
 
-      notify('Password updated. Please sign in again.', 'success');
-      await signOut({ redirect: false });
+      notify('Password updated. Redirecting to your dashboard...', 'success');
+      await updateSession();
+      router.refresh();
       setCurrentPasswordInput('');
       setNewPasswordInput('');
       setConfirmPasswordInput('');
-      setView('LOGIN');
+      if (session?.user?.role === 'ADMIN') {
+        setView('DASHBOARD_ADMIN');
+      } else {
+        setView('DASHBOARD_STAKEHOLDER');
+      }
     } finally {
       setChangingPassword(false);
     }

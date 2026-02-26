@@ -113,6 +113,7 @@ Defined in `prisma/schema.prisma`.
 - `User.isActive` (login enable/disable)
 - `User.lastLoginAt` (admin visibility for account activity)
 - `User.mustChangePassword` (first-login/per-reset mandatory password update)
+  - after successful password change, user is redirected to their dashboard without an extra re-login
 
 ## API Surface
 ### Auth
@@ -154,6 +155,12 @@ Task mutation guarantees:
   - admin promotes task to `READY` explicitly from task detail
   - assignment email is sent on `DRAFT -> READY` transition
   - manual assignment/reminder trigger endpoints reject `DRAFT` and completed tasks
+- Multi-market task grouping and global metadata update:
+  - multi-country create flow assigns shared `taskGroupId` across generated tasks.
+  - admin task detail supports optional group-wide metadata propagation for:
+    - title, description, jiraTicket, crNumber, developer, dueDate
+  - signed-off tasks remain immutable and are skipped with summary reporting.
+  - group preview endpoint: `GET /api/tasks/[id]/group-preview` (ADMIN only)
 - `GET /api/tasks` includes a resilient fallback path: if relation-heavy fetch fails, API returns minimal task payload so dashboards still load.
 - `GET /api/tasks/[id]` includes the same resilient fallback path to keep task detail accessible when relation-heavy hydration fails.
 - Performance observability:
@@ -313,6 +320,7 @@ Also:
    - `NEXTAUTH_SECRET`
    - `NEXTAUTH_URL` (for deployed env)
 3. `npm run prisma:migrate`
+   - includes migration `20260226223000_add_task_group_id` (required for global multi-market updates)
 4. `npm run prisma:seed`
 5. `npm run dev`
 

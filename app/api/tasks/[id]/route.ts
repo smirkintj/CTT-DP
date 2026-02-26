@@ -10,6 +10,7 @@ import { createTaskHistory } from '../../../../lib/taskHistory';
 import { badRequest, conflict, forbidden, internalError, notFound, unauthorized } from '../../../../lib/apiError';
 import { isValidDueDate, isValidJiraTicket } from '../../../../lib/taskValidation';
 import { taskRelationIncludeFull, taskRelationIncludeSafe } from '../_query';
+import { randomUUID } from 'crypto';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const startedAt = Date.now();
@@ -131,6 +132,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const body = await req.json().catch(() => null);
+  const applyToGroup = body?.applyToGroup === true;
   const existingTask = await prisma.task.findUnique({
     where: { id },
     include: {
@@ -181,6 +183,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!isValidDueDate(body?.dueDate)) {
     return badRequest('Invalid due date', 'TASK_DUE_DATE_INVALID');
   }
+
+  const hasGlobalFieldInput =
+    Object.prototype.hasOwnProperty.call(body ?? {}, 'title') ||
+    Object.prototype.hasOwnProperty.call(body ?? {}, 'description') ||
+    Object.prototype.hasOwnProperty.call(body ?? {}, 'jiraTicket') ||
+    Object.prototype.hasOwnProperty.call(body ?? {}, 'crNumber') ||
+    Object.prototype.hasOwnProperty.call(body ?? {}, 'developer') ||
+    Object.prototype.hasOwnProperty.call(body ?? {}, 'dueDate');
+
   let nextAssigneeId: string | null | undefined = undefined;
   if (Object.prototype.hasOwnProperty.call(body ?? {}, 'assigneeId')) {
     if (body?.assigneeId === null || body?.assigneeId === '') {
@@ -222,6 +233,28 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   };
   if (typeof body?.developer !== 'undefined') {
     data.developer = body.developer;
+  }
+
+  const globalData: Record<string, unknown> = {
+    updatedById: session.user.id
+  };
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, 'title')) {
+    globalData.title = body?.title ?? undefined;
+  }
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, 'description')) {
+    globalData.description = body?.description ?? undefined;
+  }
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, 'jiraTicket')) {
+    globalData.jiraTicket = body?.jiraTicket ?? undefined;
+  }
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, 'crNumber')) {
+    globalData.crNumber = body?.crNumber ?? undefined;
+  }
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, 'developer')) {
+    globalData.developer = body?.developer;
+  }
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, 'dueDate')) {
+    globalData.dueDate = hasValidDueDate ? nextDueDate : undefined;
   }
 
   let task: any;
@@ -320,7 +353,134 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     });
   }
 
-  return NextResponse.json(mapTaskToUi(task));
+  let globalUpdateSummary:
+    | {
+        requested: boolean;
+        taskGroupId: string | null;
+        total: number;
+        updated: number;
+        skippedSignedOff: number;
+        skipped: Array<{ taskId: string; countryCode: string; reason: 'SIGNED_OFF' }>;
+        operationId?: string;
+      }
+    | undefined;
+
+  if (applyToGroup) {
+    if (!existingTask.taskGroupId) {
+      globalUpdateSummary = {
+        requested: true,
+        taskGroupId: null,
+        total: 1,
+        updated: 1,
+        skippedSignedOff: 0,
+        skipped: []
+      };
+    } else if (!hasGlobalFieldInput) {
+      const groupCount = await prisma.task.count({
+        where: { taskGroupId: existingTask.taskGroupId }
+      });
+      globalUpdateSummary = {
+        requested: true,
+        taskGroupId: existingTask.taskGroupId,
+        total: groupCount,
+        updated: 1,
+        skippedSignedOff: 0,
+        skipped: []
+      };
+    } else {
+      const groupTasks = await prisma.task.findMany({
+        where: { taskGroupId: existingTask.taskGroupId },
+        select: {
+          id: true,
+          title: true,
+          countryCode: true,
+          signedOffAt: true,
+          description: true,
+          jiraTicket: true,
+          crNumber: true,
+          developer: true,
+          dueDate: true
+        },
+        orderBy: { countryCode: 'asc' }
+      });
+      const operationId = randomUUID();
+      const skipped: Array<{ taskId: string; countryCode: string; reason: 'SIGNED_OFF' }> = [];
+      let updatedCount = 1; // source task update already applied
+
+      for (const groupTask of groupTasks) {
+        if (groupTask.id === task.id) continue;
+        if (groupTask.signedOffAt) {
+          skipped.push({
+            taskId: groupTask.id,
+            countryCode: groupTask.countryCode,
+            reason: 'SIGNED_OFF'
+          });
+          continue;
+        }
+
+        const updatedGroupTask = await prisma.task.update({
+          where: { id: groupTask.id },
+          data: globalData,
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            jiraTicket: true,
+            crNumber: true,
+            developer: true,
+            dueDate: true,
+            countryCode: true
+          }
+        });
+
+        updatedCount += 1;
+
+        await createTaskHistory({
+          taskId: groupTask.id,
+          actorId: session.user.id,
+          action: TaskHistoryAction.TASK_UPDATED,
+          message: `${session.user.name || session.user.email || 'Admin'} applied global task update across markets.`,
+          before: {
+            title: groupTask.title,
+            description: groupTask.description,
+            jiraTicket: groupTask.jiraTicket,
+            crNumber: groupTask.crNumber,
+            developer: groupTask.developer,
+            dueDate: groupTask.dueDate?.toISOString() ?? null
+          },
+          after: {
+            title: updatedGroupTask.title,
+            description: updatedGroupTask.description,
+            jiraTicket: updatedGroupTask.jiraTicket,
+            crNumber: updatedGroupTask.crNumber,
+            developer: updatedGroupTask.developer,
+            dueDate: updatedGroupTask.dueDate?.toISOString() ?? null
+          },
+          metadata: {
+            operationId,
+            sourceTaskId: task.id,
+            taskGroupId: existingTask.taskGroupId,
+            globalUpdate: true
+          }
+        });
+      }
+
+      globalUpdateSummary = {
+        requested: true,
+        taskGroupId: existingTask.taskGroupId,
+        total: groupTasks.length,
+        updated: updatedCount,
+        skippedSignedOff: skipped.length,
+        skipped,
+        operationId
+      };
+    }
+  }
+
+  return NextResponse.json({
+    ...mapTaskToUi(task),
+    globalUpdateSummary
+  });
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {

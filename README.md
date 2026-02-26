@@ -109,7 +109,7 @@ Security notes:
   - client-side email validation + submit throttling UX
   - server-side temporary lockout after repeated failed attempts
   - disabled users (`User.isActive = false`) cannot log in
-  - forced permanent-password setup (`mustChangePassword`) before portal access
+  - forced permanent-password setup (`mustChangePassword`) before portal access, then user stays signed in and is redirected to dashboard
   - accessibility improvements on login form controls and error/loading semantics
 - Recent Activity is database-backed via `Activity` and `ActivityRead` tables.
 - Task mutation APIs enforce:
@@ -178,6 +178,13 @@ Security notes:
   - Preview fields support multiline text editing.
   - After successful import, admin can directly open task detail from the success state.
   - Existing-task replacement uses in-app confirmation modal (no browser-native confirm popup).
+- Multi-market global admin update:
+  - tasks created for multiple countries now share `taskGroupId` automatically.
+  - in task detail, admin can opt to apply supported fields across the full group:
+    - title, description, Jira ticket, CR number, developer, due date
+  - signed-off tasks are skipped automatically and reported in save summary.
+  - preview API: `/api/tasks/[id]/group-preview`
+  - security: global update is ADMIN-only and still enforces signed-off locks.
 - Reporting:
   - Admin task table supports filtered CSV export.
   - Sign-off report uses a dedicated portrait printable template via `/api/tasks/[id]/signoff-report`, includes recent task history plus step-grouped comments, and supports auto print prompt (`?autoprint=1`).
