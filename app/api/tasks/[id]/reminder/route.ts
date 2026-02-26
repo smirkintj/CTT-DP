@@ -38,6 +38,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
+  if (task.status === 'DRAFT') {
+    return NextResponse.json(
+      { error: 'Task is still draft. Reminder is not applicable yet.' },
+      { status: 409 }
+    );
+  }
+
+  if (task.signedOffAt || task.status === 'DEPLOYED') {
+    return NextResponse.json(
+      { error: 'Task is completed. Reminder is not applicable.' },
+      { status: 409 }
+    );
+  }
+
   if (!task.assignee?.email) {
     return NextResponse.json({ error: 'Task assignee email is missing' }, { status: 400 });
   }

@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
 import { mapTaskToUi } from '../_mappers';
 import { sendTaskAssignedEmail } from '../../../../lib/email';
-import { ActivityType, TaskHistoryAction } from '@prisma/client';
+import { ActivityType, TaskHistoryAction, UserRole } from '@prisma/client';
 import { validateExpectedUpdatedAt } from '../../../../lib/taskGuards';
 import { createTaskHistory } from '../../../../lib/taskHistory';
 import { badRequest, conflict, forbidden, internalError, notFound, unauthorized } from '../../../../lib/apiError';
@@ -181,6 +181,34 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!isValidDueDate(body?.dueDate)) {
     return badRequest('Invalid due date', 'TASK_DUE_DATE_INVALID');
   }
+  let nextAssigneeId: string | null | undefined = undefined;
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, 'assigneeId')) {
+    if (body?.assigneeId === null || body?.assigneeId === '') {
+      if (existingTask.status !== 'DRAFT') {
+        return badRequest(
+          'Cannot remove assignee after task is no longer draft',
+          'TASK_ASSIGNEE_REQUIRED'
+        );
+      }
+      nextAssigneeId = null;
+    } else if (typeof body?.assigneeId === 'string') {
+      const assignee = await prisma.user.findFirst({
+        where: {
+          id: body.assigneeId,
+          role: UserRole.STAKEHOLDER,
+          isActive: true,
+          countryCode: existingTask.countryCode
+        },
+        select: { id: true }
+      });
+      if (!assignee) {
+        return badRequest('Invalid assignee for task country', 'TASK_ASSIGNEE_INVALID');
+      }
+      nextAssigneeId = assignee.id;
+    } else {
+      return badRequest('Invalid assignee id', 'TASK_ASSIGNEE_INVALID');
+    }
+  }
   const data: Record<string, unknown> = {
     title: body?.title ?? undefined,
     description: body?.description ?? undefined,
@@ -189,7 +217,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     dueDate: hasValidDueDate ? nextDueDate : undefined,
     priority: body?.priority ?? undefined,
     module: body?.module ?? body?.featureModule ?? undefined,
-    assigneeId: body?.assigneeId ?? undefined,
+    assigneeId: nextAssigneeId,
     updatedById: session.user.id
   };
   if (typeof body?.developer !== 'undefined') {
@@ -214,7 +242,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       dueDate: hasValidDueDate ? nextDueDate : undefined,
       priority: body?.priority ?? undefined,
       module: body?.module ?? body?.featureModule ?? undefined,
-      assigneeId: body?.assigneeId ?? undefined
+      assigneeId: nextAssigneeId
     };
 
     task = await prisma.task.update({

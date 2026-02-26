@@ -113,6 +113,8 @@ Security notes:
 - Task mutation APIs enforce:
   - status transition rules (invalid transitions return `409`)
   - optimistic concurrency using `expectedUpdatedAt` (stale updates return `409`)
+  - assignee integrity checks on create/edit (active stakeholder in matching country)
+  - non-draft tasks cannot be unassigned
 - Task APIs are being standardized to a shared error response shape via `lib/apiError.ts` (`error`, `code`, optional `detail` in dev).
 - Shared Prisma include maps are centralized at `app/api/tasks/_query.ts` to reduce query-shape drift.
 - Performance baseline work (Phase 1):
@@ -175,6 +177,7 @@ Security notes:
 - Security guardrails:
   - stakeholder comment/step/sign-off actions are blocked for `DRAFT` tasks
   - signed-off tasks remain locked for edits
+  - manual assignment/reminder email triggers are blocked for `DRAFT` and completed (`SIGNED_OFF`/`DEPLOYED`) tasks
 
 ## Admin UX Updates
 - `/admin/tasks` table rows are clickable to open task details.

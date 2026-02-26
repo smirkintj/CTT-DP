@@ -144,11 +144,15 @@ Task mutation guarantees:
 - Server-enforced status transition rules (`lib/taskGuards.ts` + `/api/tasks/[id]/status`)
 - Optimistic concurrency via `expectedUpdatedAt` on task detail mutations (`409 Conflict` on stale writes)
 - Signed-off task lock enforcement across metadata, status, steps, and comments
+- Assignee integrity enforcement:
+  - task assignee must be an active stakeholder in the same task country
+  - non-draft tasks cannot be unassigned
 - Draft workflow enforcement:
   - new tasks are created in `DRAFT`
   - `DRAFT` tasks are visible but stakeholder actions are blocked (status updates, step execution, comments, sign-off)
   - admin promotes task to `READY` explicitly from task detail
   - assignment email is sent on `DRAFT -> READY` transition
+  - manual assignment/reminder trigger endpoints reject `DRAFT` and completed tasks
 - `GET /api/tasks` includes a resilient fallback path: if relation-heavy fetch fails, API returns minimal task payload so dashboards still load.
 - `GET /api/tasks/[id]` includes the same resilient fallback path to keep task detail accessible when relation-heavy hydration fails.
 - Performance observability:

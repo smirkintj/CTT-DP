@@ -174,6 +174,12 @@ export async function POST(req: Request) {
           name: true
         }
       });
+      if (!assignee) {
+        return badRequest(
+          `Selected assignee is invalid for ${countryCode}`,
+          'TASK_ASSIGNEE_INVALID'
+        );
+      }
     }
 
     if (!assignee) {

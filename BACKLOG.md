@@ -23,9 +23,9 @@ This backlog tracks improvement initiatives with:
 - `Implemented`
 
 ## Progress Snapshot
-- Overall: `15/41 Implemented` (36.6%)
+- Overall: `15/42 Implemented` (35.7%)
 - Active now: `5 In Progress`
-- Remaining: `22 Planned`
+- Remaining: `23 Planned`
 - High-priority lane (`P0 + P1`): `13/23 Implemented`
 - Technical debt lane (`#36-#41`): `2/6 Implemented`
 
@@ -570,6 +570,39 @@ This backlog tracks improvement initiatives with:
   - Teams users miss task events unless they check email.
   - Slower reaction time in market channels.
 
+## 42) Feature: Gamified Tester Leaderboard (User + Market)
+- Priority: `P2`
+- Status: `Planned`
+- Date implemented: `TBD`
+- What this is for:
+  - Increase tester engagement, healthy market-level competition, and comment quality responsiveness.
+- Concept (Phase 1):
+  - `Personal Ranking` card:
+    - rank, points, tasks signed off, failed-step catches, useful comments.
+  - `Market Ranking` board:
+    - rank markets by completion score, on-time sign-off rate, and blocker resolution speed.
+  - `Weekly Streak`:
+    - users/markets get streaks for continuous task progress and timely updates.
+  - `Badges` (non-monetary):
+    - `Fast Closer`, `Bug Hunter`, `Collaboration Champion`, `Quality Guardian`.
+  - `Fairness guardrails`:
+    - no points for spam comments.
+    - repeated no-op status changes do not score.
+    - admin can exclude training/demo tasks from scoring.
+- Implementation plan:
+  - Add `LeaderboardEvent` table (append-only scoring events from task/comment/signoff actions).
+  - Add score calculator service + nightly materialized summary update.
+  - Add API:
+    - `/api/leaderboard/users`
+    - `/api/leaderboard/markets`
+    - `/api/leaderboard/me`
+  - Add UI:
+    - leaderboard widget on stakeholder dashboard
+    - admin leaderboard view with market drilldown.
+- Impact if not done:
+  - Engagement depends only on manual follow-up.
+  - Less visibility into proactive tester contribution across markets.
+
 ---
 
 ## Technical Debt Backlog
@@ -789,3 +822,5 @@ This backlog tracks improvement initiatives with:
 - `2026-02-26`: Advanced #39 audit coverage by adding admin audit events for manual email-trigger endpoints and publishing `ADMIN_AUDIT_COVERAGE.md` checklist.
 - `2026-02-26`: Added CI guard (`npm run audit:check-admin`) to block admin write routes without `createAdminAudit`, and wired it into `.github/workflows/ci.yml`.
 - `2026-02-26`: Advanced #20 validation consistency by reusing shared Jira validation/normalization helpers in UI and adding import-create due-date/title checks.
+- `2026-02-26`: Added #42 gamified leaderboard concept backlog item (user + market rankings, badges, fairness guardrails).
+- `2026-02-26`: Hardened task assignment flow: invalid assignee selections now fail fast, non-draft tasks cannot be unassigned, and manual notify/reminder triggers now reject draft/completed tasks.
