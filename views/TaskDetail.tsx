@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Task, Status, User, Role, TestStep, Priority } from '../types';
 import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer, Trash2 } from 'lucide-react';
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
@@ -143,6 +144,20 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   // Signature State
   const [signatureData, setSignatureData] = useState<string | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    confirmLabel: string;
+    destructive?: boolean;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    confirmLabel: 'Confirm',
+    onConfirm: () => {}
+  });
   
   const isAdmin = currentUser.role === Role.ADMIN;
   const isDeployed = localTask.status === Status.DEPLOYED;
@@ -347,14 +362,18 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
 
   const handleDeleteTask = async () => {
     if (!isAdmin) return;
-    const confirmed = window.confirm('Delete this task? This action cannot be undone.');
-    if (!confirmed) return;
-
-    const response = await fetch(`/api/tasks/${localTask.id}`, { method: 'DELETE' });
-    if (!response.ok) return;
-
-    onDeleteTask(localTask.id);
-    onBack();
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Task',
+      message: 'Delete this task? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        const response = await fetch(`/api/tasks/${localTask.id}`, { method: 'DELETE' });
+        if (!response.ok) return;
+        onDeleteTask(localTask.id);
+      }
+    });
   };
 
   const refreshTask = async (taskId: string) => {
@@ -470,8 +489,14 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
 
   const handleBackClick = () => {
     if (canEditTaskMeta && isTaskMetaDirty) {
-      const leave = window.confirm('You have unsaved changes. Leave this page without saving?');
-      if (!leave) return;
+      setConfirmDialog({
+        open: true,
+        title: 'Unsaved Changes',
+        message: 'You have unsaved changes. Leave this page without saving?',
+        confirmLabel: 'Leave',
+        onConfirm: () => onBack()
+      });
+      return;
     }
     onBack();
   };
@@ -534,15 +559,22 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   };
 
   const handleDeleteStep = async (stepId: string) => {
-    const confirmed = window.confirm('Delete this step?');
-    if (!confirmed) return;
-    const response = await fetch(`/api/tasks/${localTask.id}/steps/${stepId}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expectedUpdatedAt: localTask.updatedAt })
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Step',
+      message: 'Delete this step?',
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        const response = await fetch(`/api/tasks/${localTask.id}/steps/${stepId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expectedUpdatedAt: localTask.updatedAt })
+        });
+        if (!response.ok) return;
+        await refreshTask(localTask.id);
+      }
     });
-    if (!response.ok) return;
-    await refreshTask(localTask.id);
   };
 
   useEffect(() => {
@@ -1190,6 +1222,20 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
         </div>
 
       </div>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel={confirmDialog.confirmLabel}
+        destructive={confirmDialog.destructive}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, open: false }))}
+        onConfirm={async () => {
+          const action = confirmDialog.onConfirm;
+          setConfirmDialog((prev) => ({ ...prev, open: false }));
+          await action();
+        }}
+      />
 
       {/* Deployment Modal */}
       {deploymentModalOpen && (

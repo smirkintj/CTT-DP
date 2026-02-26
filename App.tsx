@@ -339,6 +339,10 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const handleTaskDelete = (taskId: string) => {
     setTasks((prev) => prev.filter((task) => task.id !== taskId));
     setSelectedTaskId((prev) => (prev === taskId ? null : prev));
+    if (currentUser?.role === Role.ADMIN) {
+      setView('ADMIN_TASK_MANAGEMENT');
+      onRouteChange?.('ADMIN_TASK_MANAGEMENT');
+    }
   };
   
   const handleAddTasks = (newTasks: Task[]) => {
@@ -349,6 +353,11 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       }
       return Array.from(map.values());
     });
+  };
+
+  const handleDeleteTasks = (taskIds: string[]) => {
+    if (taskIds.length === 0) return;
+    setTasks((prev) => prev.filter((task) => !taskIds.includes(task.id)));
   };
 
   const handleNavigation = (targetView: ViewState) => {
@@ -502,6 +511,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
           onImport={() => handleNavigation('IMPORT_WIZARD')}
           onEdit={handleTaskSelect}
           onAddTask={handleAddTasks}
+          onDeleteTasks={handleDeleteTasks}
           availableCountries={availableCountries}
           availableModules={availableModules}
         />

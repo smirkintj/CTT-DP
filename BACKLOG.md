@@ -728,3 +728,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-26`: Fixed import completion behavior to stop false success on API 400, added direct open-task action after import, grouped report comments by step sections, and added auto print prompt for save-to-PDF flow.
 - `2026-02-26`: Replaced browser-native import confirm with in-app modal and hardened step-import API refresh path to reduce internal-error risk on import completion.
 - `2026-02-26`: Fixed sign-off race condition causing false stale-update conflicts by removing stale timestamp coupling between status and sign-off calls, and improved sign-off failure/success feedback.
+- `2026-02-26`: Replaced remaining browser-native confirms with in-app modals, added bulk delete in admin task table, and updated admin delete navigation to return to task management.

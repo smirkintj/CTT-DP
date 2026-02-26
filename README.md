@@ -118,6 +118,8 @@ npm run start
 ## Admin UX Updates
 - `/admin/tasks` table rows are clickable to open task details.
 - Delete action is moved to Task Detail page (admin-only).
+- Bulk delete is supported from `/admin/tasks` via row selection.
+- After task deletion from detail view, admin is redirected to task management table.
 - Due date in admin task table is date-only (no time).
 - Priority badges are standardized with colored dots for all levels.
 - Save-state + unsaved-change guards are active on:
@@ -128,6 +130,7 @@ npm run start
 - Form styling is being consolidated with shared Apple-style utility classes:
   - `/Users/putra/Desktop/CTT-DKSH-main/components/ui/formClasses.ts`
 - Inline validation is now enforced in key task create/edit flows (client + server).
+- Critical confirmations use in-app modals (no browser-native confirm popups).
 
 ## Troubleshooting
 ### 1) Vercel build error: `Property 'activity' does not exist on type PrismaClient`

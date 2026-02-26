@@ -6,6 +6,7 @@ import { Trash2, Plus, UploadCloud, Search, Filter, X, Save, Globe, Download } f
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 interface AdminTaskManagementProps {
   tasks: Task[];
@@ -13,6 +14,7 @@ interface AdminTaskManagementProps {
   onImport: () => void;
   onEdit: (task: Task) => void;
   onAddTask: (tasks: Task[]) => void;
+  onDeleteTasks: (taskIds: string[]) => void;
   availableCountries: CountryConfig[];
   availableModules: string[];
 }
@@ -23,6 +25,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     onImport, 
     onEdit, 
     onAddTask,
+    onDeleteTasks,
     availableCountries,
     availableModules 
 }) => {
@@ -52,6 +55,21 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const [creating, setCreating] = useState(false);
   const [createSaveState, setCreateSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [createError, setCreateError] = useState<string | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    confirmLabel: string;
+    destructive?: boolean;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    confirmLabel: 'Confirm',
+    onConfirm: () => {}
+  });
 
   const [selectedCountries, setSelectedCountries] = useState<string[]>(['SG']);
   const [steps, setSteps] = useState<Partial<TestStep>[]>([
@@ -107,8 +125,17 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const closeCreateModal = () => {
     if (creating) return;
     if (isCreateDirty) {
-      const confirmed = window.confirm('You have unsaved task inputs. Discard them?');
-      if (!confirmed) return;
+      setConfirmDialog({
+        open: true,
+        title: 'Discard Changes',
+        message: 'You have unsaved task inputs. Discard them?',
+        confirmLabel: 'Discard',
+        onConfirm: () => {
+          setIsModalOpen(false);
+          resetCreateForm();
+        }
+      });
+      return;
     }
     setIsModalOpen(false);
     resetCreateForm();
@@ -226,6 +253,51 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
 
     return sorted;
   }, [tasks, searchTerm, statusFilter, priorityFilter, countryFilter, signedOffFilter, sortBy]);
+
+  useEffect(() => {
+    setSelectedTaskIds((prev) => prev.filter((id) => filteredTasks.some((task) => task.id === id)));
+  }, [filteredTasks]);
+
+  const toggleTaskSelection = (taskId: string, checked: boolean) => {
+    setSelectedTaskIds((prev) => {
+      if (checked) return prev.includes(taskId) ? prev : [...prev, taskId];
+      return prev.filter((id) => id !== taskId);
+    });
+  };
+
+  const toggleSelectAllVisible = (checked: boolean) => {
+    if (!checked) {
+      setSelectedTaskIds([]);
+      return;
+    }
+    setSelectedTaskIds(filteredTasks.map((task) => task.id));
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedTaskIds.length === 0) return;
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Selected Tasks',
+      message: `Delete ${selectedTaskIds.length} selected task(s)? This action cannot be undone.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        const failed: string[] = [];
+        for (const id of selectedTaskIds) {
+          const response = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+          if (!response.ok) failed.push(id);
+        }
+        if (failed.length === 0) {
+          notify(`Deleted ${selectedTaskIds.length} task(s).`, 'success');
+        } else {
+          notify(`Deleted ${selectedTaskIds.length - failed.length}/${selectedTaskIds.length} tasks.`, 'error');
+        }
+        const deletedIds = selectedTaskIds.filter((id) => !failed.includes(id));
+        if (deletedIds.length > 0) onDeleteTasks(deletedIds);
+        setSelectedTaskIds([]);
+      }
+    });
+  };
 
   const exportFilteredTasksCsv = () => {
     const headers = [
@@ -405,6 +477,13 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
            <p className="text-slate-500">Create, edit, and organize UAT scenarios.</p>
         </div>
         <div className="flex gap-2">
+           <button
+             onClick={handleBulkDelete}
+             disabled={selectedTaskIds.length === 0}
+             className={`${subtleButtonClass} shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+           >
+             <Trash2 size={16}/> Delete Selected ({selectedTaskIds.length})
+           </button>
            <button 
              onClick={exportFilteredTasksCsv}
              className={`${subtleButtonClass} shadow-sm flex items-center gap-2`}
@@ -530,6 +609,14 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
             <table className="w-full table-fixed text-sm text-left">
                <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
                   <tr>
+                     <th className="px-3 py-4 w-[4%]">
+                       <input
+                         type="checkbox"
+                         checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length}
+                         onChange={(e) => toggleSelectAllVisible(e.target.checked)}
+                         onClick={(e) => e.stopPropagation()}
+                       />
+                     </th>
                      <th className="px-4 py-4 w-[22%]">Task</th>
                      <th className="px-3 py-4 w-[14%]">Module</th>
                      <th className="px-3 py-4 w-[8%]">Country</th>
@@ -543,19 +630,26 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                <tbody className="divide-y divide-slate-100">
                   {loading && filteredTasks.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-10 text-center text-slate-500">
+                      <td colSpan={9} className="px-6 py-10 text-center text-slate-500">
                         Loading tasks...
                       </td>
                     </tr>
                   ) : filteredTasks.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-6 py-10 text-center text-slate-400">
+                      <td colSpan={9} className="px-6 py-10 text-center text-slate-400">
                         No tasks found.
                       </td>
                     </tr>
                   ) : (
                     filteredTasks.map(task => (
                       <tr key={task.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => onEdit(task)}>
+                         <td className="px-3 py-4" onClick={(e) => e.stopPropagation()}>
+                           <input
+                             type="checkbox"
+                             checked={selectedTaskIds.includes(task.id)}
+                             onChange={(e) => toggleTaskSelection(task.id, e.target.checked)}
+                           />
+                         </td>
                          <td className="px-4 py-4 font-medium text-slate-900 truncate" title={task.title}>{task.title}</td>
                          <td className="px-3 py-4">
                             <Badge type="module" value={task.featureModule} />
@@ -836,6 +930,20 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
              </div>
           </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel={confirmDialog.confirmLabel}
+        destructive={confirmDialog.destructive}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, open: false }))}
+        onConfirm={async () => {
+          const action = confirmDialog.onConfirm;
+          setConfirmDialog((prev) => ({ ...prev, open: false }));
+          await action();
+        }}
+      />
     </div>
   );
 };

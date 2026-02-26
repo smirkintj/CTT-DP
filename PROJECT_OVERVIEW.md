@@ -189,6 +189,8 @@ Currently created events:
 - Admin task table was compacted to fit within viewport better.
 - Admin task table rows are clickable to open Task Detail.
 - Delete action removed from table and moved to Task Detail (admin-only).
+- Admin task table supports bulk delete through row selection.
+- After admin deletes a task from detail, navigation returns to task management table.
 - Due date in admin table shows date-only.
 - Priority badge styling standardized across levels.
 - Admin database includes a new `Users` tab:
@@ -203,6 +205,7 @@ Currently created events:
 - Import preview supports inline multiline manual corrections before confirm.
 - Import success state includes direct navigation to the resulting task detail page.
 - Existing-task replace confirmation is handled in-app (custom modal) instead of browser-native dialogs.
+- Critical destructive/discard confirmations are standardized to in-app modals across admin/task flows.
 - Admin task management supports filtered CSV export.
 
 Additional behavior:

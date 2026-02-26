@@ -4,6 +4,7 @@ import { CountryConfig } from '../types';
 import { Trash2, Plus, Package, Bell, Users, Search, X, RotateCcw, UserPlus } from 'lucide-react';
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass } from '../components/ui/formClasses';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 interface AdminDatabaseProps {
   countries: CountryConfig[];
@@ -58,6 +59,19 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   const [newModule, setNewModule] = useState('');
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    confirmLabel: string;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    confirmLabel: 'Confirm',
+    onConfirm: () => {}
+  });
   const [userSearch, setUserSearch] = useState('');
   const [userCountryFilter, setUserCountryFilter] = useState<'ALL' | string>('ALL');
   const [userStatusFilter, setUserStatusFilter] = useState<'ALL' | 'ACTIVE' | 'DISABLED'>('ALL');
@@ -250,28 +264,33 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
 
   const handleResetPassword = async () => {
     if (!selectedUser) return;
-    const confirmed = window.confirm(`Reset password for ${selectedUser.email}?`);
-    if (!confirmed) return;
-
-    setResettingPassword(true);
-    try {
-      const response = await fetch(`/api/admin/users/${selectedUser.id}/reset-password`, {
-        method: 'POST'
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        notify(data?.error || 'Failed to reset password', 'error');
-        return;
+    setConfirmDialog({
+      open: true,
+      title: 'Reset Password',
+      message: `Reset password for ${selectedUser.email}?`,
+      confirmLabel: 'Reset',
+      onConfirm: async () => {
+        setResettingPassword(true);
+        try {
+          const response = await fetch(`/api/admin/users/${selectedUser.id}/reset-password`, {
+            method: 'POST'
+          });
+          const data = await response.json().catch(() => null);
+          if (!response.ok) {
+            notify(data?.error || 'Failed to reset password', 'error');
+            return;
+          }
+          notify(
+            data?.emailSent
+              ? 'Password reset email sent successfully'
+              : 'Password reset completed but email was not sent',
+            data?.emailSent ? 'success' : 'error'
+          );
+        } finally {
+          setResettingPassword(false);
+        }
       }
-      notify(
-        data?.emailSent
-          ? 'Password reset email sent successfully'
-          : 'Password reset completed but email was not sent',
-        data?.emailSent ? 'success' : 'error'
-      );
-    } finally {
-      setResettingPassword(false);
-    }
+    });
   };
 
   const emailSettingsDirty =
@@ -425,8 +444,14 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
 
   const handleTabChange = (nextTab: 'countries' | 'modules' | 'notifications' | 'users') => {
     if (activeTab === 'notifications' && nextTab !== 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig)) {
-      const confirmed = window.confirm('You have unsaved notification settings. Leave without saving?');
-      if (!confirmed) return;
+      setConfirmDialog({
+        open: true,
+        title: 'Unsaved Notification Settings',
+        message: 'You have unsaved notification settings. Leave without saving?',
+        confirmLabel: 'Leave',
+        onConfirm: () => setActiveTab(nextTab)
+      });
+      return;
     }
     setActiveTab(nextTab);
   };
@@ -983,6 +1008,19 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
             </div>
           </div>
         )}
+
+        <ConfirmDialog
+          open={confirmDialog.open}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmLabel={confirmDialog.confirmLabel}
+          onCancel={() => setConfirmDialog((prev) => ({ ...prev, open: false }))}
+          onConfirm={async () => {
+            const action = confirmDialog.onConfirm;
+            setConfirmDialog((prev) => ({ ...prev, open: false }));
+            await action();
+          }}
+        />
 
     </div>
   );
