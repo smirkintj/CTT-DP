@@ -22,6 +22,7 @@ function formatDateTime(value?: Date | null) {
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const autoPrint = new URL(_req.url).searchParams.get('autoprint') === '1';
   const session = await getServerSession(authOptions);
   if (!session?.user) return unauthorized('Unauthorized', 'AUTH_REQUIRED');
 
@@ -42,7 +43,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             }
           }
         },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ stepOrder: 'asc' }, { createdAt: 'asc' }],
         take: 200
       }
     }
@@ -98,19 +99,32 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           )
           .join('');
 
+  const groupedComments = new Map<string, typeof task.comments>();
+  for (const comment of task.comments) {
+    const key = comment.stepOrder ? `Step ${comment.stepOrder}` : 'General';
+    const existing = groupedComments.get(key) || [];
+    existing.push(comment);
+    groupedComments.set(key, existing);
+  }
   const commentRows =
     task.comments.length === 0
-      ? `<tr><td colspan="4" class="muted">No comments found.</td></tr>`
-      : task.comments
-          .map(
-            (comment) => `
+      ? `<tr><td colspan="3" class="muted">No comments found.</td></tr>`
+      : Array.from(groupedComments.entries())
+          .map(([group, comments]) => {
+            const rows = comments
+              .map(
+                (comment) => `
       <tr>
-        <td>${formatDateTime(comment.createdAt)}</td>
-        <td>${escapeHtml(comment.author.name || comment.author.email || 'User')}</td>
-        <td>${comment.stepOrder ? `Step ${comment.stepOrder}` : 'General'}</td>
+        <td style="width:170px;">${formatDateTime(comment.createdAt)}</td>
+        <td style="width:150px;">${escapeHtml(comment.author.name || comment.author.email || 'User')}</td>
         <td class="comment-cell">${preserveNewlines(comment.body || '')}</td>
       </tr>`
-          )
+              )
+              .join('');
+            return `
+      <tr class="section-row"><td colspan="3">${group}</td></tr>
+      ${rows}`;
+          })
           .join('');
 
   const html = `<!doctype html>
@@ -133,8 +147,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     th { background: #f8fafc; font-weight: 600; }
     .muted { color: #64748b; text-align: center; }
     .comment-cell { max-width: 430px; white-space: normal; word-break: break-word; line-height: 1.45; }
+    .section-row td { background: #f8fafc; font-weight: 600; color: #334155; }
     .footer { margin-top: 14px; color: #64748b; font-size: 11px; }
   </style>
+  ${autoPrint ? '<script>window.addEventListener("load",()=>window.print());</script>' : ''}
 </head>
 <body>
   <div class="page">
@@ -189,7 +205,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         <tr>
           <th style="width:170px;">When</th>
           <th style="width:150px;">By</th>
-          <th style="width:90px;">Context</th>
           <th>Comment</th>
         </tr>
       </thead>

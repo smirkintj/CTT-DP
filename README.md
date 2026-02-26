@@ -109,9 +109,10 @@ npm run start
     - replace steps in an existing task, or
     - create a brand-new task from the imported steps.
   - Preview fields support multiline text editing.
+  - After successful import, admin can directly open task detail from the success state.
 - Reporting:
   - Admin task table supports filtered CSV export.
-  - Sign-off report uses a dedicated portrait printable template via `/api/tasks/[id]/signoff-report` and includes recent task history plus task comments.
+  - Sign-off report uses a dedicated portrait printable template via `/api/tasks/[id]/signoff-report`, includes recent task history plus step-grouped comments, and supports auto print prompt (`?autoprint=1`).
 
 ## Admin UX Updates
 - `/admin/tasks` table rows are clickable to open task details.

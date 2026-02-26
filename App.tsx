@@ -317,6 +317,17 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     onRouteChange?.('TASK_DETAIL', task.id);
   };
 
+  const handleOpenTaskById = (taskId: string) => {
+    const existing = tasks.find((task) => task.id === taskId);
+    if (existing) {
+      handleTaskSelect(existing);
+      return;
+    }
+    setSelectedTaskId(taskId);
+    setView('TASK_DETAIL');
+    onRouteChange?.('TASK_DETAIL', taskId);
+  };
+
   const handleTaskUpdate = (updatedTask: Task) => {
     setTasks(prev => {
       const exists = prev.some(t => t.id === updatedTask.id);
@@ -522,6 +533,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
           availableCountries={availableCountries}
           availableModules={availableModules}
           onTasksImported={handleAddTasks}
+          onOpenTask={handleOpenTaskById}
         />
       )}
 

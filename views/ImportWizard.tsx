@@ -11,6 +11,7 @@ type ImportWizardProps = {
   availableCountries: CountryConfig[];
   availableModules: string[];
   onTasksImported: (updatedTasks: Task[]) => void;
+  onOpenTask: (taskId: string) => void;
 };
 
 type ParsedRow = Record<string, string>;
@@ -93,7 +94,8 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   tasks,
   availableCountries,
   availableModules,
-  onTasksImported
+  onTasksImported,
+  onOpenTask
 }) => {
   const [step, setStep] = useState(1);
   const [fileName, setFileName] = useState('');
@@ -110,6 +112,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   });
   const [previewSteps, setPreviewSteps] = useState<PreviewStep[]>([]);
   const [importing, setImporting] = useState(false);
+  const [lastImportedTaskId, setLastImportedTaskId] = useState<string | null>(null);
 
   const selectedTask = useMemo(() => tasks.find((task) => task.id === selectedTaskId) || null, [selectedTaskId, tasks]);
 
@@ -195,18 +198,19 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     setPreviewSteps([]);
     setImportMode('existing');
     setNewTaskForm(defaultNewTaskForm);
+    setLastImportedTaskId(null);
   };
 
-  const importToExistingTask = async () => {
+  const importToExistingTask = async (): Promise<{ ok: boolean; taskId?: string }> => {
     if (!selectedTaskId || !selectedTask) {
       notify('Please select a target task.', 'error');
-      return;
+      return { ok: false };
     }
 
     const confirmed = window.confirm(
       `Replace all existing steps in "${selectedTask.title}" with ${previewSteps.length} imported steps?`
     );
-    if (!confirmed) return;
+    if (!confirmed) return { ok: false };
 
     const response = await fetch(`/api/tasks/${selectedTaskId}/steps/import`, {
       method: 'POST',
@@ -223,24 +227,25 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     const data = await response.json().catch(() => null);
     if (!response.ok) {
       notify(data?.error || 'Failed to import steps', 'error');
-      return;
+      return { ok: false };
     }
     onTasksImported([data]);
+    return { ok: true, taskId: data?.id };
   };
 
-  const importAsNewTask = async () => {
+  const importAsNewTask = async (): Promise<{ ok: boolean; taskId?: string }> => {
     const title = newTaskForm.title.trim();
     if (!title) {
       notify('New task title is required.', 'error');
-      return;
+      return { ok: false };
     }
     if (!newTaskForm.countryCode) {
       notify('Select country for the new task.', 'error');
-      return;
+      return { ok: false };
     }
     if (!newTaskForm.module) {
       notify('Select module for the new task.', 'error');
-      return;
+      return { ok: false };
     }
 
     const response = await fetch('/api/tasks', {
@@ -266,13 +271,16 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     const data = await response.json().catch(() => null);
     if (!response.ok) {
       notify(data?.error || 'Failed to create task from import', 'error');
-      return;
+      return { ok: false };
     }
 
     const createdTasks = Array.isArray(data) ? data : [];
-    if (createdTasks.length > 0) {
-      onTasksImported(createdTasks);
+    if (createdTasks.length === 0) {
+      notify('Import succeeded but no task was returned by API.', 'error');
+      return { ok: false };
     }
+    onTasksImported(createdTasks);
+    return { ok: true, taskId: createdTasks[0]?.id };
   };
 
   const handleImport = async () => {
@@ -291,11 +299,14 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
 
     setImporting(true);
     try {
+      let result: { ok: boolean; taskId?: string };
       if (importMode === 'existing') {
-        await importToExistingTask();
+        result = await importToExistingTask();
       } else {
-        await importAsNewTask();
+        result = await importAsNewTask();
       }
+      if (!result.ok) return;
+      setLastImportedTaskId(result.taskId ?? null);
       notify('Import completed successfully.', 'success');
       setStep(3);
     } finally {
@@ -602,6 +613,14 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
                 ? 'Task steps were replaced successfully.'
                 : 'New task was created successfully from imported steps.'}
             </p>
+            {lastImportedTaskId && (
+              <button
+                onClick={() => onOpenTask(lastImportedTaskId)}
+                className={`${subtleButtonClass} mt-5`}
+              >
+                Open Task Detail
+              </button>
+            )}
           </div>
         )}
 
