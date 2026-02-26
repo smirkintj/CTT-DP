@@ -806,53 +806,52 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
               </select>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="min-w-full divide-y divide-slate-200 text-sm">
+            <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+              <table className="min-w-full divide-y divide-slate-200 text-sm table-fixed">
                 <thead className="bg-slate-50">
                   <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-                    <th className="px-4 py-3">Name</th>
-                    <th className="px-4 py-3">Email</th>
-                    <th className="px-4 py-3">Country</th>
-                    <th className="px-4 py-3">Role</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Last login</th>
-                    <th className="px-4 py-3">Tasks</th>
-                    <th className="px-4 py-3 text-right">Action</th>
+                    <th className="px-3 py-3 w-[22%]">Name</th>
+                    <th className="px-3 py-3 w-[30%]">Email</th>
+                    <th className="px-3 py-3 w-[10%]">Country</th>
+                    <th className="px-3 py-3 w-[12%]">Status</th>
+                    <th className="px-3 py-3 w-[18%]">Last Login</th>
+                    <th className="px-3 py-3 w-[8%] text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
                   {usersLoading ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
+                      <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
                         Loading users...
                       </td>
                     </tr>
                   ) : filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
+                      <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
                         No users found.
                       </td>
                     </tr>
                   ) : (
                     filteredUsers.map((user) => (
                       <tr key={user.id}>
-                        <td className="px-4 py-3 font-medium text-slate-900">{user.name}</td>
-                        <td className="px-4 py-3">{user.email}</td>
-                        <td className="px-4 py-3">{user.countryCode || '—'}</td>
-                        <td className="px-4 py-3">{user.role}</td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3 font-medium text-slate-900 truncate">{user.name}</td>
+                        <td className="px-3 py-3 truncate">{user.email}</td>
+                        <td className="px-3 py-3">{user.countryCode || '—'}</td>
+                        <td className="px-3 py-3">
                           <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                               user.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
                             }`}
                           >
                             {user.isActive ? 'Active' : 'Disabled'}
                           </span>
                         </td>
-                        <td className="px-4 py-3">{formatDateTime(user.lastLoginAt)}</td>
-                        <td className="px-4 py-3">{user.assignedTaskCount}</td>
-                        <td className="px-4 py-3 text-right">
-                          <button onClick={() => openEditUserDrawer(user)} className={subtleButtonClass}>
+                        <td className="px-3 py-3">{formatDateTime(user.lastLoginAt)}</td>
+                        <td className="px-3 py-3 text-right">
+                          <button
+                            onClick={() => openEditUserDrawer(user)}
+                            className="text-sm font-medium text-slate-700 hover:text-slate-900"
+                          >
                             Manage
                           </button>
                         </td>

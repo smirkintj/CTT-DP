@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, ArrowRight, Check, FileSpreadsheet, UploadCloud } from 'lucide-react';
 import { Task, TestStep } from '../types';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass } from '../components/ui/formClasses';
@@ -12,6 +12,7 @@ type ImportWizardProps = {
 };
 
 type ParsedRow = Record<string, string>;
+type PreviewStep = Pick<TestStep, 'id' | 'order' | 'description' | 'expectedResult' | 'actualResult' | 'testData'>;
 
 function parseCsvLine(line: string) {
   const cells: string[] = [];
@@ -74,6 +75,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
     actualResult: '',
     testData: ''
   });
+  const [previewSteps, setPreviewSteps] = useState<PreviewStep[]>([]);
   const [importing, setImporting] = useState(false);
 
   const selectedTask = useMemo(() => tasks.find((task) => task.id === selectedTaskId) || null, [selectedTaskId, tasks]);
@@ -93,7 +95,33 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
       .filter((step) => step.description || step.expectedResult);
   }, [rows, columnMap]);
 
-  const invalidRows = mappedSteps.filter((step) => !step.description || !step.expectedResult).length;
+  useEffect(() => {
+    setPreviewSteps(
+      mappedSteps.map((step) => ({
+        id: step.id,
+        order: step.order,
+        description: step.description,
+        expectedResult: step.expectedResult,
+        actualResult: step.actualResult || '',
+        testData: step.testData || ''
+      }))
+    );
+  }, [mappedSteps]);
+
+  const invalidRows = previewSteps.filter((step) => !step.description?.trim() || !step.expectedResult?.trim()).length;
+
+  const updatePreviewStep = (id: string, field: keyof PreviewStep, value: string) => {
+    setPreviewSteps((prev) =>
+      prev.map((step) =>
+        step.id === id
+          ? {
+              ...step,
+              [field]: value
+            }
+          : step
+      )
+    );
+  };
 
   const onSelectFile = async (file?: File | null) => {
     if (!file) return;
@@ -134,7 +162,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
       notify('Map description and expected result columns.', 'error');
       return;
     }
-    if (mappedSteps.length === 0) {
+    if (previewSteps.length === 0) {
       notify('No steps to import.', 'error');
       return;
     }
@@ -144,7 +172,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
     }
 
     const confirmed = window.confirm(
-      `Replace all existing steps in "${selectedTask.title}" with ${mappedSteps.length} imported steps?`
+      `Replace all existing steps in "${selectedTask.title}" with ${previewSteps.length} imported steps?`
     );
     if (!confirmed) return;
 
@@ -154,11 +182,11 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          steps: mappedSteps.map((step) => ({
-            description: step.description,
-            expectedResult: step.expectedResult,
-            actualResult: step.actualResult || '',
-            testData: step.testData || ''
+          steps: previewSteps.map((step) => ({
+            description: step.description.trim(),
+            expectedResult: step.expectedResult.trim(),
+            actualResult: step.actualResult?.trim() || '',
+            testData: step.testData?.trim() || ''
           }))
         })
       });
@@ -185,16 +213,31 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
         </p>
       </div>
 
-      <div className="flex items-center justify-between mb-10 relative">
+      <div className="grid grid-cols-3 mb-10 relative">
         <div className="absolute left-0 top-1/2 w-full h-0.5 bg-slate-200 -z-10" />
-        {[1, 2, 3].map((s) => (
+        {[
+          { value: 1, label: 'Upload File' },
+          { value: 2, label: 'Map & Preview' },
+          { value: 3, label: 'Confirm Import' }
+        ].map((s) => (
           <div
-            key={s}
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-              step >= s ? 'bg-slate-900 text-white' : 'bg-white border-2 border-slate-200 text-slate-400'
-            }`}
+            key={s.value}
+            className="flex flex-col items-center gap-2"
           >
-            {step > s ? <Check size={14} /> : s}
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                step >= s.value ? 'bg-slate-900 text-white' : 'bg-white border-2 border-slate-200 text-slate-400'
+              }`}
+            >
+              {step > s.value ? <Check size={14} /> : s.value}
+            </div>
+            <span
+              className={`text-xs font-medium ${
+                step >= s.value ? 'text-slate-700' : 'text-slate-400'
+              }`}
+            >
+              {s.label}
+            </span>
           </div>
         ))}
       </div>
@@ -315,15 +358,43 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {mappedSteps.slice(0, 25).map((row) => {
+                  {previewSteps.slice(0, 25).map((row) => {
                     const invalid = !row.description || !row.expectedResult;
                     return (
                       <tr key={row.id} className={invalid ? 'bg-rose-50/60' : ''}>
                         <td className="p-3">{row.order}</td>
-                        <td className="p-3">{row.description || <span className="text-rose-600">Missing</span>}</td>
-                        <td className="p-3">{row.expectedResult || <span className="text-rose-600">Missing</span>}</td>
-                        <td className="p-3">{row.testData || '—'}</td>
-                        <td className="p-3">{row.actualResult || '—'}</td>
+                        <td className="p-2">
+                          <input
+                            value={row.description || ''}
+                            onChange={(event) => updatePreviewStep(row.id, 'description', event.target.value)}
+                            className={fieldBaseClass}
+                            placeholder="Step description"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <input
+                            value={row.expectedResult || ''}
+                            onChange={(event) => updatePreviewStep(row.id, 'expectedResult', event.target.value)}
+                            className={fieldBaseClass}
+                            placeholder="Expected result"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <input
+                            value={row.testData || ''}
+                            onChange={(event) => updatePreviewStep(row.id, 'testData', event.target.value)}
+                            className={fieldBaseClass}
+                            placeholder="Optional"
+                          />
+                        </td>
+                        <td className="p-2">
+                          <input
+                            value={row.actualResult || ''}
+                            onChange={(event) => updatePreviewStep(row.id, 'actualResult', event.target.value)}
+                            className={fieldBaseClass}
+                            placeholder="Optional"
+                          />
+                        </td>
                       </tr>
                     );
                   })}

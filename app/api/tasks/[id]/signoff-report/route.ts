@@ -41,6 +41,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     }
   }
 
+  const history = await prisma.taskHistory.findMany({
+    where: { taskId: id },
+    include: {
+      actor: {
+        select: {
+          name: true,
+          email: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 20
+  });
+
   const stepsRows = task.steps
     .map(
       (step) => `
@@ -54,55 +68,91 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     )
     .join('');
 
+  const historyRows =
+    history.length === 0
+      ? `<tr><td colspan="3" class="muted">No task history found.</td></tr>`
+      : history
+          .map(
+            (entry) => `
+      <tr>
+        <td>${formatDateTime(entry.createdAt)}</td>
+        <td>${escapeHtml(entry.actor?.name || entry.actor?.email || 'System')}</td>
+        <td>${escapeHtml(entry.message)}</td>
+      </tr>`
+          )
+          .join('');
+
   const html = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
   <title>CTT Sign-off Report</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #0f172a; margin: 24px; }
-    .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
-    h1 { margin: 0; font-size: 22px; }
-    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin: 16px 0; font-size: 13px; }
-    .label { color: #64748b; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 14px; }
+    @page { size: A4 portrait; margin: 14mm; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #0f172a; margin: 0; background: #f8fafc; }
+    .page { max-width: 760px; margin: 0 auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; }
+    .header { border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
+    h1 { margin: 0; font-size: 20px; }
+    .subtitle { margin-top: 4px; color: #64748b; font-size: 12px; }
+    .section-title { margin: 18px 0 8px; font-size: 13px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.04em; }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin: 10px 0 16px; font-size: 13px; }
+    .label { color: #64748b; margin-right: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
     th, td { border: 1px solid #e2e8f0; padding: 8px; vertical-align: top; text-align: left; }
     th { background: #f8fafc; font-weight: 600; }
-    .footer { margin-top: 18px; color: #64748b; font-size: 12px; }
+    .muted { color: #64748b; text-align: center; }
+    .footer { margin-top: 14px; color: #64748b; font-size: 11px; }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>CTT UAT Sign-off Report</h1>
-    <div class="footer">Generated on ${formatDateTime(new Date())}</div>
+  <div class="page">
+    <div class="header">
+      <h1>CTT UAT Sign-off Report</h1>
+      <div class="subtitle">Generated on ${formatDateTime(new Date())}</div>
+    </div>
+    <div class="section-title">Task Summary</div>
+    <div class="meta">
+      <div><span class="label">Task:</span> ${escapeHtml(task.title)}</div>
+      <div><span class="label">Country:</span> ${escapeHtml(task.country.code)} - ${escapeHtml(task.country.name)}</div>
+      <div><span class="label">Module:</span> ${escapeHtml(task.module)}</div>
+      <div><span class="label">Priority:</span> ${escapeHtml(task.priority)}</div>
+      <div><span class="label">Assignee:</span> ${escapeHtml(task.assignee?.name || task.assignee?.email || '—')}</div>
+      <div><span class="label">Due Date:</span> ${formatDateTime(task.dueDate)}</div>
+      <div><span class="label">Signed Off By:</span> ${escapeHtml(task.signedOffBy?.name || task.signedOffBy?.email || '—')}</div>
+      <div><span class="label">Signed Off At:</span> ${formatDateTime(task.signedOffAt)}</div>
+      <div><span class="label">Jira Ticket:</span> ${escapeHtml(task.jiraTicket || '—')}</div>
+      <div><span class="label">CR Number:</span> ${escapeHtml(task.crNumber || '—')}</div>
+    </div>
+    <div class="section-title">Test Steps</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:48px;">Step</th>
+          <th>Description</th>
+          <th>Expected Result</th>
+          <th>Actual Result</th>
+          <th style="width:110px;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${stepsRows}
+      </tbody>
+    </table>
+    <div class="section-title">Task History (Latest 20)</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:170px;">When</th>
+          <th style="width:160px;">By</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${historyRows}
+      </tbody>
+    </table>
+    <div class="footer">This report is generated from CTT UAT Portal task data.</div>
   </div>
-  <div class="meta">
-    <div><span class="label">Task:</span> ${escapeHtml(task.title)}</div>
-    <div><span class="label">Country:</span> ${escapeHtml(task.country.code)} - ${escapeHtml(task.country.name)}</div>
-    <div><span class="label">Module:</span> ${escapeHtml(task.module)}</div>
-    <div><span class="label">Priority:</span> ${escapeHtml(task.priority)}</div>
-    <div><span class="label">Assignee:</span> ${escapeHtml(task.assignee?.name || task.assignee?.email || '—')}</div>
-    <div><span class="label">Due Date:</span> ${formatDateTime(task.dueDate)}</div>
-    <div><span class="label">Signed Off By:</span> ${escapeHtml(task.signedOffBy?.name || task.signedOffBy?.email || '—')}</div>
-    <div><span class="label">Signed Off At:</span> ${formatDateTime(task.signedOffAt)}</div>
-    <div><span class="label">Jira Ticket:</span> ${escapeHtml(task.jiraTicket || '—')}</div>
-    <div><span class="label">CR Number:</span> ${escapeHtml(task.crNumber || '—')}</div>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th style="width:48px;">Step</th>
-        <th>Description</th>
-        <th>Expected Result</th>
-        <th>Actual Result</th>
-        <th style="width:110px;">Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${stepsRows}
-    </tbody>
-  </table>
-  <div class="footer">This report is generated from CTT UAT Portal task data.</div>
 </body>
 </html>`;
 

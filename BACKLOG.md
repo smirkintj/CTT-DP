@@ -723,3 +723,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-25`: Completed #38 API error-shape rollout across task/admin/inbox/activity routes and advanced #39 audit coverage with admin config audit events.
 - `2026-02-25`: Completed #34 admin user management (users tab + guarded APIs + disable/reset flow), including new user lifecycle fields and inactive-login enforcement.
 - `2026-02-26`: Added forced password-change flow (`mustChangePassword`), reset-password email delivery, CSV (Excel-export) step import wizard with column mapping + replace, and started #33 export/reporting with admin CSV + printable sign-off report template.
+- `2026-02-26`: Refined import/reporting/admin UX: labeled import steps, inline preview field editing for missing values, portrait sign-off report cleanup with task-history section, and cleaner user-management table layout aligned with task table style.
