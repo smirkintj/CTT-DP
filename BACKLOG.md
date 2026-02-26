@@ -451,6 +451,8 @@ This backlog tracks improvement initiatives with:
   - Added signed-off-safe behavior:
     - signed-off tasks are skipped (not failed) and returned in summary.
   - Added post-save summary feedback to admin (updated vs skipped counts).
+  - Added admin task table bulk-selected global edit modal (same supported field set, grouped apply).
+  - Added market list preview + disabled global apply when group has no editable task copies.
 - Impact if not done:
   - Admin operations remain slow and error-prone for large rollouts.
 
@@ -863,3 +865,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-26`: Completed #14 by adding production checklist + ops runbook + `/api/health` runtime health endpoint and linked them in docs/testing checklist.
 - `2026-02-26`: Advanced #24 accessibility Phase 1 for login, admin task management, and task detail keyboard/ARIA support.
 - `2026-02-26`: Advanced #25 with phase-1 multi-market global metadata update (shared `taskGroupId`, group preview API, signed-off skip handling, and admin save summary).
+- `2026-02-26`: Extended #25 UX with selected-row global edit modal in task table and richer task-detail global preview (market list + editable-state guard).

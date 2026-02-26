@@ -504,6 +504,18 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
             (summary.skippedSignedOff > 0 ? `, ${summary.skippedSignedOff} signed-off skipped.` : '.'),
           'success'
         );
+        if (summary.skippedSignedOff > 0 && Array.isArray(summary.skipped)) {
+          const skippedCountries = summary.skipped.map((item: any) => item.countryCode).join(', ');
+          setConfirmDialog({
+            open: true,
+            title: 'Global Update: Skipped Markets',
+            message: skippedCountries
+              ? `Signed-off tasks were skipped for: ${skippedCountries}.`
+              : 'Some signed-off tasks were skipped.',
+            confirmLabel: 'Got it',
+            onConfirm: () => {}
+          });
+        }
       } else {
         notify('Task details saved', 'success');
       }
@@ -515,7 +527,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       setConfirmDialog({
         open: true,
         title: 'Apply Global Update',
-        message: `Apply these updates to ${groupPreview.total} tasks (${groupPreview.updatable} editable, ${groupPreview.signedOffLocked} signed-off locked)?`,
+        message:
+          `Apply these updates to ${groupPreview.total} tasks (${groupPreview.updatable} editable, ${groupPreview.signedOffLocked} signed-off locked)? ` +
+          `Markets: ${groupPreview.countries.join(', ')}`,
         confirmLabel: 'Apply to all',
         onConfirm: async () => {
           await performSave();
@@ -945,7 +959,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                   className="rounded border-slate-300 text-slate-900 focus:ring-slate-400"
                   checked={applyGlobalMetaUpdate}
                   onChange={(e) => setApplyGlobalMetaUpdate(e.target.checked)}
-                  disabled={!groupPreview?.enabled}
+                  disabled={!groupPreview?.enabled || (groupPreview?.updatable ?? 0) === 0}
                 />
                 Apply supported fields to all markets in this task group
               </label>
@@ -953,7 +967,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                 <span>Checking group…</span>
               ) : groupPreview?.enabled ? (
                 <span>
-                  {groupPreview.total} tasks in group ({groupPreview.updatable} editable, {groupPreview.signedOffLocked} locked)
+                  {groupPreview.total} tasks in group ({groupPreview.updatable} editable, {groupPreview.signedOffLocked} locked) — {groupPreview.countries.join(', ')}
                 </span>
               ) : (
                 <span>{groupPreview?.reason ?? 'No multi-market group for this task.'}</span>

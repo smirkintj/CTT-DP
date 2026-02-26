@@ -185,6 +185,8 @@ Security notes:
   - signed-off tasks are skipped automatically and reported in save summary.
   - preview API: `/api/tasks/[id]/group-preview`
   - security: global update is ADMIN-only and still enforces signed-off locks.
+  - task detail preview now shows affected market list and disables global apply when no editable tasks remain.
+  - admin task table now supports selected-group global edit modal (same supported fields as task detail global update).
 - Reporting:
   - Admin task table supports filtered CSV export.
   - Sign-off report uses a dedicated portrait printable template via `/api/tasks/[id]/signoff-report`, includes recent task history plus step-grouped comments, and supports auto print prompt (`?autoprint=1`).

@@ -71,6 +71,16 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     confirmLabel: 'Confirm',
     onConfirm: () => {}
   });
+  const [isGlobalEditOpen, setIsGlobalEditOpen] = useState(false);
+  const [globalEditSaving, setGlobalEditSaving] = useState(false);
+  const [globalEdit, setGlobalEdit] = useState({
+    title: '',
+    description: '',
+    jiraTicket: '',
+    crNumber: '',
+    developer: '',
+    dueDate: ''
+  });
 
   const [selectedCountries, setSelectedCountries] = useState<string[]>(['SG']);
   const [steps, setSteps] = useState<Partial<TestStep>[]>([
@@ -187,6 +197,20 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
   };
 
+  const toDateInputValue = (value?: string) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString().slice(0, 10);
+  };
+
+  const fromDateInputValue = (value?: string) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString();
+  };
+
   const filteredTasks = useMemo(() => {
     const filtered = tasks.filter(t => 
       t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -298,6 +322,113 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
         setSelectedTaskIds([]);
       }
     });
+  };
+
+  const openGlobalEditModal = () => {
+    if (selectedTaskIds.length === 0) return;
+    const first = tasks.find((task) => task.id === selectedTaskIds[0]);
+    setGlobalEdit({
+      title: first?.title ?? '',
+      description: first?.description ?? '',
+      jiraTicket: first?.jiraTicket ?? '',
+      crNumber: first?.crNumber ?? '',
+      developer: first?.developer ?? '',
+      dueDate: toDateInputValue(first?.dueDate)
+    });
+    setIsGlobalEditOpen(true);
+  };
+
+  const handleApplyGlobalEdit = async () => {
+    if (selectedTaskIds.length === 0 || globalEditSaving) return;
+    const title = globalEdit.title.trim();
+    if (!title) {
+      notify('Title is required', 'error');
+      return;
+    }
+    if (!isValidJiraTicket(globalEdit.jiraTicket)) {
+      notify('Invalid Jira ticket format', 'error');
+      return;
+    }
+    if (globalEdit.dueDate && !isValidDueDate(globalEdit.dueDate)) {
+      notify('Invalid due date', 'error');
+      return;
+    }
+
+    const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(task.id));
+    const groupLeads = new Map<string, Task>();
+    for (const task of selectedTasks) {
+      const key = task.taskGroupId || task.id;
+      if (!groupLeads.has(key)) {
+        groupLeads.set(key, task);
+      }
+    }
+
+    setGlobalEditSaving(true);
+    let groupsProcessed = 0;
+    let tasksUpdated = 0;
+    let tasksTotal = 0;
+    let tasksSkipped = 0;
+    const skippedCountries = new Set<string>();
+
+    for (const task of groupLeads.values()) {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          description: globalEdit.description,
+          jiraTicket: normalizeJiraTicketInput(globalEdit.jiraTicket),
+          crNumber: globalEdit.crNumber,
+          developer: globalEdit.developer,
+          dueDate: fromDateInputValue(globalEdit.dueDate),
+          expectedUpdatedAt: task.updatedAt,
+          applyToGroup: true
+        })
+      });
+
+      if (!response.ok) continue;
+      groupsProcessed += 1;
+      const payload = await response.json().catch(() => null);
+      const summary = payload?.globalUpdateSummary;
+      if (summary?.requested) {
+        tasksUpdated += Number(summary.updated ?? 0);
+        tasksTotal += Number(summary.total ?? 0);
+        tasksSkipped += Number(summary.skippedSignedOff ?? 0);
+        if (Array.isArray(summary.skipped)) {
+          for (const item of summary.skipped) {
+            if (item?.countryCode) skippedCountries.add(item.countryCode);
+          }
+        }
+      } else {
+        tasksUpdated += 1;
+        tasksTotal += 1;
+      }
+    }
+
+    try {
+      const refreshed = await apiFetch<Task[]>('/api/tasks', { cache: 'no-store' });
+      const mappedTasks = Array.isArray(refreshed)
+        ? refreshed.map((task) => ({
+            ...task,
+            featureModule: task.featureModule ?? (task as any).module ?? 'General'
+          }))
+        : [];
+      onAddTask(mappedTasks);
+    } catch {
+      // non-blocking
+    }
+
+    setGlobalEditSaving(false);
+    setIsGlobalEditOpen(false);
+    const baseMessage =
+      groupsProcessed > 0
+        ? `Global update applied to ${tasksUpdated}/${tasksTotal} task copies across ${groupsProcessed} group(s).`
+        : 'No groups were updated. Please refresh and retry.';
+    const skippedMessage =
+      tasksSkipped > 0
+        ? ` Skipped signed-off markets: ${Array.from(skippedCountries).join(', ') || tasksSkipped}.`
+        : '';
+    notify(baseMessage + skippedMessage, groupsProcessed > 0 ? 'success' : 'error');
   };
 
   const exportFilteredTasksCsv = () => {
@@ -483,6 +614,13 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
            <p className="text-slate-500">Create, edit, and organize UAT scenarios.</p>
         </div>
         <div className="flex gap-2">
+           <button
+             onClick={openGlobalEditModal}
+             disabled={selectedTaskIds.length === 0}
+             className={`${subtleButtonClass} shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+           >
+             <Save size={16}/> Global Edit ({selectedTaskIds.length})
+           </button>
            <button
              onClick={handleBulkDelete}
              disabled={selectedTaskIds.length === 0}
@@ -957,6 +1095,51 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                 </div>
              </div>
           </div>
+      )}
+
+      {isGlobalEditOpen && (
+        <div className="fixed inset-0 z-[110] bg-slate-900/50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-xl p-5">
+            <h3 className="text-base font-semibold text-slate-900">Global Edit for Selected Task Groups</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Applies to grouped market tasks. Signed-off tasks are skipped automatically.
+            </p>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="md:col-span-2">
+                <label className="block text-xs text-slate-500 mb-1">Title</label>
+                <input className={fieldBaseClass} value={globalEdit.title} onChange={(e) => setGlobalEdit((prev) => ({ ...prev, title: e.target.value }))} />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs text-slate-500 mb-1">Description</label>
+                <textarea className={textareaBaseClass} value={globalEdit.description} onChange={(e) => setGlobalEdit((prev) => ({ ...prev, description: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Jira Ticket</label>
+                <input className={fieldBaseClass} value={globalEdit.jiraTicket} onChange={(e) => setGlobalEdit((prev) => ({ ...prev, jiraTicket: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">CR Number</label>
+                <input className={fieldBaseClass} value={globalEdit.crNumber} onChange={(e) => setGlobalEdit((prev) => ({ ...prev, crNumber: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Developer</label>
+                <input className={fieldBaseClass} value={globalEdit.developer} onChange={(e) => setGlobalEdit((prev) => ({ ...prev, developer: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Due Date</label>
+                <input type="date" className={fieldBaseClass} value={globalEdit.dueDate} onChange={(e) => setGlobalEdit((prev) => ({ ...prev, dueDate: e.target.value }))} />
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setIsGlobalEditOpen(false)} className={subtleButtonClass} disabled={globalEditSaving}>
+                Cancel
+              </button>
+              <button onClick={handleApplyGlobalEdit} className={primaryButtonClass} disabled={globalEditSaving}>
+                {globalEditSaving ? 'Applying...' : 'Apply Global Edit'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <ConfirmDialog

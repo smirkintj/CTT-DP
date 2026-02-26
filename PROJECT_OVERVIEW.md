@@ -161,6 +161,7 @@ Task mutation guarantees:
     - title, description, jiraTicket, crNumber, developer, dueDate
   - signed-off tasks remain immutable and are skipped with summary reporting.
   - group preview endpoint: `GET /api/tasks/[id]/group-preview` (ADMIN only)
+  - admin task management includes bulk-selected global edit modal reusing grouped update logic.
 - `GET /api/tasks` includes a resilient fallback path: if relation-heavy fetch fails, API returns minimal task payload so dashboards still load.
 - `GET /api/tasks/[id]` includes the same resilient fallback path to keep task detail accessible when relation-heavy hydration fails.
 - Performance observability:
