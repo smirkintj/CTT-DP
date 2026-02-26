@@ -7,6 +7,7 @@ import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { isValidDueDate, isValidJiraTicket, normalizeJiraTicketInput } from '../lib/taskValidation';
 
 interface AdminTaskManagementProps {
   tasks: Task[];
@@ -377,7 +378,8 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const handleCreate = async () => {
      const title = (newTask.title || '').trim();
      const jiraTicket = (newTask.jiraTicket || '').trim();
-     const invalidJira = jiraTicket.length > 0 && !/^(EO-\d+|\d+)$/i.test(jiraTicket);
+     const invalidJira = !isValidJiraTicket(jiraTicket);
+     const normalizedJira = normalizeJiraTicketInput(jiraTicket);
      const invalidSteps = steps.some(
        (step) => !(step.description || '').trim() || !(step.expectedResult || '').trim()
      );
@@ -391,7 +393,11 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
        return;
      }
      if (invalidJira) {
-       setCreateError('Jira ticket must be numeric or in EO-1234 format.');
+       setCreateError('Jira ticket format is invalid.');
+       return;
+     }
+     if (!isValidDueDate(newTask.dueDate)) {
+       setCreateError('Due date is invalid.');
        return;
      }
      if (selectedCountries.length === 0) {
@@ -413,7 +419,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
          body: JSON.stringify({
            title: newTask.title,
            description: newTask.description,
-           jiraTicket: newTask.jiraTicket,
+           jiraTicket: normalizedJira || undefined,
            featureModule: newTask.featureModule,
            module: newTask.featureModule,
            crNumber: newTask.crNumber,

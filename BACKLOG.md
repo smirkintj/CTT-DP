@@ -351,6 +351,11 @@ This backlog tracks improvement initiatives with:
   - Added server-side validation for task create/update:
     - `app/api/tasks/route.ts`
     - `app/api/tasks/[id]/route.ts`
+  - Unified client-side Jira validation with shared helper:
+    - `lib/taskValidation.ts` (`isValidJiraTicket`, `normalizeJiraTicketInput`)
+    - consumed in admin create and task detail edit flows
+  - Added import-create validation for due date/title constraints:
+    - `views/ImportWizard.tsx`
 - Impact if not done:
   - Late API failures and poor form usability.
 
@@ -643,8 +648,8 @@ This backlog tracks improvement initiatives with:
     - admin test notification (`app/api/admin/test-notification/route.ts`)
   - Added checklist-backed endpoint coverage map:
     - `ADMIN_AUDIT_COVERAGE.md`
-  - Remaining:
-    - add CI guard to enforce audit calls for newly introduced admin write endpoints.
+- Remaining:
+    - monitor for new write routes outside `/api/admin/**` and extend guard scope when policy expands.
 - Impact if not done:
   - Partial audit trail weakens incident forensics/compliance.
 
@@ -782,3 +787,5 @@ This backlog tracks improvement initiatives with:
 - `2026-02-26`: Continued #41 with lower-latency list payload changes (`commentCount` aggregation instead of full comments on `/api/tasks`) and reduced task-history fetch size for task detail.
 - `2026-02-26`: Added performance index migration (`20260226190000_add_task_comment_performance_indexes`) for task/comment hot paths.
 - `2026-02-26`: Advanced #39 audit coverage by adding admin audit events for manual email-trigger endpoints and publishing `ADMIN_AUDIT_COVERAGE.md` checklist.
+- `2026-02-26`: Added CI guard (`npm run audit:check-admin`) to block admin write routes without `createAdminAudit`, and wired it into `.github/workflows/ci.yml`.
+- `2026-02-26`: Advanced #20 validation consistency by reusing shared Jira validation/normalization helpers in UI and adding import-create due-date/title checks.

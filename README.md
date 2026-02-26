@@ -62,6 +62,8 @@ npm run start
 - `npm run clean`
 - `npm run reset:dev` (kills local dev server ports and clears `.next` cache)
 - `npm run comments:backfill-step-order` (one-time legacy comment step-order backfill)
+- `npm run audit:check-admin` (fails if admin write route has no `createAdminAudit` call)
+- `npm run perf:sample` (samples API latency headers; supports `APP_URL`, `TASK_ID`, `COOKIE_HEADER`)
 - `scripts/playwright_admin_flow.sh` (automates admin browser smoke flow with Playwright CLI wrapper)
 
 ## Playwright Browser Automation (Admin Flow)
@@ -189,6 +191,8 @@ Security notes:
 - Form styling is being consolidated with shared Apple-style utility classes:
   - `/Users/putra/Desktop/CTT-DKSH-main/components/ui/formClasses.ts`
 - Inline validation is now enforced in key task create/edit flows (client + server).
+- Jira validation/normalization is centralized via `lib/taskValidation.ts` and reused in task create/edit UI.
+- Import wizard new-task path now validates title length and due date format before submit.
 - Critical confirmations use in-app modals (no browser-native confirm popups).
 
 ## Troubleshooting

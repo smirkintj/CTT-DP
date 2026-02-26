@@ -5,6 +5,7 @@ import { AlertCircle, ArrowRight, Check, FileSpreadsheet, UploadCloud } from 'lu
 import { CountryConfig, Priority, Task, TestStep } from '../types';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
 import { notify } from '../lib/notify';
+import { isValidDueDate } from '../lib/taskValidation';
 
 type ImportWizardProps = {
   tasks: Task[];
@@ -241,12 +242,20 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       notify('New task title is required.', 'error');
       return { ok: false };
     }
+    if (title.length > 200) {
+      notify('New task title is too long.', 'error');
+      return { ok: false };
+    }
     if (!newTaskForm.countryCode) {
       notify('Select country for the new task.', 'error');
       return { ok: false };
     }
     if (!newTaskForm.module) {
       notify('Select module for the new task.', 'error');
+      return { ok: false };
+    }
+    if (!isValidDueDate(newTaskForm.dueDate || undefined)) {
+      notify('Due date is invalid.', 'error');
       return { ok: false };
     }
 

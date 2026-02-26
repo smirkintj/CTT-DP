@@ -29,5 +29,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Admin Audit Coverage Guard
+        run: npm run audit:check-admin
+
       - name: Build
         run: npm run build

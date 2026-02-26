@@ -270,6 +270,8 @@ From `package.json`:
 - `npm run build` → runs `prisma generate && next build`
 - `npm run start`
 - `npm run lint`
+- `npm run audit:check-admin` (guard: admin write routes must call `createAdminAudit`)
+- `npm run perf:sample` (manual latency sampling for `X-Query-Time-Ms` headers)
 - `npm run prisma:generate`
 - `npm run prisma:migrate`
 - `npm run prisma:studio`
@@ -284,6 +286,8 @@ Also:
   - checks login then validates `/admin/dashboard`, `/admin/tasks`, `/admin/database`.
   - stores run artifacts in `output/playwright/`.
   - security: credentials are passed via environment variables (`ADMIN_EMAIL`, `ADMIN_PASSWORD`), not hardcoded.
+- Audit governance:
+  - CI runs `npm run audit:check-admin` to block admin write endpoints without explicit audit calls.
 
 ## Local Setup
 1. `npm install`

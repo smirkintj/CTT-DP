@@ -9,6 +9,7 @@ import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, Chevro
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { ApiError } from '../lib/http';
+import { isValidJiraTicket, normalizeJiraTicketInput } from '../lib/taskValidation';
 
 interface TaskDetailProps {
   task: Task;
@@ -97,17 +98,8 @@ const formatDateTimeLocal = (value?: string) => {
   return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 };
 
-const normalizeJiraTicket = (raw?: string) => {
-  const cleaned = (raw || '').trim().toUpperCase();
-  if (!cleaned) return '';
-  if (/^\d+$/.test(cleaned)) {
-    return `EO-${cleaned}`;
-  }
-  return cleaned;
-};
-
 const getJiraUrl = (raw?: string) => {
-  const ticket = normalizeJiraTicket(raw);
+  const ticket = normalizeJiraTicketInput(raw);
   if (!ticket) return '';
   return `https://dkshdigital.atlassian.net/browse/${ticket}`;
 };
@@ -441,7 +433,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     if (!canEditTaskMeta) return;
     if (!isTaskMetaDirty) return;
     const trimmedTitle = taskEdits.title.trim();
-    const normalizedTicket = normalizeJiraTicket(taskEdits.jiraTicket);
+    const normalizedTicket = normalizeJiraTicketInput(taskEdits.jiraTicket);
     if (!trimmedTitle) {
       notify('Title is required', 'error');
       return;
@@ -450,7 +442,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       notify('Title is too long', 'error');
       return;
     }
-    if (normalizedTicket && !/^(EO-\d+)$/i.test(normalizedTicket)) {
+    if (!isValidJiraTicket(taskEdits.jiraTicket)) {
       notify('Invalid Jira ticket format', 'error');
       return;
     }
@@ -763,7 +755,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                         target="_blank"
                         rel="noreferrer"
                         className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-blue-600 hover:text-blue-700 hover:border-slate-300 transition-colors"
-                        title={`Open ${normalizeJiraTicket(taskEdits.jiraTicket)}`}
+                        title={`Open ${normalizeJiraTicketInput(taskEdits.jiraTicket)}`}
                       >
                         <LinkIcon size={14} />
                       </a>
@@ -776,7 +768,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                     rel="noreferrer"
                     className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline"
                   >
-                    <LinkIcon size={12}/> {normalizeJiraTicket(localTask.jiraTicket)}
+                    <LinkIcon size={12}/> {normalizeJiraTicketInput(localTask.jiraTicket)}
                   </a>
                 ) : (
                   <span className="text-sm text-slate-500">N/A</span>
