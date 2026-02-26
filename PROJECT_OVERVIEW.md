@@ -133,7 +133,7 @@ Defined in `prisma/schema.prisma`.
 - `POST /api/tasks/[id]/steps/import`
   - Admin-only bulk replace of task steps from import wizard.
 - `GET /api/tasks/[id]/signoff-report`
-  - Printable portrait sign-off report template with latest task history section.
+  - Printable portrait sign-off report template with latest task history and comment section.
 
 Task mutation guarantees:
 - Server-enforced status transition rules (`lib/taskGuards.ts` + `/api/tasks/[id]/status`)
@@ -196,8 +196,11 @@ Currently created events:
   - right-side drawer for create/edit
   - disable/enable and temporary password reset actions
 - Login flow enforces an undismissable password change modal when `mustChangePassword` is true.
-- Import wizard is functional for CSV files exported from Excel (column mapping + preview + replace steps).
-- Import preview supports inline manual corrections before confirm-replace.
+- Import wizard is functional for CSV files exported from Excel (column mapping + preview).
+- Import supports:
+  - replace steps in an existing task, or
+  - create a new task directly from imported step rows.
+- Import preview supports inline multiline manual corrections before confirm.
 - Admin task management supports filtered CSV export.
 
 Additional behavior:

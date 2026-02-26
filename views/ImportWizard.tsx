@@ -2,73 +2,106 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, ArrowRight, Check, FileSpreadsheet, UploadCloud } from 'lucide-react';
-import { Task, TestStep } from '../types';
-import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass } from '../components/ui/formClasses';
+import { CountryConfig, Priority, Task, TestStep } from '../types';
+import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
 import { notify } from '../lib/notify';
 
 type ImportWizardProps = {
   tasks: Task[];
+  availableCountries: CountryConfig[];
+  availableModules: string[];
   onTasksImported: (updatedTasks: Task[]) => void;
 };
 
 type ParsedRow = Record<string, string>;
 type PreviewStep = Pick<TestStep, 'id' | 'order' | 'description' | 'expectedResult' | 'actualResult' | 'testData'>;
+type ImportMode = 'existing' | 'new';
 
-function parseCsvLine(line: string) {
-  const cells: string[] = [];
-  let current = '';
+function parseCsv(text: string): ParsedRow[] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
   let inQuotes = false;
 
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    const next = text[i + 1];
+
     if (char === '"') {
-      const next = line[i + 1];
       if (inQuotes && next === '"') {
-        current += '"';
+        cell += '"';
         i += 1;
       } else {
         inQuotes = !inQuotes;
       }
       continue;
     }
-    if (char === ',' && !inQuotes) {
-      cells.push(current.trim());
-      current = '';
+
+    if (!inQuotes && char === ',') {
+      row.push(cell);
+      cell = '';
       continue;
     }
-    current += char;
+
+    if (!inQuotes && (char === '\n' || char === '\r')) {
+      if (char === '\r' && next === '\n') {
+        i += 1;
+      }
+      row.push(cell);
+      const hasContent = row.some((value) => value.trim().length > 0);
+      if (hasContent) rows.push(row);
+      row = [];
+      cell = '';
+      continue;
+    }
+
+    cell += char;
   }
-  cells.push(current.trim());
-  return cells;
-}
 
-function parseCsv(text: string): ParsedRow[] {
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  if (lines.length < 2) return [];
-  const headers = parseCsvLine(lines[0]);
-  const rows: ParsedRow[] = [];
-
-  for (let i = 1; i < lines.length; i += 1) {
-    const values = parseCsvLine(lines[i]);
-    const row: ParsedRow = {};
-    headers.forEach((header, index) => {
-      row[header] = values[index] ?? '';
-    });
+  row.push(cell);
+  if (row.some((value) => value.trim().length > 0)) {
     rows.push(row);
   }
-  return rows;
+
+  if (rows.length < 2) return [];
+
+  const headers = rows[0].map((header) => header.trim());
+  const dataRows: ParsedRow[] = [];
+
+  for (let r = 1; r < rows.length; r += 1) {
+    const values = rows[r];
+    const parsed: ParsedRow = {};
+    headers.forEach((header, index) => {
+      parsed[header] = values[index] ?? '';
+    });
+    dataRows.push(parsed);
+  }
+
+  return dataRows;
 }
 
-export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImported }) => {
+const defaultNewTaskForm = {
+  title: '',
+  description: '',
+  countryCode: '',
+  module: '',
+  priority: Priority.MEDIUM,
+  dueDate: ''
+};
+
+export const ImportWizard: React.FC<ImportWizardProps> = ({
+  tasks,
+  availableCountries,
+  availableModules,
+  onTasksImported
+}) => {
   const [step, setStep] = useState(1);
   const [fileName, setFileName] = useState('');
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
+  const [importMode, setImportMode] = useState<ImportMode>('existing');
   const [selectedTaskId, setSelectedTaskId] = useState('');
+  const [newTaskForm, setNewTaskForm] = useState(defaultNewTaskForm);
   const [columnMap, setColumnMap] = useState({
     description: '',
     expectedResult: '',
@@ -81,47 +114,34 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
   const selectedTask = useMemo(() => tasks.find((task) => task.id === selectedTaskId) || null, [selectedTaskId, tasks]);
 
   const mappedSteps = useMemo(() => {
-    if (!columnMap.description || !columnMap.expectedResult) return [] as TestStep[];
+    if (!columnMap.description || !columnMap.expectedResult) return [] as PreviewStep[];
     return rows
       .map((row, index) => ({
         id: `preview-${index + 1}`,
         order: index + 1,
-        description: (row[columnMap.description] || '').trim(),
-        expectedResult: (row[columnMap.expectedResult] || '').trim(),
-        actualResult: columnMap.actualResult ? (row[columnMap.actualResult] || '').trim() : '',
-        testData: columnMap.testData ? (row[columnMap.testData] || '').trim() : '',
-        comments: []
+        description: row[columnMap.description] || '',
+        expectedResult: row[columnMap.expectedResult] || '',
+        actualResult: columnMap.actualResult ? row[columnMap.actualResult] || '' : '',
+        testData: columnMap.testData ? row[columnMap.testData] || '' : ''
       }))
-      .filter((step) => step.description || step.expectedResult);
+      .filter((item) => item.description.trim() || item.expectedResult.trim());
   }, [rows, columnMap]);
 
   useEffect(() => {
-    setPreviewSteps(
-      mappedSteps.map((step) => ({
-        id: step.id,
-        order: step.order,
-        description: step.description,
-        expectedResult: step.expectedResult,
-        actualResult: step.actualResult || '',
-        testData: step.testData || ''
-      }))
-    );
+    setPreviewSteps(mappedSteps);
   }, [mappedSteps]);
 
-  const invalidRows = previewSteps.filter((step) => !step.description?.trim() || !step.expectedResult?.trim()).length;
+  useEffect(() => {
+    setNewTaskForm((prev) => ({
+      ...prev,
+      countryCode: prev.countryCode || availableCountries[0]?.code || '',
+      module: prev.module || availableModules[0] || 'Ordering'
+    }));
+  }, [availableCountries, availableModules]);
 
-  const updatePreviewStep = (id: string, field: keyof PreviewStep, value: string) => {
-    setPreviewSteps((prev) =>
-      prev.map((step) =>
-        step.id === id
-          ? {
-              ...step,
-              [field]: value
-            }
-          : step
-      )
-    );
-  };
+  const invalidRows = previewSteps.filter(
+    (row) => !row.description.trim() || !row.expectedResult.trim()
+  ).length;
 
   const onSelectFile = async (file?: File | null) => {
     if (!file) return;
@@ -140,6 +160,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
       notify('No usable rows found in CSV.', 'error');
       return;
     }
+
     const nextHeaders = Object.keys(parsedRows[0] || {});
     setRows(parsedRows);
     setHeaders(nextHeaders);
@@ -153,11 +174,108 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
     setStep(2);
   };
 
-  const handleImport = async () => {
+  const updatePreviewStep = (id: string, field: keyof PreviewStep, value: string) => {
+    setPreviewSteps((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
+    );
+  };
+
+  const resetWizard = () => {
+    setStep(1);
+    setFileName('');
+    setRows([]);
+    setHeaders([]);
+    setSelectedTaskId('');
+    setColumnMap({
+      description: '',
+      expectedResult: '',
+      actualResult: '',
+      testData: ''
+    });
+    setPreviewSteps([]);
+    setImportMode('existing');
+    setNewTaskForm(defaultNewTaskForm);
+  };
+
+  const importToExistingTask = async () => {
     if (!selectedTaskId || !selectedTask) {
-      notify('Please select a task.', 'error');
+      notify('Please select a target task.', 'error');
       return;
     }
+
+    const confirmed = window.confirm(
+      `Replace all existing steps in "${selectedTask.title}" with ${previewSteps.length} imported steps?`
+    );
+    if (!confirmed) return;
+
+    const response = await fetch(`/api/tasks/${selectedTaskId}/steps/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        steps: previewSteps.map((item) => ({
+          description: item.description.trim(),
+          expectedResult: item.expectedResult.trim(),
+          actualResult: item.actualResult?.trim() || '',
+          testData: item.testData?.trim() || ''
+        }))
+      })
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      notify(data?.error || 'Failed to import steps', 'error');
+      return;
+    }
+    onTasksImported([data]);
+  };
+
+  const importAsNewTask = async () => {
+    const title = newTaskForm.title.trim();
+    if (!title) {
+      notify('New task title is required.', 'error');
+      return;
+    }
+    if (!newTaskForm.countryCode) {
+      notify('Select country for the new task.', 'error');
+      return;
+    }
+    if (!newTaskForm.module) {
+      notify('Select module for the new task.', 'error');
+      return;
+    }
+
+    const response = await fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        description: newTaskForm.description.trim(),
+        module: newTaskForm.module,
+        priority: newTaskForm.priority.toUpperCase(),
+        dueDate: newTaskForm.dueDate || null,
+        countries: [newTaskForm.countryCode],
+        steps: previewSteps.map((item) => ({
+          description: item.description.trim(),
+          expectedResult: item.expectedResult.trim(),
+          actualResult: item.actualResult?.trim() || '',
+          testData: item.testData?.trim() || '',
+          countryFilter: 'ALL'
+        }))
+      })
+    });
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      notify(data?.error || 'Failed to create task from import', 'error');
+      return;
+    }
+
+    const createdTasks = Array.isArray(data) ? data : [];
+    if (createdTasks.length > 0) {
+      onTasksImported(createdTasks);
+    }
+  };
+
+  const handleImport = async () => {
     if (!columnMap.description || !columnMap.expectedResult) {
       notify('Map description and expected result columns.', 'error');
       return;
@@ -167,37 +285,18 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
       return;
     }
     if (invalidRows > 0) {
-      notify('Fix invalid rows before importing.', 'error');
+      notify('Fix missing fields in preview before import.', 'error');
       return;
     }
 
-    const confirmed = window.confirm(
-      `Replace all existing steps in "${selectedTask.title}" with ${previewSteps.length} imported steps?`
-    );
-    if (!confirmed) return;
-
     setImporting(true);
     try {
-      const response = await fetch(`/api/tasks/${selectedTaskId}/steps/import`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          steps: previewSteps.map((step) => ({
-            description: step.description.trim(),
-            expectedResult: step.expectedResult.trim(),
-            actualResult: step.actualResult?.trim() || '',
-            testData: step.testData?.trim() || ''
-          }))
-        })
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        notify(data?.error || 'Failed to import steps', 'error');
-        return;
+      if (importMode === 'existing') {
+        await importToExistingTask();
+      } else {
+        await importAsNewTask();
       }
-
-      onTasksImported([data]);
-      notify('Steps imported successfully.', 'success');
+      notify('Import completed successfully.', 'success');
       setStep(3);
     } finally {
       setImporting(false);
@@ -205,11 +304,11 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Import Test Steps</h1>
         <p className="text-slate-500">
-          Upload CSV (Excel export), map columns, preview rows, then replace steps in a selected task.
+          Upload CSV (Excel export), map columns, adjust preview, then import to an existing task or create a new task.
         </p>
       </div>
 
@@ -218,34 +317,27 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
         {[
           { value: 1, label: 'Upload File' },
           { value: 2, label: 'Map & Preview' },
-          { value: 3, label: 'Confirm Import' }
-        ].map((s) => (
-          <div
-            key={s.value}
-            className="flex flex-col items-center gap-2"
-          >
+          { value: 3, label: 'Done' }
+        ].map((item) => (
+          <div key={item.value} className="flex flex-col items-center gap-2">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step >= s.value ? 'bg-slate-900 text-white' : 'bg-white border-2 border-slate-200 text-slate-400'
+              className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium ${
+                step >= item.value ? 'bg-slate-900 text-white' : 'bg-white border-2 border-slate-200 text-slate-400'
               }`}
             >
-              {step > s.value ? <Check size={14} /> : s.value}
+              {step > item.value ? <Check size={14} /> : item.value}
             </div>
-            <span
-              className={`text-xs font-medium ${
-                step >= s.value ? 'text-slate-700' : 'text-slate-400'
-              }`}
-            >
-              {s.label}
+            <span className={`text-xs font-medium ${step >= item.value ? 'text-slate-700' : 'text-slate-400'}`}>
+              {item.label}
             </span>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-[420px] flex flex-col">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-[440px] flex flex-col">
         {step === 1 && (
           <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
-            <label className="w-full max-w-lg h-56 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-slate-400 transition-colors">
+            <label className="w-full max-w-xl h-56 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-slate-400 transition-colors">
               <UploadCloud size={26} className="text-slate-500 mb-4" />
               <p className="text-slate-900 font-medium">Click to upload CSV exported from Excel</p>
               <p className="text-slate-500 text-sm mt-1">.csv only, max 5MB</p>
@@ -270,20 +362,65 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Target Task</label>
+                <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Import Mode</label>
                 <select
-                  value={selectedTaskId}
-                  onChange={(event) => setSelectedTaskId(event.target.value)}
+                  value={importMode}
+                  onChange={(event) => setImportMode(event.target.value as ImportMode)}
                   className={selectBaseClass}
                 >
-                  <option value="">Select task</option>
-                  {tasks.map((task) => (
-                    <option key={task.id} value={task.id}>
-                      {task.title} ({task.countryCode})
-                    </option>
-                  ))}
+                  <option value="existing">Replace steps in existing task</option>
+                  <option value="new">Create new task with imported steps</option>
                 </select>
               </div>
+              {importMode === 'existing' ? (
+                <div>
+                  <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Target Task</label>
+                  <select
+                    value={selectedTaskId}
+                    onChange={(event) => setSelectedTaskId(event.target.value)}
+                    className={selectBaseClass}
+                  >
+                    <option value="">Select task</option>
+                    {tasks.map((task) => (
+                      <option key={task.id} value={task.id}>
+                        {task.title} ({task.countryCode})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Country</label>
+                    <select
+                      value={newTaskForm.countryCode}
+                      onChange={(event) => setNewTaskForm((prev) => ({ ...prev, countryCode: event.target.value }))}
+                      className={selectBaseClass}
+                    >
+                      {availableCountries.map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.code} - {country.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Module</label>
+                    <select
+                      value={newTaskForm.module}
+                      onChange={(event) => setNewTaskForm((prev) => ({ ...prev, module: event.target.value }))}
+                      className={selectBaseClass}
+                    >
+                      {availableModules.map((module) => (
+                        <option key={module} value={module}>
+                          {module}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Description Column</label>
                 <select
@@ -346,11 +483,51 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
               </div>
             </div>
 
+            {importMode === 'new' && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-slate-800">New Task Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Title</label>
+                    <input
+                      value={newTaskForm.title}
+                      onChange={(event) => setNewTaskForm((prev) => ({ ...prev, title: event.target.value }))}
+                      className={fieldBaseClass}
+                      placeholder="Task title"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Priority</label>
+                    <select
+                      value={newTaskForm.priority}
+                      onChange={(event) =>
+                        setNewTaskForm((prev) => ({ ...prev, priority: event.target.value as Priority }))
+                      }
+                      className={selectBaseClass}
+                    >
+                      <option value={Priority.HIGH}>High</option>
+                      <option value={Priority.MEDIUM}>Medium</option>
+                      <option value={Priority.LOW}>Low</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Description (optional)</label>
+                    <textarea
+                      value={newTaskForm.description}
+                      onChange={(event) => setNewTaskForm((prev) => ({ ...prev, description: event.target.value }))}
+                      className={textareaBaseClass}
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="overflow-x-auto border border-slate-200 rounded-xl">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 text-slate-600">
                   <tr>
-                    <th className="p-3 text-left font-medium">#</th>
+                    <th className="p-3 text-left font-medium w-14">#</th>
                     <th className="p-3 text-left font-medium">Description</th>
                     <th className="p-3 text-left font-medium">Expected Result</th>
                     <th className="p-3 text-left font-medium">Test Data</th>
@@ -358,41 +535,45 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {previewSteps.slice(0, 25).map((row) => {
-                    const invalid = !row.description || !row.expectedResult;
+                  {previewSteps.slice(0, 30).map((row) => {
+                    const invalid = !row.description.trim() || !row.expectedResult.trim();
                     return (
                       <tr key={row.id} className={invalid ? 'bg-rose-50/60' : ''}>
-                        <td className="p-3">{row.order}</td>
+                        <td className="p-3 align-top">{row.order}</td>
                         <td className="p-2">
-                          <input
-                            value={row.description || ''}
+                          <textarea
+                            value={row.description}
                             onChange={(event) => updatePreviewStep(row.id, 'description', event.target.value)}
-                            className={fieldBaseClass}
-                            placeholder="Step description"
+                            className={textareaBaseClass}
+                            rows={2}
+                            placeholder="Step description (supports multiline)"
                           />
                         </td>
                         <td className="p-2">
-                          <input
-                            value={row.expectedResult || ''}
+                          <textarea
+                            value={row.expectedResult}
                             onChange={(event) => updatePreviewStep(row.id, 'expectedResult', event.target.value)}
-                            className={fieldBaseClass}
-                            placeholder="Expected result"
+                            className={textareaBaseClass}
+                            rows={2}
+                            placeholder="Expected result (supports multiline)"
                           />
                         </td>
                         <td className="p-2">
-                          <input
+                          <textarea
                             value={row.testData || ''}
                             onChange={(event) => updatePreviewStep(row.id, 'testData', event.target.value)}
-                            className={fieldBaseClass}
-                            placeholder="Optional"
+                            className={textareaBaseClass}
+                            rows={2}
+                            placeholder="Optional multiline"
                           />
                         </td>
                         <td className="p-2">
-                          <input
+                          <textarea
                             value={row.actualResult || ''}
                             onChange={(event) => updatePreviewStep(row.id, 'actualResult', event.target.value)}
-                            className={fieldBaseClass}
-                            placeholder="Optional"
+                            className={textareaBaseClass}
+                            rows={2}
+                            placeholder="Optional multiline"
                           />
                         </td>
                       </tr>
@@ -404,7 +585,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
 
             {invalidRows > 0 && (
               <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 flex items-center gap-2">
-                <AlertCircle size={14} /> {invalidRows} row(s) are missing required fields.
+                <AlertCircle size={14} /> {invalidRows} row(s) still have missing required fields.
               </div>
             )}
           </div>
@@ -417,17 +598,16 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
             </div>
             <h2 className="text-xl font-semibold text-slate-900">Import Completed</h2>
             <p className="text-slate-500 mt-2 max-w-md">
-              Steps were replaced successfully for <strong>{selectedTask?.title || 'selected task'}</strong>.
+              {importMode === 'existing'
+                ? 'Task steps were replaced successfully.'
+                : 'New task was created successfully from imported steps.'}
             </p>
           </div>
         )}
 
         <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-2">
           {step === 2 && (
-            <button
-              onClick={() => setStep(1)}
-              className={subtleButtonClass}
-            >
+            <button onClick={() => setStep(1)} className={subtleButtonClass}>
               Back
             </button>
           )}
@@ -440,15 +620,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({ tasks, onTasksImport
             </button>
           )}
           {step === 3 && (
-            <button
-              onClick={() => {
-                setStep(1);
-                setRows([]);
-                setHeaders([]);
-                setFileName('');
-              }}
-              className={primaryButtonClass}
-            >
+            <button onClick={resetWizard} className={primaryButtonClass}>
               Import Another File
             </button>
           )}

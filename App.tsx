@@ -517,7 +517,12 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       )}
 
       {view === 'IMPORT_WIZARD' && (
-        <ImportWizard tasks={tasks} onTasksImported={handleAddTasks} />
+        <ImportWizard
+          tasks={tasks}
+          availableCountries={availableCountries}
+          availableModules={availableModules}
+          onTasksImported={handleAddTasks}
+        />
       )}
 
       {view === 'INBOX' && (

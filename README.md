@@ -105,10 +105,13 @@ npm run start
     - reset password emails temporary password and forces password change on next login
 - Import wizard:
   - `/import` supports CSV files exported from Excel (header row required).
-  - Admin maps columns (description/expected result/actual result/test data), manually fixes missing preview fields inline, and replaces task steps.
+  - Admin maps columns (description/expected result/actual result/test data), manually fixes missing preview fields inline, and then either:
+    - replace steps in an existing task, or
+    - create a brand-new task from the imported steps.
+  - Preview fields support multiline text editing.
 - Reporting:
   - Admin task table supports filtered CSV export.
-  - Sign-off report uses a dedicated portrait printable template via `/api/tasks/[id]/signoff-report` and includes recent task history.
+  - Sign-off report uses a dedicated portrait printable template via `/api/tasks/[id]/signoff-report` and includes recent task history plus task comments.
 
 ## Admin UX Updates
 - `/admin/tasks` table rows are clickable to open task details.

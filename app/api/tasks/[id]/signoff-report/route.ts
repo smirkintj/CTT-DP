@@ -12,6 +12,10 @@ function escapeHtml(value: string) {
     .replaceAll("'", '&#039;');
 }
 
+function preserveNewlines(value: string) {
+  return escapeHtml(value).replaceAll('\n', '<br />');
+}
+
 function formatDateTime(value?: Date | null) {
   if (!value) return '—';
   return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -28,7 +32,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       assignee: { select: { name: true, email: true } },
       signedOffBy: { select: { name: true, email: true } },
       country: { select: { code: true, name: true } },
-      steps: { orderBy: { order: 'asc' } }
+      steps: { orderBy: { order: 'asc' } },
+      comments: {
+        include: {
+          author: {
+            select: {
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 200
+      }
     }
   });
 
@@ -82,6 +98,21 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           )
           .join('');
 
+  const commentRows =
+    task.comments.length === 0
+      ? `<tr><td colspan="4" class="muted">No comments found.</td></tr>`
+      : task.comments
+          .map(
+            (comment) => `
+      <tr>
+        <td>${formatDateTime(comment.createdAt)}</td>
+        <td>${escapeHtml(comment.author.name || comment.author.email || 'User')}</td>
+        <td>${comment.stepOrder ? `Step ${comment.stepOrder}` : 'General'}</td>
+        <td class="comment-cell">${preserveNewlines(comment.body || '')}</td>
+      </tr>`
+          )
+          .join('');
+
   const html = `<!doctype html>
 <html>
 <head>
@@ -101,6 +132,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     th, td { border: 1px solid #e2e8f0; padding: 8px; vertical-align: top; text-align: left; }
     th { background: #f8fafc; font-weight: 600; }
     .muted { color: #64748b; text-align: center; }
+    .comment-cell { max-width: 430px; white-space: normal; word-break: break-word; line-height: 1.45; }
     .footer { margin-top: 14px; color: #64748b; font-size: 11px; }
   </style>
 </head>
@@ -149,6 +181,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       </thead>
       <tbody>
         ${historyRows}
+      </tbody>
+    </table>
+    <div class="section-title">Comments</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:170px;">When</th>
+          <th style="width:150px;">By</th>
+          <th style="width:90px;">Context</th>
+          <th>Comment</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${commentRows}
       </tbody>
     </table>
     <div class="footer">This report is generated from CTT UAT Portal task data.</div>
