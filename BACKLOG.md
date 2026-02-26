@@ -726,3 +726,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-26`: Refined import/reporting/admin UX: labeled import steps, inline preview field editing for missing values, portrait sign-off report cleanup with task-history section, and cleaner user-management table layout aligned with task table style.
 - `2026-02-26`: Extended import/reporting UX: import can now target existing task replacement or create a new task from CSV steps, preview fields support multiline editing, and sign-off report now includes comments with cleaner layout handling.
 - `2026-02-26`: Fixed import completion behavior to stop false success on API 400, added direct open-task action after import, grouped report comments by step sections, and added auto print prompt for save-to-PDF flow.
+- `2026-02-26`: Replaced browser-native import confirm with in-app modal and hardened step-import API refresh path to reduce internal-error risk on import completion.

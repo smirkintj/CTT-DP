@@ -113,6 +113,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
   const [previewSteps, setPreviewSteps] = useState<PreviewStep[]>([]);
   const [importing, setImporting] = useState(false);
   const [lastImportedTaskId, setLastImportedTaskId] = useState<string | null>(null);
+  const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
 
   const selectedTask = useMemo(() => tasks.find((task) => task.id === selectedTaskId) || null, [selectedTaskId, tasks]);
 
@@ -199,18 +200,19 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
     setImportMode('existing');
     setNewTaskForm(defaultNewTaskForm);
     setLastImportedTaskId(null);
+    setShowReplaceConfirm(false);
   };
 
-  const importToExistingTask = async (): Promise<{ ok: boolean; taskId?: string }> => {
+  const importToExistingTask = async (skipConfirm = false): Promise<{ ok: boolean; taskId?: string }> => {
     if (!selectedTaskId || !selectedTask) {
       notify('Please select a target task.', 'error');
       return { ok: false };
     }
 
-    const confirmed = window.confirm(
-      `Replace all existing steps in "${selectedTask.title}" with ${previewSteps.length} imported steps?`
-    );
-    if (!confirmed) return { ok: false };
+    if (!skipConfirm) {
+      setShowReplaceConfirm(true);
+      return { ok: false };
+    }
 
     const response = await fetch(`/api/tasks/${selectedTaskId}/steps/import`, {
       method: 'POST',
@@ -305,6 +307,20 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       } else {
         result = await importAsNewTask();
       }
+      if (!result.ok) return;
+      setLastImportedTaskId(result.taskId ?? null);
+      notify('Import completed successfully.', 'success');
+      setStep(3);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const confirmReplaceImport = async () => {
+    setShowReplaceConfirm(false);
+    setImporting(true);
+    try {
+      const result = await importToExistingTask(true);
       if (!result.ok) return;
       setLastImportedTaskId(result.taskId ?? null);
       notify('Import completed successfully.', 'success');
@@ -645,6 +661,33 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
           )}
         </div>
       </div>
+
+      {showReplaceConfirm && selectedTask && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl p-5">
+            <h3 className="text-base font-semibold text-slate-900">Confirm Step Replacement</h3>
+            <p className="text-sm text-slate-600 mt-2">
+              Replace all existing steps in
+              <span className="font-semibold text-slate-800"> "{selectedTask.title}" </span>
+              with {previewSteps.length} imported steps?
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setShowReplaceConfirm(false)}
+                className={subtleButtonClass}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmReplaceImport}
+                className={primaryButtonClass}
+              >
+                Replace Steps
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

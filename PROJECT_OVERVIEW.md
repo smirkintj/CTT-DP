@@ -202,6 +202,7 @@ Currently created events:
   - create a new task directly from imported step rows.
 - Import preview supports inline multiline manual corrections before confirm.
 - Import success state includes direct navigation to the resulting task detail page.
+- Existing-task replace confirmation is handled in-app (custom modal) instead of browser-native dialogs.
 - Admin task management supports filtered CSV export.
 
 Additional behavior:

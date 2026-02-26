@@ -5,7 +5,7 @@ import { badRequest, forbidden, internalError, notFound, unauthorized } from '@/
 import { createTaskHistory } from '@/lib/taskHistory';
 import { TaskHistoryAction } from '@prisma/client';
 import { mapTaskToUi } from '../../../_mappers';
-import { taskRelationIncludeFull } from '../../../_query';
+import { taskRelationIncludeFull, taskRelationIncludeSafe } from '../../../_query';
 
 type ImportStepInput = {
   description?: string;
@@ -62,7 +62,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       });
       await tx.task.update({
         where: { id: taskId },
-        data: { updatedById: session.user.id }
+        data: { updatedAt: new Date() }
       });
     });
 
@@ -82,10 +82,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     });
 
-    const refreshedTask = await prisma.task.findUnique({
-      where: { id: taskId },
-      include: taskRelationIncludeFull
-    });
+    let refreshedTask = null;
+    try {
+      refreshedTask = await prisma.task.findUnique({
+        where: { id: taskId },
+        include: taskRelationIncludeFull
+      });
+    } catch {
+      refreshedTask = await prisma.task.findUnique({
+        where: { id: taskId },
+        include: taskRelationIncludeSafe
+      });
+    }
     if (!refreshedTask) return notFound('Task not found', 'TASK_NOT_FOUND');
 
     return Response.json(mapTaskToUi(refreshedTask));
