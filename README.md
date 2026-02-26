@@ -110,6 +110,7 @@ Security notes:
   - server-side temporary lockout after repeated failed attempts
   - disabled users (`User.isActive = false`) cannot log in
   - forced permanent-password setup (`mustChangePassword`) before portal access
+  - accessibility improvements on login form controls and error/loading semantics
 - Recent Activity is database-backed via `Activity` and `ActivityRead` tables.
 - Task mutation APIs enforce:
   - status transition rules (invalid transitions return `409`)
@@ -122,6 +123,7 @@ Security notes:
   - `/api/tasks` now uses a lighter list query shape (summary fields only).
   - `/api/tasks` now returns `commentCount` summary instead of full comments payload for faster list response.
   - `/api/tasks`, `/api/tasks/[id]`, and `/api/tasks/[id]/history` return `X-Query-Time-Ms` response header for quick latency checks.
+  - Client task list now uses short-lived session cache (30s) to reduce repeated fetch latency on quick page reloads/navigation.
   - Task detail avoids redundant hydration fetch when already opened with rich step data.
   - Added DB performance index migration:
     - `prisma/migrations/20260226190000_add_task_comment_performance_indexes/migration.sql`
@@ -151,10 +153,20 @@ Security notes:
     - reset password emails temporary password and forces password change on next login
 - Admin audit coverage:
   - Checklist file: `/Users/putra/Desktop/CTT-DKSH-main/ADMIN_AUDIT_COVERAGE.md`
+  - CI guard (`npm run audit:check-admin`) now validates:
+    - `/api/admin/**` write routes
+    - admin-capable task write routes (`/api/tasks/[id]/notify-assigned`, `/api/tasks/[id]/reminder`, `/api/tasks/[id]/steps/import`)
   - Manual notification trigger endpoints now emit admin audit events:
     - `/api/tasks/[id]/notify-assigned`
     - `/api/tasks/[id]/reminder`
     - `/api/admin/test-notification`
+  - Step import route now emits explicit admin audit entries:
+    - `/api/tasks/[id]/steps/import`
+- Accessibility (Phase 1):
+  - improved keyboard/ARIA support in:
+    - login screen
+    - admin task management filters/table row open flow
+    - task detail step toggle and icon-only controls
 - Operational docs:
   - Production checklist: `/Users/putra/Desktop/CTT-DKSH-main/PRODUCTION_READINESS.md`
   - Incident runbook: `/Users/putra/Desktop/CTT-DKSH-main/OPS_RUNBOOK.md`

@@ -6,6 +6,11 @@ const ROOT = process.cwd();
 const ADMIN_API_DIR = path.join(ROOT, 'app', 'api', 'admin');
 const WRITE_METHOD_RE = /export\s+async\s+function\s+(POST|PATCH|PUT|DELETE)\b/g;
 const AUDIT_CALL_RE = /\bcreateAdminAudit\s*\(/;
+const EXTRA_ADMIN_WRITE_ROUTES = [
+  path.join(ROOT, 'app', 'api', 'tasks', '[id]', 'notify-assigned', 'route.ts'),
+  path.join(ROOT, 'app', 'api', 'tasks', '[id]', 'reminder', 'route.ts'),
+  path.join(ROOT, 'app', 'api', 'tasks', '[id]', 'steps', 'import', 'route.ts')
+];
 
 async function listRouteFiles(dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -24,11 +29,18 @@ async function listRouteFiles(dir) {
 }
 
 async function main() {
-  const routeFiles = await listRouteFiles(ADMIN_API_DIR);
+  const adminRouteFiles = await listRouteFiles(ADMIN_API_DIR);
+  const routeFiles = [...adminRouteFiles, ...EXTRA_ADMIN_WRITE_ROUTES];
   const offenders = [];
 
   for (const filePath of routeFiles) {
-    const content = await fs.readFile(filePath, 'utf8');
+    let content = '';
+    try {
+      content = await fs.readFile(filePath, 'utf8');
+    } catch {
+      offenders.push(`${path.relative(ROOT, filePath)} (missing file)`);
+      continue;
+    }
     const hasWriteHandler = WRITE_METHOD_RE.test(content);
     WRITE_METHOD_RE.lastIndex = 0;
     if (!hasWriteHandler) continue;

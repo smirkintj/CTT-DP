@@ -35,7 +35,7 @@ Legend:
 | `/api/tasks/[id]/steps` | `POST` | Covered | Task history (`STEP_CREATED`). |
 | `/api/tasks/[id]/steps/[stepId]` | `PATCH` | Covered | Task history (`STEP_UPDATED`). |
 | `/api/tasks/[id]/steps/[stepId]` | `DELETE` | Covered | Task history (`STEP_DELETED`). |
-| `/api/tasks/[id]/steps/import` | `POST` | Covered | Task history (`STEP_UPDATED`, import metadata). |
+| `/api/tasks/[id]/steps/import` | `POST` | Covered | Task history + explicit admin audit event for import success/failure. |
 | `/api/tasks/[id]/comments` | `POST` | Covered | Task history (`COMMENT_ADDED`) + activity entry. |
 | `/api/tasks/[id]/signoff` | `POST` | Covered | Task history (`SIGNED_OFF`) + activity/email/Teams hooks. |
 | `/api/tasks/[id]/notify-assigned` | `POST` | Covered | Manual assignment email trigger audit added. |
@@ -43,5 +43,5 @@ Legend:
 
 ## Remaining Work (Next)
 
-- Add a lightweight test script/check that fails CI when new admin write endpoints are introduced without explicit audit call.
+- Keep extending `scripts/check-admin-audit-coverage.mjs` route list whenever a new admin-capable write endpoint is added outside `/api/admin/**`.
 - Add explicit audit entries for non-task admin reads only if required by policy (currently not needed).

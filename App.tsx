@@ -17,6 +17,44 @@ import { apiFetch } from './lib/http';
 import { notify } from './lib/notify';
 import { fieldBaseClass } from './components/ui/formClasses';
 
+const TASK_CACHE_TTL_MS = 30_000;
+const TASK_CACHE_KEY_PREFIX = 'ctt_tasks_cache_v1';
+
+type CachedTasksPayload = {
+  fetchedAt: number;
+  tasks: Task[];
+};
+
+const getTaskCacheKey = (userId: string) => `${TASK_CACHE_KEY_PREFIX}:${userId}`;
+
+const readCachedTasks = (userId?: string | null): CachedTasksPayload | null => {
+  if (!userId || typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(getTaskCacheKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedTasksPayload;
+    if (!parsed || !Array.isArray(parsed.tasks) || typeof parsed.fetchedAt !== 'number') {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedTasks = (userId: string, tasks: Task[]) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const payload: CachedTasksPayload = {
+      fetchedAt: Date.now(),
+      tasks
+    };
+    window.sessionStorage.setItem(getTaskCacheKey(userId), JSON.stringify(payload));
+  } catch {
+    // Ignore storage failures to avoid impacting core task fetch flow.
+  }
+};
+
 interface AppProps {
   initialView?: ViewState;
   initialSelectedTaskId?: string | null;
@@ -26,6 +64,7 @@ interface AppProps {
 const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, onRouteChange }) => {
   const router = useRouter();
   const { data: session, status } = useSession();
+  const sessionUserId = session?.user?.id ?? null;
 
   // State Management
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -135,26 +174,52 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       return;
     }
 
+    const userId = session.user.id;
+    const cached = readCachedTasks(userId);
+    if (cached) {
+      setTasks(cached.tasks);
+    }
+
+    const isFreshCache = cached && Date.now() - cached.fetchedAt <= TASK_CACHE_TTL_MS;
+    if (isFreshCache) {
+      setLoadingTasks(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    let active = true;
+
     const loadTasks = async () => {
       setLoadingTasks(true);
       try {
-        const data = await apiFetch<any[]>('/api/tasks', { cache: 'no-store' });
+        const data = await apiFetch<any[]>('/api/tasks', {
+          cache: 'no-store',
+          signal: controller.signal
+        });
         const mappedTasks = Array.isArray(data)
           ? data.map((task: any) => ({
               ...task,
               featureModule: task.featureModule ?? task.module ?? 'General'
             }))
           : [];
+        if (!active) return;
         setTasks(mappedTasks);
+        writeCachedTasks(userId, mappedTasks);
       } catch {
-        notify('Failed to load tasks', 'error');
+        if (!controller.signal.aborted && !cached) {
+          notify('Failed to load tasks', 'error');
+        }
       } finally {
-        setLoadingTasks(false);
+        if (active) setLoadingTasks(false);
       }
     };
 
     void loadTasks();
-  }, [session?.user?.id]);
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [sessionUserId]);
 
   useEffect(() => {
     if (!session?.user || session.user.role !== 'ADMIN') return;
@@ -175,23 +240,27 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     void loadAdminMetadata();
   }, [session?.user?.id, session?.user?.role]);
 
-  useEffect(() => {
-    if (!session?.user || !selectedTaskId) return;
+  const hasSelectedTask = !!selectedTaskId && tasks.some((task) => task.id === selectedTaskId);
 
-    if (tasks.find((task) => task.id === selectedTaskId)) return;
+  useEffect(() => {
+    if (!sessionUserId || !selectedTaskId || loadingTasks || hasSelectedTask) return;
 
     const loadTask = async () => {
-      const response = await fetch(`/api/tasks/${selectedTaskId}`, { cache: 'no-store' });
-      if (!response.ok) return;
-      const task = await response.json();
-      setTasks((prev) => {
-        const exists = prev.some((t) => t.id === task.id);
-        return exists ? prev : [task, ...prev];
-      });
+      try {
+        const task = await apiFetch<Task>(`/api/tasks/${selectedTaskId}`, { cache: 'no-store' });
+        setTasks((prev) => {
+          const exists = prev.some((t) => t.id === task.id);
+          const next = exists ? prev : [task, ...prev];
+          writeCachedTasks(sessionUserId, next);
+          return next;
+        });
+      } catch {
+        // Ignore detail prefetch failures; page-level handlers will surface actionable errors.
+      }
     };
 
     void loadTask();
-  }, [selectedTaskId, session?.user, tasks]);
+  }, [selectedTaskId, sessionUserId, loadingTasks, hasSelectedTask]);
 
   // Handlers
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -396,22 +465,27 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                </p>
              </div>
 
-             <form className="space-y-6" onSubmit={handleLoginSubmit}>
+             <form className="space-y-6" onSubmit={handleLoginSubmit} aria-describedby="login-help">
                 <div>
-                   <label className="block text-sm font-medium text-slate-700">Email address</label>
+                   <label htmlFor="login-email" className="block text-sm font-medium text-slate-700">Email address</label>
                    <input 
-                     type="text" 
+                     id="login-email"
+                     type="email"
+                     inputMode="email"
                      autoComplete="username"
                      className={`${fieldBaseClass} mt-1 placeholder-slate-400`} 
                      placeholder="user@dksh.com"
                      value={email}
                      onChange={(e) => setEmail(e.target.value)}
+                     aria-invalid={Boolean(email) && !emailIsValid}
+                     aria-describedby="login-help"
                    />
                 </div>
                 <div>
-                   <label className="block text-sm font-medium text-slate-700">Password</label>
+                   <label htmlFor="login-password" className="block text-sm font-medium text-slate-700">Password</label>
                    <div className="relative mt-1">
                      <input 
+                       id="login-password"
                        type={showPassword ? 'text' : 'password'} 
                        autoComplete="current-password"
                        className={`${fieldBaseClass} pr-12 placeholder-slate-400`} 
@@ -425,6 +499,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                          onClick={() => setShowPassword((prev) => !prev)}
                          className="text-slate-400 hover:text-slate-600"
                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                         aria-pressed={showPassword}
                        >
                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                        </button>
@@ -432,8 +507,9 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                    </div>
                 </div>
 
-                <label className="flex items-center gap-2 text-sm text-slate-600">
+                <label htmlFor="remember-email" className="flex items-center gap-2 text-sm text-slate-600">
                   <input
+                    id="remember-email"
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
@@ -443,10 +519,13 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                 </label>
 
                 {loginError && (
-                  <div className="text-sm text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
+                  <div role="alert" aria-live="assertive" className="text-sm text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
                     {loginError}
                   </div>
                 )}
+                <p id="login-help" className="sr-only">
+                  Enter your DKSH email and password to sign in.
+                </p>
                 
                 <div>
                     <button 
@@ -457,6 +536,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                          ? 'bg-slate-300 text-slate-500 border-slate-300 cursor-not-allowed'
                          : 'text-white bg-slate-900 border-transparent hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900'
                      }`}
+                     aria-busy={isLoggingIn}
                     >
                      {isLoggingIn ? (
                        <>
@@ -556,15 +636,15 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     </Layout>
 
     {mustChangePassword && (
-      <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="password-change-title" aria-describedby="password-change-desc">
         <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-xl p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700">
               <ShieldCheck size={18} />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-slate-900">Set Your Permanent Password</h2>
-              <p className="text-xs text-slate-500">
+              <h2 id="password-change-title" className="text-base font-semibold text-slate-900">Set Your Permanent Password</h2>
+              <p id="password-change-desc" className="text-xs text-slate-500">
                 This is required before you can use the portal.
               </p>
             </div>

@@ -68,6 +68,7 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 - Login abuse protection:
   - server-side temporary lockout on repeated failed attempts (`lib/loginRateLimit.ts`)
   - client-side email validation + lock countdown UX in `App.tsx`
+  - accessibility semantics on login controls/errors/loading in `App.tsx`
 - JWT/session includes:
   - `user.id`
   - `user.role`
@@ -161,6 +162,7 @@ Task mutation guarantees:
     - `/api/tasks/[id]`
     - `/api/tasks/[id]/history`
   - development server logs perf lines for quick baseline comparison.
+  - App client keeps a short-lived (30s) session task cache to improve perceived load speed on refresh/navigation.
   - task history endpoint fetch window is intentionally capped for task detail latency.
   - DB indexes added for task/comment hot paths via:
     - `prisma/migrations/20260226190000_add_task_comment_performance_indexes/migration.sql`
@@ -183,6 +185,8 @@ Admin audit checklist:
   - `/api/tasks/[id]/notify-assigned`
   - `/api/tasks/[id]/reminder`
   - `/api/admin/test-notification`
+- Step import route now emits explicit admin audit entries:
+  - `/api/tasks/[id]/steps/import`
 
 ### Activities
 - `GET /api/activities`
@@ -294,6 +298,13 @@ Also:
   - security: credentials are passed via environment variables (`ADMIN_EMAIL`, `ADMIN_PASSWORD`), not hardcoded.
 - Audit governance:
   - CI runs `npm run audit:check-admin` to block admin write endpoints without explicit audit calls.
+  - Guard scope includes `/api/admin/**` write routes plus admin-capable task write routes (`notify-assigned`, `reminder`, `steps/import`).
+
+## Accessibility (Phase 1)
+- Core improvements landed for:
+  - login page (`App.tsx`)
+  - admin task management controls/table interaction (`views/AdminTaskManagement.tsx`)
+  - task detail step interactions and icon controls (`views/TaskDetail.tsx`)
 
 ## Local Setup
 1. `npm install`

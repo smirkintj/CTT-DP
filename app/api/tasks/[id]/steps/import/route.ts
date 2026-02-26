@@ -6,6 +6,7 @@ import { createTaskHistory } from '@/lib/taskHistory';
 import { TaskHistoryAction } from '@prisma/client';
 import { mapTaskToUi } from '../../../_mappers';
 import { taskRelationIncludeFull, taskRelationIncludeSafe } from '../../../_query';
+import { createAdminAudit } from '@/lib/adminAudit';
 
 type ImportStepInput = {
   description?: string;
@@ -82,6 +83,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     });
 
+    await createAdminAudit({
+      actorId: session.user.id,
+      countryCode: existingTask.countryCode,
+      message: `Admin imported ${normalized.length} step(s) into "${existingTask.title}".`,
+      metadata: {
+        taskId,
+        replacedStepCount: existingTask.steps.length,
+        importedStepCount: normalized.length
+      }
+    });
+
     let refreshedTask = null;
     try {
       refreshedTask = await prisma.task.findUnique({
@@ -98,6 +110,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     return Response.json(mapTaskToUi(refreshedTask));
   } catch (error) {
+    await createAdminAudit({
+      actorId: session.user.id,
+      message: 'Admin step import failed.',
+      metadata: {
+        taskId,
+        error: String(error)
+      }
+    });
     return internalError('Failed to import steps', 'STEP_IMPORT_FAILED', String(error));
   }
 }

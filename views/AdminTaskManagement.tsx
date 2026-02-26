@@ -518,8 +518,10 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
          {/* Toolbar */}
          <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
             <div className="relative max-w-sm w-full">
+               <label htmlFor="admin-task-search" className="sr-only">Search tasks</label>
                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                <input 
+                 id="admin-task-search"
                  type="text" 
                  className={`w-full pl-9 pr-4 py-2 ${fieldBaseClass}`} 
                  placeholder="Search tasks..."
@@ -528,7 +530,9 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                />
             </div>
             <div className="flex items-center gap-2">
+              <label htmlFor="admin-task-sort" className="sr-only">Sort tasks</label>
               <select
+                id="admin-task-sort"
                 className="px-2.5 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-600"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'dueDate' | 'priority' | 'status' | 'createdAt' | 'updatedAt')}
@@ -542,6 +546,9 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
               <button
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
                 className={`p-2 rounded-lg ${isFilterOpen ? 'bg-slate-200 text-slate-700' : 'text-slate-500 hover:bg-slate-200'}`}
+                aria-expanded={isFilterOpen}
+                aria-controls="admin-task-filters"
+                aria-label="Toggle task filters"
               >
                  <Filter size={18} />
               </button>
@@ -549,7 +556,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
          </div>
 
          {isFilterOpen && (
-           <div className="p-4 border-b border-slate-200 bg-white">
+           <div id="admin-task-filters" className="p-4 border-b border-slate-200 bg-white">
              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
                <div>
                  <label className="block text-slate-500 font-medium mb-1">Status</label>
@@ -613,6 +620,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
          {/* Table */}
          <div>
             <table className="w-full table-fixed text-sm text-left">
+               <caption className="sr-only">Admin task management table</caption>
                <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
                   <tr>
                      <th className="px-3 py-4 w-[4%]">
@@ -621,6 +629,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                          checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length}
                          onChange={(e) => toggleSelectAllVisible(e.target.checked)}
                          onClick={(e) => e.stopPropagation()}
+                         aria-label="Select all visible tasks"
                        />
                      </th>
                      <th className="px-4 py-4 w-[22%]">Task</th>
@@ -648,12 +657,25 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                     </tr>
                   ) : (
                     filteredTasks.map(task => (
-                      <tr key={task.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => onEdit(task)}>
+                      <tr
+                        key={task.id}
+                        className="hover:bg-slate-50 transition-colors cursor-pointer focus-within:bg-slate-50"
+                        onClick={() => onEdit(task)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onEdit(task);
+                          }
+                        }}
+                        tabIndex={0}
+                        aria-label={`Open task ${task.title}`}
+                      >
                          <td className="px-3 py-4" onClick={(e) => e.stopPropagation()}>
                            <input
                              type="checkbox"
                              checked={selectedTaskIds.includes(task.id)}
                              onChange={(e) => toggleTaskSelection(task.id, e.target.checked)}
+                             aria-label={`Select task ${task.title}`}
                            />
                          </td>
                          <td className="px-4 py-4 font-medium text-slate-900 truncate" title={task.title}>{task.title}</td>
@@ -691,7 +713,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
              <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl animate-in zoom-in-95 my-8">
                 <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
                    <h2 className="text-lg font-bold text-slate-900">Create New Task</h2>
-                   <button onClick={closeCreateModal} className="text-slate-400 hover:text-slate-600">
+                   <button onClick={closeCreateModal} className="text-slate-400 hover:text-slate-600" aria-label="Close create task modal">
                       <X size={20} />
                    </button>
                 </div>
@@ -912,7 +934,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                                       </select>
                                    </div>
                                    <div className="col-span-1 flex justify-center pt-2">
-                                      <button onClick={() => removeStepRow(idx)} className="text-slate-400 hover:text-red-500">
+                                      <button onClick={() => removeStepRow(idx)} className="text-slate-400 hover:text-red-500" aria-label={`Remove step ${idx + 1}`}>
                                          <Trash2 size={14}/>
                                       </button>
                                    </div>

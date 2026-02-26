@@ -23,11 +23,11 @@ This backlog tracks improvement initiatives with:
 - `Implemented`
 
 ## Progress Snapshot
-- Overall: `16/42 Implemented` (38.1%)
+- Overall: `17/42 Implemented` (40.5%)
 - Active now: `5 In Progress`
 - Remaining: `22 Planned`
-- High-priority lane (`P0 + P1`): `13/23 Implemented`
-- Technical debt lane (`#36-#41`): `2/6 Implemented`
+- High-priority lane (`P0 + P1`): `14/23 Implemented`
+- Technical debt lane (`#36-#41`): `3/6 Implemented`
 
 ---
 
@@ -404,13 +404,28 @@ This backlog tracks improvement initiatives with:
 
 ## 24) User-Centred: Accessibility & Readability Pass
 - Priority: `P1`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `In Progress`
+- Date implemented: `Phase 1 on 2026-02-26`
 - What this is for:
   - Ensure app is usable for keyboard/screen-reader users and low-vision users.
 - Implementation plan:
   - WCAG contrast checks, focus styles, aria labels, semantic headings, table accessibility.
   - Add automated a11y checks in CI.
+- Implementation progress:
+  - Login flow a11y hardening in `App.tsx`:
+    - proper `label`/`id` pairing
+    - `type=email` + invalid state exposure
+    - alert semantics for login errors
+    - ARIA improvements for password toggle and loading submit button
+  - Forced password-change modal now exposes dialog semantics (`role="dialog"`, `aria-modal`, labelled/description IDs).
+  - Admin task table a11y improvements in `views/AdminTaskManagement.tsx`:
+    - search/sort/filter controls now have labels/expanded state wiring
+    - table caption + checkbox labels
+    - keyboard open support for task rows
+  - Task detail a11y improvements in `views/TaskDetail.tsx`:
+    - toggleable step headers now keyboard accessible with `aria-expanded`
+    - icon-only controls now have explicit labels (jira link launcher, evidence delete, send comment, image preview close)
+    - save-state text now announced with polite live region semantics
 - Impact if not done:
   - Exclusion risk, compliance risk, and poorer usability overall.
 
@@ -670,13 +685,13 @@ This backlog tracks improvement initiatives with:
 - Impact if not done:
   - Inconsistent UX and harder production debugging.
 
-## 39) Technical Debt: Audit Logging Coverage Gaps
+## 39) ~~Technical Debt: Audit Logging Coverage Gaps~~
 - Priority: `P1`
-- Status: `In Progress`
-- Date implemented: `Phase 1 on 2026-02-25`
+- Status: `Implemented`
+- Date implemented: `2026-02-26`
 - What this is for:
   - Ensure immutable history is complete across all critical actions.
-- Implementation progress:
+- Implementation:
   - Added admin audit helper:
     - `lib/adminAudit.ts`
   - Added admin configuration audit events for:
@@ -687,10 +702,12 @@ This backlog tracks improvement initiatives with:
     - assignment mail trigger (`app/api/tasks/[id]/notify-assigned/route.ts`)
     - reminder mail trigger (`app/api/tasks/[id]/reminder/route.ts`)
     - admin test notification (`app/api/admin/test-notification/route.ts`)
+  - Added admin audit event coverage for step import flow:
+    - `app/api/tasks/[id]/steps/import/route.ts`
+  - Expanded CI audit coverage guard to include admin-capable non-`/api/admin/**` write routes:
+    - `scripts/check-admin-audit-coverage.mjs`
   - Added checklist-backed endpoint coverage map:
     - `ADMIN_AUDIT_COVERAGE.md`
-- Remaining:
-    - monitor for new write routes outside `/api/admin/**` and extend guard scope when policy expands.
 - Impact if not done:
   - Partial audit trail weakens incident forensics/compliance.
 
@@ -736,6 +753,7 @@ This backlog tracks improvement initiatives with:
     - kept full comment data only on task detail/report APIs
   - Reduced `/api/tasks/[id]/history` default fetch window from 100 to 40 rows for faster task detail load.
   - Reduced unnecessary task detail re-fetch when rich step data already exists.
+  - Added short-lived (30s) client-side session cache for task list in `App.tsx` to reduce repeat fetch latency after refresh/navigation.
   - Added DB index migration for high-frequency filters/sorts:
     - `Task(assigneeId, updatedAt)`
     - `Task(countryCode, updatedAt)`
@@ -826,10 +844,13 @@ This backlog tracks improvement initiatives with:
 - `2026-02-26`: Added performance improvement item (#41) to backlog, including baseline measurement-first approach, query-shape optimization, client fetch cleanup, and decision gate for Prisma Accelerate.
 - `2026-02-26`: Started #41 Phase 1: instrumented key task endpoints with query timing, introduced lighter task-list query shape, and reduced unnecessary task-detail hydration fetches.
 - `2026-02-26`: Continued #41 with lower-latency list payload changes (`commentCount` aggregation instead of full comments on `/api/tasks`) and reduced task-history fetch size for task detail.
+- `2026-02-26`: Advanced #41 client fetch optimization with short-lived session cache for task list and reduced redundant detail prefetch calls during dashboard/task navigation.
 - `2026-02-26`: Added performance index migration (`20260226190000_add_task_comment_performance_indexes`) for task/comment hot paths.
 - `2026-02-26`: Advanced #39 audit coverage by adding admin audit events for manual email-trigger endpoints and publishing `ADMIN_AUDIT_COVERAGE.md` checklist.
+- `2026-02-26`: Completed #39 with step-import admin audit events and expanded CI guard scope for admin-capable non-`/api/admin/**` write routes.
 - `2026-02-26`: Added CI guard (`npm run audit:check-admin`) to block admin write routes without `createAdminAudit`, and wired it into `.github/workflows/ci.yml`.
 - `2026-02-26`: Advanced #20 validation consistency by reusing shared Jira validation/normalization helpers in UI and adding import-create due-date/title checks.
 - `2026-02-26`: Added #42 gamified leaderboard concept backlog item (user + market rankings, badges, fairness guardrails).
 - `2026-02-26`: Hardened task assignment flow: invalid assignee selections now fail fast, non-draft tasks cannot be unassigned, and manual notify/reminder triggers now reject draft/completed tasks.
 - `2026-02-26`: Completed #14 by adding production checklist + ops runbook + `/api/health` runtime health endpoint and linked them in docs/testing checklist.
+- `2026-02-26`: Advanced #24 accessibility Phase 1 for login, admin task management, and task detail keyboard/ARIA support.

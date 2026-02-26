@@ -756,6 +756,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                         rel="noreferrer"
                         className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-blue-600 hover:text-blue-700 hover:border-slate-300 transition-colors"
                         title={`Open ${normalizeJiraTicketInput(taskEdits.jiraTicket)}`}
+                        aria-label={`Open Jira ticket ${normalizeJiraTicketInput(taskEdits.jiraTicket)}`}
                       >
                         <LinkIcon size={14} />
                       </a>
@@ -849,7 +850,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
             <div className="mt-4 flex justify-end">
               {canEditTaskMeta ? (
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-slate-500" role="status" aria-live="polite">
                     {taskMetaSaveState === 'saving' && 'Saving...'}
                     {taskMetaSaveState === 'saved' && 'Saved'}
                     {taskMetaSaveState === 'error' && 'Save failed'}
@@ -907,6 +908,16 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                     <div 
                       onClick={() => setExpandedStep(isOpen ? null : step.id)}
                       className="p-4 flex items-center gap-4 cursor-pointer hover:bg-slate-50 print:cursor-default"
+                      role="button"
+                      aria-expanded={isOpen}
+                      aria-label={`Toggle Step ${idx + 1}`}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setExpandedStep(isOpen ? null : step.id);
+                        }
+                      }}
                     >
                         <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-sm font-bold flex-shrink-0 ${statusColor}`}>
                           {step.isPassed === true ? <CheckCircle size={16}/> : step.isPassed === false ? <XCircle size={16}/> : idx + 1}
@@ -1076,6 +1087,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                                                             <button 
                                                               onClick={(e) => { e.stopPropagation(); deleteAttachment(step.id, i); }}
                                                               className="absolute top-0 right-0 bg-red-500 text-white p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                              aria-label={`Delete evidence ${i + 1} from Step ${idx + 1}`}
                                                             >
                                                               <X size={12} />
                                                             </button>
@@ -1142,7 +1154,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                                       onKeyDown={(e) => e.key === 'Enter' && handleAddComment(step.id)}
                                       list="mention-users"
                                     />
-                                    <button onClick={() => handleAddComment(step.id)} className="text-slate-400 hover:text-brand-600 p-2">
+                                    <button onClick={() => handleAddComment(step.id)} className="text-slate-400 hover:text-brand-600 p-2" aria-label={`Send comment for Step ${idx + 1}`}>
                                       <Send size={14} />
                                     </button>
                                  </div>
@@ -1339,7 +1351,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
           onClick={() => setViewImage(null)}
         >
             <img src={viewImage} alt="Full View" className="max-w-full max-h-full rounded-lg shadow-2xl" />
-            <button className="absolute top-4 right-4 text-white hover:text-slate-300">
+            <button className="absolute top-4 right-4 text-white hover:text-slate-300" aria-label="Close image preview">
                 <X size={32} />
             </button>
         </div>
