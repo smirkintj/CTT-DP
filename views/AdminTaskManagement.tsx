@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Task, Priority, TestStep, TargetSystem, CountryConfig } from '../types';
 import { Badge } from '../components/Badge';
-import { Trash2, Plus, UploadCloud, Search, Filter, X, Save, Globe } from 'lucide-react';
+import { Trash2, Plus, UploadCloud, Search, Filter, X, Save, Globe, Download } from 'lucide-react';
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
@@ -227,6 +227,62 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     return sorted;
   }, [tasks, searchTerm, statusFilter, priorityFilter, countryFilter, signedOffFilter, sortBy]);
 
+  const exportFilteredTasksCsv = () => {
+    const headers = [
+      'Title',
+      'Country',
+      'Module',
+      'Status',
+      'Priority',
+      'Due Date',
+      'Assignee',
+      'Stakeholder Email',
+      'Jira Ticket',
+      'CR Number',
+      'Developer',
+      'Signed Off At',
+      'Signed Off By',
+      'Created At',
+      'Updated At'
+    ];
+
+    const escapeCell = (value: unknown) => {
+      const raw = String(value ?? '');
+      if (raw.includes(',') || raw.includes('"') || raw.includes('\n')) {
+        return `"${raw.replace(/"/g, '""')}"`;
+      }
+      return raw;
+    };
+
+    const rows = filteredTasks.map((task) => [
+      task.title,
+      task.countryCode,
+      task.featureModule,
+      task.status,
+      task.priority,
+      formatDateOnly(task.dueDate),
+      task.assignee?.name || '',
+      task.assignee?.email || '',
+      task.jiraTicket || '',
+      task.crNumber || '',
+      task.developer || '',
+      task.signedOffAt ? formatDateTime(task.signedOffAt) : '',
+      task.signedOffBy?.name || task.signedOffBy?.email || '',
+      formatDateTime(task.createdAt),
+      formatDateTime(task.updatedAt)
+    ]);
+
+    const csv = [headers, ...rows].map((row) => row.map(escapeCell).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ctt_tasks_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    notify('CSV exported.', 'success');
+  };
+
   const toggleCountry = (code: string) => {
       if (selectedCountries.includes(code)) {
           if (selectedCountries.length > 1) { // Prevent empty selection
@@ -350,10 +406,16 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
         </div>
         <div className="flex gap-2">
            <button 
+             onClick={exportFilteredTasksCsv}
+             className={`${subtleButtonClass} shadow-sm flex items-center gap-2`}
+           >
+             <Download size={16}/> Export CSV
+           </button>
+           <button 
              onClick={onImport}
              className={`${subtleButtonClass} shadow-sm flex items-center gap-2`}
            >
-             <UploadCloud size={16}/> Import Excel
+             <UploadCloud size={16}/> Import Steps
            </button>
            <button 
              onClick={() => {

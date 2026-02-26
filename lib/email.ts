@@ -26,6 +26,12 @@ type TaskSignedOffEmailInput = {
   signedOffAt?: string | Date;
 };
 
+type TemporaryPasswordEmailInput = {
+  to: string;
+  recipientName?: string;
+  temporaryPassword: string;
+};
+
 function formatDate(value?: string | Date | null): string {
   if (!value) return "N/A";
   const date = new Date(value);
@@ -169,6 +175,25 @@ export async function sendTaskSignedOffEmail(input: TaskSignedOffEmailInput): Pr
     to: input.to,
     cc: input.cc,
     subject: `Task Signed Off: ${input.taskTitle}`,
+    html
+  });
+}
+
+export async function sendTemporaryPasswordEmail(input: TemporaryPasswordEmailInput): Promise<boolean> {
+  const intro = `Your password has been reset by the admin. Please use the temporary password below to sign in.`;
+  const html = createTemplate(
+    'Temporary Password Reset',
+    intro,
+    [
+      `User: <strong>${input.recipientName || input.to}</strong>`,
+      `Temporary Password: <strong>${input.temporaryPassword}</strong>`,
+      `You must change this password after signing in.`
+    ]
+  );
+
+  return sendEmail({
+    to: input.to,
+    subject: 'CTT UAT Portal - Temporary Password',
     html
   });
 }

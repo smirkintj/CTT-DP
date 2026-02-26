@@ -345,7 +345,18 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   };
 
   const handlePrint = () => {
-      window.print();
+      const reportUrl = `/api/tasks/${localTask.id}/signoff-report`;
+      const reportWindow = window.open(reportUrl, '_blank', 'noopener,noreferrer');
+      if (!reportWindow) {
+        notify('Unable to open report window. Please allow pop-ups for this site.', 'error');
+        return;
+      }
+      window.setTimeout(() => {
+        try {
+          reportWindow.focus();
+          reportWindow.print();
+        } catch {}
+      }, 500);
   };
 
   const handleDeleteTask = async () => {

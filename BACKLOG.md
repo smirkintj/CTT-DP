@@ -24,8 +24,8 @@ This backlog tracks improvement initiatives with:
 
 ## Progress Snapshot
 - Overall: `15/40 Implemented` (37.5%)
-- Active now: `3 In Progress`
-- Remaining: `22 Planned`
+- Active now: `4 In Progress`
+- Remaining: `21 Planned`
 - High-priority lane (`P0 + P1`): `13/23 Implemented`
 - Technical debt lane (`#36-#40`): `2/5 Implemented`
 
@@ -510,13 +510,15 @@ This backlog tracks improvement initiatives with:
 
 ## 33) Feature: Export and Reporting
 - Priority: `P2`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `In Progress`
+- Date implemented: `Phase 1 on 2026-02-26`
 - What this is for:
   - Support audit submissions and leadership updates.
-- Implementation plan:
-  - Add export endpoints (CSV/PDF) for task list, sign-off log, activity history.
-  - Include country/module filters and date ranges.
+- Implementation progress:
+  - Added admin filtered CSV export in task management UI.
+  - Added printable sign-off report template endpoint (`/api/tasks/[id]/signoff-report`) for PDF export flow.
+  - Remaining:
+    - add richer admin summary exports (date range + aggregate reporting).
 - Impact if not done:
   - Manual reporting remains slow and inconsistent.
 
@@ -720,3 +722,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-25`: Completed #37 shared Prisma include centralization; advanced #38 (API error helper rollout) and #20 (inline validation) to Phase 1.
 - `2026-02-25`: Completed #38 API error-shape rollout across task/admin/inbox/activity routes and advanced #39 audit coverage with admin config audit events.
 - `2026-02-25`: Completed #34 admin user management (users tab + guarded APIs + disable/reset flow), including new user lifecycle fields and inactive-login enforcement.
+- `2026-02-26`: Added forced password-change flow (`mustChangePassword`), reset-password email delivery, CSV (Excel-export) step import wizard with column mapping + replace, and started #33 export/reporting with admin CSV + printable sign-off report template.

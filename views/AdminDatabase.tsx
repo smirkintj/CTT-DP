@@ -263,8 +263,12 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
         notify(data?.error || 'Failed to reset password', 'error');
         return;
       }
-      window.alert(`Temporary password for ${selectedUser.email}: ${data?.temporaryPassword || '-'}`);
-      notify('Password reset successful', 'success');
+      notify(
+        data?.emailSent
+          ? 'Password reset email sent successfully'
+          : 'Password reset completed but email was not sent',
+        data?.emailSent ? 'success' : 'error'
+      );
     } finally {
       setResettingPassword(false);
     }

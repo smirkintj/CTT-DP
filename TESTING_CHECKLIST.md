@@ -51,6 +51,9 @@ How to use:
 - [ ] `PASS/FAIL` Remember-email option retains email after reload.
 - [ ] `PASS/FAIL` Password autofill works with browser password manager.
 - [ ] `PASS/FAIL` After 3 failed login attempts, account/email is temporarily locked and shows countdown.
+- [ ] `PASS/FAIL` User with `mustChangePassword` sees undismissable set-password modal after login.
+- [ ] `PASS/FAIL` User cannot access dashboard content until password is changed successfully.
+- [ ] `PASS/FAIL` Password reset by admin forces user to set a new permanent password on next login.
 - [ ] `PASS/FAIL` Logout clears session and returns to login screen.
 
 ---
@@ -69,6 +72,7 @@ How to use:
 - [ ] `PASS/FAIL` Closing task-create modal with unsaved input shows discard confirmation.
 - [ ] `PASS/FAIL` Browser refresh/close warns when task-create modal has unsaved input.
 - [ ] `PASS/FAIL` Create button shows save progress (`Creating...`) and completion feedback.
+- [ ] `PASS/FAIL` CSV import wizard maps columns correctly and replaces task steps after confirmation.
 
 ## 3.2 Task Management Table
 - [ ] `PASS/FAIL` Search returns correct tasks.
@@ -140,6 +144,7 @@ How to use:
 - [ ] `PASS/FAIL` Assignment email sends on task assignment.
 - [ ] `PASS/FAIL` Reminder endpoint sends email.
 - [ ] `PASS/FAIL` Sign-off email sends with expected recipients.
+- [ ] `PASS/FAIL` Admin password reset sends temporary-password email to target user.
 - [ ] `PASS/FAIL` Email failures show user-safe message; no UI crash.
 
 ## 5.1 Microsoft Teams Notification Checks

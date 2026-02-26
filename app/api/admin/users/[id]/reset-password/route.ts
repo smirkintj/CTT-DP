@@ -7,6 +7,7 @@ import { authOptions } from '@/lib/auth';
 import { badRequest, forbidden, internalError, notFound, unauthorized } from '@/lib/apiError';
 import { createAdminAudit } from '@/lib/adminAudit';
 import { canRunAdminAction } from '@/lib/adminRateLimit';
+import { sendTemporaryPasswordEmail } from '@/lib/email';
 
 function generateTemporaryPassword() {
   const base = randomBytes(8).toString('base64url');
@@ -35,19 +36,25 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
     await prisma.user.update({
       where: { id: userId },
-      data: { passwordHash }
+      data: { passwordHash, mustChangePassword: true }
+    });
+
+    const emailSent = await sendTemporaryPasswordEmail({
+      to: targetUser.email,
+      recipientName: targetUser.name,
+      temporaryPassword
     });
 
     await createAdminAudit({
       actorId: session.user.id,
       message: `Admin reset password for ${targetUser.email}.`,
       countryCode: targetUser.countryCode,
-      metadata: { action: 'USER_PASSWORD_RESET', userId: targetUser.id }
+      metadata: { action: 'USER_PASSWORD_RESET', userId: targetUser.id, emailSent }
     });
 
     return NextResponse.json({
       success: true,
-      temporaryPassword
+      emailSent
     });
   } catch (error) {
     return internalError('Failed to reset password', 'USER_RESET_PASSWORD_FAILED', String(error));

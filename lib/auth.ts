@@ -54,7 +54,8 @@ export const authOptions: NextAuthOptions = {
             email: user.email,
             name: user.name,
             role: user.role,
-            countryCode: user.countryCode
+            countryCode: user.countryCode,
+            mustChangePassword: user.mustChangePassword
           };
         } catch (error) {
           if (process.env.NODE_ENV !== 'production') {
@@ -72,6 +73,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = (user as { role?: string }).role;
         token.countryCode = (user as { countryCode?: string | null }).countryCode ?? null;
+        token.mustChangePassword = (user as { mustChangePassword?: boolean }).mustChangePassword ?? false;
       }
       return token;
     },
@@ -80,6 +82,20 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.countryCode = (token.countryCode as string | null) ?? null;
+        session.user.mustChangePassword = Boolean(token.mustChangePassword);
+
+        if (token.id) {
+          try {
+            const dbUser = await prisma.user.findUnique({
+              where: { id: token.id as string },
+              select: { mustChangePassword: true }
+            });
+            if (dbUser) {
+              session.user.mustChangePassword = dbUser.mustChangePassword;
+              token.mustChangePassword = dbUser.mustChangePassword;
+            }
+          } catch {}
+        }
       }
       return session;
     }

@@ -101,6 +101,7 @@ export async function POST(req: Request) {
         role,
         countryCode,
         isActive: true,
+        mustChangePassword: true,
         passwordHash
       }
     });

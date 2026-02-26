@@ -110,6 +110,7 @@ Defined in `prisma/schema.prisma`.
 ### User lifecycle fields
 - `User.isActive` (login enable/disable)
 - `User.lastLoginAt` (admin visibility for account activity)
+- `User.mustChangePassword` (first-login/per-reset mandatory password update)
 
 ## API Surface
 ### Auth
@@ -129,6 +130,10 @@ Defined in `prisma/schema.prisma`.
 - `POST /api/tasks/[id]/steps`
 - `PATCH /api/tasks/[id]/steps/[stepId]`
 - `DELETE /api/tasks/[id]/steps/[stepId]`
+- `POST /api/tasks/[id]/steps/import`
+  - Admin-only bulk replace of task steps from import wizard.
+- `GET /api/tasks/[id]/signoff-report`
+  - Printable sign-off report template for PDF export flow.
 
 Task mutation guarantees:
 - Server-enforced status transition rules (`lib/taskGuards.ts` + `/api/tasks/[id]/status`)
@@ -146,6 +151,8 @@ Task mutation guarantees:
   - Admin-only user update (name/country/status).
 - `POST /api/admin/users/[id]/reset-password`
   - Admin-only temp-password reset (rate-limited).
+- `POST /api/users/change-password`
+  - Authenticated password change endpoint; clears `mustChangePassword`.
 
 ### Activities
 - `GET /api/activities`
@@ -188,6 +195,9 @@ Currently created events:
   - searchable/filterable stakeholder/user list
   - right-side drawer for create/edit
   - disable/enable and temporary password reset actions
+- Login flow enforces an undismissable password change modal when `mustChangePassword` is true.
+- Import wizard is functional for CSV files exported from Excel (column mapping + preview + replace steps).
+- Admin task management supports filtered CSV export.
 
 Additional behavior:
 - Failed events include step context when available (example: `Step 2 in <Task Title>`).

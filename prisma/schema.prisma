@@ -57,6 +57,7 @@ model User {
   countryCode  String?
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+  mustChangePassword Boolean @default(true)
   passwordHash String
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

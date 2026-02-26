@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { signIn, getSession, useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react';
 import { Layout } from './components/Layout';
 import { StakeholderDashboard } from './views/StakeholderDashboard';
 import { AdminDashboard } from './views/AdminDashboard';
@@ -47,8 +47,15 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const [lockUntil, setLockUntil] = useState<number | null>(null);
   const [remainingLockSeconds, setRemainingLockSeconds] = useState(0);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null);
   const emailIsValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const isLocked = !!lockUntil && Date.now() < lockUntil;
+  const mustChangePassword = Boolean(session?.user?.mustChangePassword);
+  const passwordPolicyValid = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(newPasswordInput);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -248,6 +255,52 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     setIsLoggingIn(false);
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (changingPassword) return;
+
+    if (!currentPasswordInput || !newPasswordInput || !confirmPasswordInput) {
+      setPasswordChangeError('Please fill all password fields.');
+      return;
+    }
+    if (!passwordPolicyValid) {
+      setPasswordChangeError('Use 8+ chars with uppercase, lowercase, number, and symbol.');
+      return;
+    }
+    if (newPasswordInput !== confirmPasswordInput) {
+      setPasswordChangeError('New password and confirmation do not match.');
+      return;
+    }
+
+    setChangingPassword(true);
+    setPasswordChangeError(null);
+    try {
+      const response = await fetch('/api/users/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: currentPasswordInput,
+          newPassword: newPasswordInput,
+          confirmPassword: confirmPasswordInput
+        })
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        setPasswordChangeError(data?.error || 'Failed to change password.');
+        return;
+      }
+
+      notify('Password updated. Please sign in again.', 'success');
+      await signOut({ redirect: false });
+      setCurrentPasswordInput('');
+      setNewPasswordInput('');
+      setConfirmPasswordInput('');
+      setView('LOGIN');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const handleLogout = () => {
     void signOut({ redirect: false });
     setCurrentUser(null);
@@ -278,7 +331,13 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   };
   
   const handleAddTasks = (newTasks: Task[]) => {
-    setTasks(prev => [...newTasks, ...prev]);
+    setTasks((prev) => {
+      const map = new Map(prev.map((task) => [task.id, task]));
+      for (const task of newTasks) {
+        map.set(task.id, task);
+      }
+      return Array.from(map.values());
+    });
   };
 
   const handleNavigation = (targetView: ViewState) => {
@@ -397,6 +456,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   }
 
   return (
+    <>
     <Layout 
       currentUser={currentUser} 
       onLogout={handleLogout} 
@@ -457,7 +517,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       )}
 
       {view === 'IMPORT_WIZARD' && (
-        <ImportWizard />
+        <ImportWizard tasks={tasks} onTasksImported={handleAddTasks} />
       )}
 
       {view === 'INBOX' && (
@@ -467,6 +527,75 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
         />
       )}
     </Layout>
+
+    {mustChangePassword && (
+      <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-xl p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700">
+              <ShieldCheck size={18} />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">Set Your Permanent Password</h2>
+              <p className="text-xs text-slate-500">
+                This is required before you can use the portal.
+              </p>
+            </div>
+          </div>
+
+          <form className="space-y-4" onSubmit={handleChangePassword}>
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Current password</label>
+              <input
+                type="password"
+                value={currentPasswordInput}
+                onChange={(e) => setCurrentPasswordInput(e.target.value)}
+                className={`${fieldBaseClass} mt-1`}
+                autoComplete="current-password"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700">New password</label>
+              <input
+                type="password"
+                value={newPasswordInput}
+                onChange={(e) => setNewPasswordInput(e.target.value)}
+                className={`${fieldBaseClass} mt-1`}
+                autoComplete="new-password"
+              />
+              <p className="mt-1 text-xs text-slate-500">8+ chars with uppercase, lowercase, number, and symbol.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Confirm new password</label>
+              <input
+                type="password"
+                value={confirmPasswordInput}
+                onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                className={`${fieldBaseClass} mt-1`}
+                autoComplete="new-password"
+              />
+            </div>
+            {passwordChangeError && (
+              <div className="text-sm text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
+                {passwordChangeError}
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={changingPassword}
+              className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                changingPassword
+                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                  : 'bg-slate-900 text-white hover:bg-slate-800'
+              }`}
+            >
+              {changingPassword ? 'Updating...' : 'Set Password'}
+            </button>
+          </form>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

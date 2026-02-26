@@ -72,6 +72,7 @@ npm run start
   - client-side email validation + submit throttling UX
   - server-side temporary lockout after repeated failed attempts
   - disabled users (`User.isActive = false`) cannot log in
+  - forced permanent-password setup (`mustChangePassword`) before portal access
 - Recent Activity is database-backed via `Activity` and `ActivityRead` tables.
 - Task mutation APIs enforce:
   - status transition rules (invalid transitions return `409`)
@@ -101,6 +102,13 @@ npm run start
     - cannot create additional ADMIN users (current policy)
     - cannot disable your own admin account
     - reset-password is rate-limited per admin/user target (60s)
+    - reset password emails temporary password and forces password change on next login
+- Import wizard:
+  - `/import` supports CSV files exported from Excel (header row required).
+  - Admin maps columns (description/expected result/actual result/test data), previews rows, and replaces task steps.
+- Reporting:
+  - Admin task table supports filtered CSV export.
+  - Sign-off report uses a dedicated printable template via `/api/tasks/[id]/signoff-report`.
 
 ## Admin UX Updates
 - `/admin/tasks` table rows are clickable to open task details.
