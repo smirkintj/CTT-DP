@@ -1,5 +1,6 @@
 import './globals.css';
 import Providers from './Providers';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata = {
   title: 'CTT - Cuba Try Test',
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           {children}
         </Providers>
+        <SpeedInsights />
       </body>
     </html>
   );

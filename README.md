@@ -102,6 +102,7 @@ Security notes:
 
 ## Notes
 - Build script runs `prisma generate && next build` to avoid stale Prisma client issues in CI/Vercel.
+- Vercel Speed Insights is enabled in `/Users/putra/Desktop/CTT-DKSH-main/app/layout.tsx` for runtime frontend performance telemetry.
 - Middleware enforces:
   - `/admin/*` and `/import` => ADMIN only
   - `/tasks/*` => authenticated users

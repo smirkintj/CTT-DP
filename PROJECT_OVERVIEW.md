@@ -58,6 +58,10 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 - `Badge.tsx`
 - `SignatureCanvas.tsx`
 
+### Runtime Telemetry
+- Vercel Speed Insights is mounted in root layout:
+  - `/Users/putra/Desktop/CTT-DKSH-main/app/layout.tsx`
+
 ## Authentication
 ### NextAuth
 - Handler: `app/api/auth/[...nextauth]/route.ts`
