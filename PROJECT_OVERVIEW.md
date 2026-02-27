@@ -214,7 +214,7 @@ Admin audit checklist:
     - `latestStepOrder`
     - `latestCommentId`
     - `assigneeId`
-  - used by client to deep-link task detail to the relevant step.
+  - used by client to deep-link task detail to the relevant step/comment context.
 - `POST /api/inbox/mark-read`
   - marks task inbox thread read for current user.
 
@@ -273,6 +273,7 @@ Additional behavior:
 - No-op status changes are ignored.
 - Mark-as-read is stored per user via `ActivityRead`.
 - Stakeholder inbox `Open task` now opens task detail with latest unread step expanded.
+- Stakeholder inbox context now auto-scrolls and temporarily highlights the target unread comment in task detail when available.
 - Stakeholder inbox supports quick triage filters:
   - all discussions
   - my assigned tasks (admin view)

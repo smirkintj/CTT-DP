@@ -23,10 +23,10 @@ This backlog tracks improvement initiatives with:
 - `Implemented`
 
 ## Progress Snapshot
-- Overall: `17/44 Implemented` (38.6%)
+- Overall: `18/44 Implemented` (40.9%)
 - Active now: `5 In Progress`
-- Remaining: `24 Planned`
-- High-priority lane (`P0 + P1`): `14/24 Implemented`
+- Remaining: `23 Planned`
+- High-priority lane (`P0 + P1`): `15/24 Implemented`
 - Technical debt lane (`#36-#41`): `3/6 Implemented`
 
 ---
@@ -636,20 +636,20 @@ This backlog tracks improvement initiatives with:
   - Engagement depends only on manual follow-up.
   - Less visibility into proactive tester contribution across markets.
 
-## 43) User-Centred: Unread Comment Deep-Link + Highlight
+## 43) ~~User-Centred: Unread Comment Deep-Link + Highlight~~
 - Priority: `P1`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `Implemented`
+- Date implemented: `2026-02-27`
 - What this is for:
   - Remove confusion when opening discussions by taking users directly to the exact unread comment context.
-- Implementation plan:
-  - Extend inbox task-open context to include target unread comment anchor.
-  - In task detail:
-    - auto-expand correct step,
-    - auto-scroll to the target comment,
-    - show short-lived visual highlight for the target comment.
-  - Add resilient fallback to step-level focus when comment anchor is not found.
-  - Keep current auth scoping; no additional permission expansion.
+- Implementation:
+  - Extended inbox task-open context flow with target comment anchor support.
+  - Task detail now:
+    - auto-expands the correct step,
+    - auto-scrolls to the target unread comment,
+    - applies short-lived visual highlight for the target comment.
+  - Includes step-level fallback if comment anchor cannot be resolved.
+  - No auth scope expansion; existing access controls are unchanged.
 - Impact if not done:
   - Users still spend time manually searching thread history.
   - Higher risk of missed critical unresolved discussions.
@@ -905,3 +905,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-27`: Improved stakeholder UX polish: inbox opens task detail with latest unread step context, task-detail step actions now show inline save state feedback, and stakeholder dashboard filter/search preferences persist per market.
 - `2026-02-27`: Added stakeholder inbox triage filters (`All`, `My Assigned`, `Blocked/Failed`), upgraded step comment composer (multiline + `Ctrl/Cmd + Enter` + inline post states), and added dashboard loading skeletons for KPI/task cards.
 - `2026-02-27`: Added backlog items #43 (unread comment deep-link + highlight) and #44 (lightweight stakeholder onboarding tips without overlay tour), and updated progress snapshot totals.
+- `2026-02-27`: Completed #43 unread deep-link UX: task detail now auto-expands, scrolls to, and temporarily highlights the target unread comment when opened from inbox context.

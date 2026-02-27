@@ -73,6 +73,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const [view, setView] = useState<ViewState>(initialView ?? 'LOGIN');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialSelectedTaskId);
   const [selectedStepOrder, setSelectedStepOrder] = useState<number | null>(null);
+  const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
 
   // Global Lists of Values
   const [availableCountries, setAvailableCountries] = useState<CountryConfig[]>(INITIAL_COUNTRIES);
@@ -408,6 +409,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const handleTaskSelect = (task: Task) => {
     setSelectedTaskId(task.id);
     setSelectedStepOrder(null);
+    setSelectedCommentId(null);
     setView('TASK_DETAIL');
     onRouteChange?.('TASK_DETAIL', task.id);
   };
@@ -420,6 +422,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     }
     setSelectedTaskId(taskId);
     setSelectedStepOrder(null);
+    setSelectedCommentId(null);
     setView('TASK_DETAIL');
     onRouteChange?.('TASK_DETAIL', taskId);
   };
@@ -427,6 +430,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const handleOpenTaskFromInbox = (task: Task, options?: { stepOrder?: number | null; commentId?: string | null }) => {
     setSelectedTaskId(task.id);
     setSelectedStepOrder(options?.stepOrder ?? null);
+    setSelectedCommentId(options?.commentId ?? null);
     setView('TASK_DETAIL');
     onRouteChange?.('TASK_DETAIL', task.id);
     setTasks((prev) => {
@@ -475,6 +479,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     if (targetView !== 'TASK_DETAIL') {
       setSelectedTaskId(null);
       setSelectedStepOrder(null);
+      setSelectedCommentId(null);
     }
     onRouteChange?.(targetView, targetView === 'TASK_DETAIL' ? selectedTaskId : null);
   };
@@ -656,6 +661,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
           task={selectedTask} 
           currentUser={currentUser} 
           initialStepOrder={selectedStepOrder}
+          initialCommentId={selectedCommentId}
           onBack={() => handleNavigation(currentUser.role === Role.ADMIN ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}
           onUpdateTask={handleTaskUpdate}
           onDeleteTask={handleTaskDelete}

@@ -15,6 +15,7 @@ interface TaskDetailProps {
   task: Task;
   currentUser: User;
   initialStepOrder?: number | null;
+  initialCommentId?: string | null;
   onBack: () => void;
   onUpdateTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
@@ -114,7 +115,7 @@ const getJiraUrl = (raw?: string) => {
   return `https://dkshdigital.atlassian.net/browse/${ticket}`;
 };
 
-export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initialStepOrder = null, onBack, onUpdateTask, onDeleteTask }) => {
+export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initialStepOrder = null, initialCommentId = null, onBack, onUpdateTask, onDeleteTask }) => {
   const [localTask, setLocalTask] = useState<Task>(() => normalizeTask(task));
   const [expandedStep, setExpandedStep] = useState<string | null>(() => {
     const safe = normalizeTask(task);
@@ -137,6 +138,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   const [commentInputs, setCommentInputs] = useState<{[key: string]: string}>({});
   const [stepSaveState, setStepSaveState] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
   const [commentSaveState, setCommentSaveState] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
+  const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
   const [taskMetaSaveState, setTaskMetaSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [applyGlobalMetaUpdate, setApplyGlobalMetaUpdate] = useState(false);
   const [groupPreview, setGroupPreview] = useState<GroupUpdatePreview | null>(null);
@@ -147,6 +149,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   const [uploadStepId, setUploadStepId] = useState<string | null>(null);
   const [mentionUsers, setMentionUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const commentElementRefs = useRef<Record<string, HTMLDivElement | null>>({});
   
   // Signature State
   const [signatureData, setSignatureData] = useState<string | null>(null);
@@ -711,6 +714,23 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       setExpandedStep(target.id);
     }
   }, [initialStepOrder, localTask.steps]);
+
+  useEffect(() => {
+    if (!initialCommentId) return;
+    const located = (localTask.steps ?? []).find((step) => (step.comments ?? []).some((comment) => comment.id === initialCommentId));
+    if (!located?.id) return;
+
+    setExpandedStep(located.id);
+    window.setTimeout(() => {
+      const node = commentElementRefs.current[initialCommentId];
+      if (!node) return;
+      node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedCommentId(initialCommentId);
+      window.setTimeout(() => {
+        setHighlightedCommentId((current) => (current === initialCommentId ? null : current));
+      }, 4500);
+    }, 120);
+  }, [initialCommentId, localTask.steps]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -1284,7 +1304,15 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                               {(step.comments ?? []).length > 0 && (
                                  <div className="bg-slate-50 rounded-lg p-3 space-y-2 mt-2 print:bg-white print:border print:border-slate-200">
                                     {(step.comments ?? []).map(c => (
-                                      <div key={c.id} className="flex gap-2 text-xs">
+                                      <div
+                                        key={c.id}
+                                        ref={(el) => {
+                                          commentElementRefs.current[c.id] = el;
+                                        }}
+                                        className={`flex gap-2 text-xs rounded px-2 py-1 transition-colors ${
+                                          highlightedCommentId === c.id ? 'bg-amber-50 ring-1 ring-amber-200' : ''
+                                        }`}
+                                      >
                                          <span className="font-bold text-slate-800">{c.userId}</span>
                                          <span className="text-slate-600">{c.text}</span>
                                          <span className="text-slate-400 ml-auto">{formatDateTimeLocal(c.createdAt)}</span>
