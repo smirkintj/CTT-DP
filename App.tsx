@@ -696,6 +696,9 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
       {view === 'KNOWLEDGE_BASE' && (
         <KnowledgeBaseView
+          onNavigate={handleNavigation}
+          currentUserName={currentUser.name}
+          currentUserRole={currentUser.role}
           onBack={() => handleNavigation(currentUser.role === Role.ADMIN ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}
         />
       )}

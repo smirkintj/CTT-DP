@@ -239,7 +239,10 @@ Security notes:
     - step/comment save-state micro-animations
     - smooth notification toggle transitions
   - All motion respects `prefers-reduced-motion`.
-  - Dedicated `/knowledge-base` page now hosts a visual horizontal status workflow (plus exception route) and clear status definitions.
+  - Dedicated `/knowledge-base` page now hosts:
+    - centered horizontal status workflow with distinct per-status colors
+    - clear status meaning text per stage
+    - stakeholder tutorial section (pass/fail, comments, tagging) using live user/admin names from DB-backed session/data
   - Stakeholder dashboard filter/search state is persisted per market in local storage.
   - Stakeholder dashboard now includes a lightweight “Getting Started” helper card (no overlay tour), dismissible per user.
   - Step action area in task detail shows inline save feedback (`Saving step...`, `Step saved`, `Save failed`).

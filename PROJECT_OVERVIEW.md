@@ -313,7 +313,9 @@ Additional behavior:
   - inline `@mention` autocomplete suggestions in comment composer
 - In-portal Knowledge Base:
   - dedicated knowledge-base page with visual horizontal workflow timeline + exception route
-  - includes plain-language status definitions for stakeholder/admin reference
+  - includes plain-language status definitions with distinct visual status separation
+  - includes stakeholder tutorial cards (pass/fail, comment, mention tagging)
+  - tutorial labels resolve stakeholder/admin names from session + DB user list context
   - route is available to authenticated users via top navigation
 - Save-state + unsaved-change guards are implemented in:
   - `views/TaskDetail.tsx`

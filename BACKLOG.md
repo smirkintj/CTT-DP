@@ -954,3 +954,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-27`: Completed #45 in-portal knowledge base card with workflow/status definitions for both stakeholder and admin dashboards.
 - `2026-02-27`: Refined knowledge base presentation into a visual vertical workflow timeline with explicit exception route (Blocked/Failed -> In Progress).
 - `2026-02-27`: Moved knowledge base into dedicated `/knowledge-base` page and redesigned workflow visualization to horizontal flow with clearer status meaning sections.
+- `2026-02-27`: Refined `/knowledge-base` UX with centered horizontal flow spacing, stronger per-status color distinction, and stakeholder tutorial cards using live stakeholder/admin names.
