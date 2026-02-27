@@ -47,6 +47,7 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 
 ### Views (`views/`)
 - `StakeholderDashboard.tsx`
+  - includes stakeholder-only first-time guided tour with local dismiss/replay controls
 - `AdminDashboard.tsx`
 - `AdminTaskManagement.tsx`
 - `AdminDatabase.tsx`
