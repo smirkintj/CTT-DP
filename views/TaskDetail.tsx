@@ -136,6 +136,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   const [releaseVersion, setReleaseVersion] = useState('');
   const [commentInputs, setCommentInputs] = useState<{[key: string]: string}>({});
   const [stepSaveState, setStepSaveState] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
+  const [commentSaveState, setCommentSaveState] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
   const [taskMetaSaveState, setTaskMetaSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [applyGlobalMetaUpdate, setApplyGlobalMetaUpdate] = useState(false);
   const [groupPreview, setGroupPreview] = useState<GroupUpdatePreview | null>(null);
@@ -277,6 +278,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     if (!canRunTestActions) return;
     const text = commentInputs[stepId];
     if (!text || !text.trim()) return;
+    setCommentSaveState((prev) => ({ ...prev, [stepId]: 'saving' }));
     const stepOrder = (localTask.steps ?? []).find((step) => step.id === stepId)?.order;
     const response = await fetch(`/api/tasks/${localTask.id}/comments`, {
       method: 'POST',
@@ -284,13 +286,24 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       body: JSON.stringify({ body: text, stepOrder, expectedUpdatedAt: localTask.updatedAt })
     });
 
+    if (response.status === 409) {
+      notify('Task changed by another user. Reloaded latest data.', 'error');
+      await refreshTask(localTask.id);
+      setCommentSaveState((prev) => ({ ...prev, [stepId]: 'error' }));
+      return;
+    }
     if (!response.ok) {
       notify('Failed to add comment', 'error');
+      setCommentSaveState((prev) => ({ ...prev, [stepId]: 'error' }));
       return;
     }
 
     await refreshTask(localTask.id);
     setCommentInputs({ ...commentInputs, [stepId]: '' });
+    setCommentSaveState((prev) => ({ ...prev, [stepId]: 'saved' }));
+    window.setTimeout(() => {
+      setCommentSaveState((prev) => ({ ...prev, [stepId]: 'idle' }));
+    }, 1200);
     notify('Comment added', 'success');
   };
 
@@ -1248,6 +1261,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                                       {stepSaveState[step.id] === 'error' && <span className="text-rose-600">Save failed</span>}
                                     </div>
                                     <div className="flex gap-2">
+                                      <span className="text-[11px] self-center px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-medium">
+                                        {step.isPassed === true ? 'Current: PASS' : step.isPassed === false ? 'Current: FAIL' : 'Current: Not set'}
+                                      </span>
                                       <button 
                                         onClick={(e) => { e.stopPropagation(); handleStepUpdate(step.id, { isPassed: false }); }}
                                         className={`px-4 py-2 rounded-lg text-xs font-bold border transition-colors flex items-center gap-2 ${step.isPassed === false ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-rose-600 border-rose-200 hover:bg-rose-50'}`}
@@ -1278,19 +1294,38 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                               )}
                               
                               {canRunTestActions && (
-                                 <div className="flex gap-2 mt-2 print:hidden">
-                                      <input 
-                                      type="text" 
-                                      className="flex-1 text-xs border-slate-200 rounded px-3 py-2 focus:ring-brand-500 focus:border-brand-500"
-                                      placeholder="Add a comment... (use @Name to tag)"
+                                 <div className="mt-2 print:hidden space-y-2">
+                                      <textarea
+                                      className="w-full text-xs border-slate-200 rounded-lg px-3 py-2.5 focus:ring-brand-500 focus:border-brand-500 resize-y min-h-[74px]"
+                                      placeholder="Add a comment... (use @Name to tag, Ctrl/Cmd + Enter to send)"
                                       value={commentInputs[step.id] || ''}
                                       onChange={(e) => setCommentInputs({...commentInputs, [step.id]: e.target.value})}
-                                      onKeyDown={(e) => e.key === 'Enter' && handleAddComment(step.id)}
-                                      list="mention-users"
+                                      onKeyDown={(e) => {
+                                        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                                          e.preventDefault();
+                                          void handleAddComment(step.id);
+                                        }
+                                      }}
                                     />
-                                    <button onClick={() => handleAddComment(step.id)} className="text-slate-400 hover:text-brand-600 p-2" aria-label={`Send comment for Step ${idx + 1}`}>
-                                      <Send size={14} />
-                                    </button>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[11px] text-slate-500">
+                                        {(commentInputs[step.id] || '').trim().length} characters
+                                      </span>
+                                      <div className="flex items-center gap-3">
+                                        {commentSaveState[step.id] === 'saving' && <span className="text-[11px] text-slate-500">Posting comment...</span>}
+                                        {commentSaveState[step.id] === 'saved' && <span className="text-[11px] text-emerald-600">Comment posted</span>}
+                                        {commentSaveState[step.id] === 'error' && <span className="text-[11px] text-rose-600">Comment failed</span>}
+                                        <button
+                                          onClick={() => void handleAddComment(step.id)}
+                                          disabled={commentSaveState[step.id] === 'saving' || !(commentInputs[step.id] || '').trim()}
+                                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-slate-900 text-white text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800"
+                                          aria-label={`Send comment for Step ${idx + 1}`}
+                                        >
+                                          <Send size={12} />
+                                          Send
+                                        </button>
+                                      </div>
+                                    </div>
                                  </div>
                               )}
                           </div>

@@ -213,6 +213,7 @@ Admin audit checklist:
   - grouped unread-comment threads now include latest context fields:
     - `latestStepOrder`
     - `latestCommentId`
+    - `assigneeId`
   - used by client to deep-link task detail to the relevant step.
 - `POST /api/inbox/mark-read`
   - marks task inbox thread read for current user.
@@ -272,7 +273,13 @@ Additional behavior:
 - No-op status changes are ignored.
 - Mark-as-read is stored per user via `ActivityRead`.
 - Stakeholder inbox `Open task` now opens task detail with latest unread step expanded.
+- Stakeholder inbox supports quick triage filters:
+  - all discussions
+  - my assigned tasks (admin view)
+  - blocked/failed discussions
 - Stakeholder dashboard persists filter/search state per market in local storage.
+- Stakeholder dashboard now renders loading skeletons for KPI cards and task cards during initial fetch.
+- Step comment UX now supports multiline drafts, keyboard submit (`Ctrl/Cmd + Enter`), and inline posting feedback.
 - Save-state + unsaved-change guards are implemented in:
   - `views/TaskDetail.tsx`
   - `views/AdminTaskManagement.tsx` (create modal)

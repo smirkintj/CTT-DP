@@ -675,6 +675,8 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       {view === 'INBOX' && (
         <InboxView
           onOpenTask={handleOpenTaskFromInbox}
+          currentUserId={currentUser.id}
+          isAdmin={currentUser.role === Role.ADMIN}
           onBack={() => handleNavigation(currentUser.role === Role.ADMIN ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}
         />
       )}

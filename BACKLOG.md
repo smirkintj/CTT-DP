@@ -867,3 +867,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-26`: Advanced #25 with phase-1 multi-market global metadata update (shared `taskGroupId`, group preview API, signed-off skip handling, and admin save summary).
 - `2026-02-26`: Extended #25 UX with selected-row global edit modal in task table and richer task-detail global preview (market list + editable-state guard).
 - `2026-02-27`: Improved stakeholder UX polish: inbox opens task detail with latest unread step context, task-detail step actions now show inline save state feedback, and stakeholder dashboard filter/search preferences persist per market.
+- `2026-02-27`: Added stakeholder inbox triage filters (`All`, `My Assigned`, `Blocked/Failed`), upgraded step comment composer (multiline + `Ctrl/Cmd + Enter` + inline post states), and added dashboard loading skeletons for KPI/task cards.

@@ -9,6 +9,7 @@ interface InboxItem {
   taskTitle: string;
   countryCode: string;
   status: string;
+  assigneeId: string | null;
   unreadCount: number;
   latestMessage: string;
   latestAt: string;
@@ -19,6 +20,8 @@ interface InboxItem {
 interface InboxViewProps {
   onOpenTask: (task: Task, options?: { stepOrder?: number | null; commentId?: string | null }) => void;
   onBack: () => void;
+  currentUserId: string;
+  isAdmin: boolean;
 }
 
 const formatTimeAgo = (isoDate: string) => {
@@ -34,9 +37,15 @@ const formatTimeAgo = (isoDate: string) => {
   return `${days} day${days > 1 ? 's' : ''} ago`;
 };
 
-export const InboxView: React.FC<InboxViewProps> = ({ onOpenTask, onBack }) => {
+export const InboxView: React.FC<InboxViewProps> = ({ onOpenTask, onBack, currentUserId, isAdmin }) => {
   const [items, setItems] = useState<InboxItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<'ALL' | 'MINE' | 'NEEDS_ATTENTION'>('ALL');
+  const filters: Array<{ key: 'ALL' | 'MINE' | 'NEEDS_ATTENTION'; label: string }> = [
+    { key: 'ALL', label: 'All Discussions' },
+    ...(isAdmin ? [{ key: 'MINE' as const, label: 'My Assigned Tasks' }] : []),
+    { key: 'NEEDS_ATTENTION', label: 'Blocked / Failed' }
+  ];
 
   const loadInbox = async () => {
     setLoading(true);
@@ -86,6 +95,17 @@ export const InboxView: React.FC<InboxViewProps> = ({ onOpenTask, onBack }) => {
     });
   };
 
+  const filteredItems = items.filter((item) => {
+    if (activeFilter === 'MINE') {
+      return item.assigneeId === currentUserId;
+    }
+    if (activeFilter === 'NEEDS_ATTENTION') {
+      const key = item.status.toString().trim().replace(/\s+/g, '_').toUpperCase();
+      return key === 'FAILED' || key === 'BLOCKED';
+    }
+    return true;
+  });
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-end">
@@ -107,13 +127,30 @@ export const InboxView: React.FC<InboxViewProps> = ({ onOpenTask, onBack }) => {
         </button>
       </div>
 
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-2 flex flex-wrap gap-2">
+        {filters.map((filter) => (
+          <button
+            key={filter.key}
+            type="button"
+            onClick={() => setActiveFilter(filter.key)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              activeFilter === filter.key
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
         {loading ? (
           <div className="p-6 text-sm text-slate-400">Loading inbox...</div>
-        ) : items.length === 0 ? (
+        ) : filteredItems.length === 0 ? (
           <div className="p-6 text-sm text-slate-400">No unread discussions.</div>
         ) : (
-          items.map((item) => (
+          filteredItems.map((item) => (
             <button
               key={item.taskId}
               onClick={() => void openTask(item)}

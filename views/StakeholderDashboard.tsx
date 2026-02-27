@@ -74,6 +74,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
 
   // Identify blocked tasks for alert
   const blockedTasks = myTasks.filter(t => t.status === Status.BLOCKED);
+  const showSkeletons = loading && myTasks.length === 0;
 
   useEffect(() => {
     const key = `stakeholder-dashboard-ui:${currentUserCountry}`;
@@ -190,6 +191,18 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {showSkeletons ? (
+              <>
+                {[1, 2, 3].map((index) => (
+                  <div key={index} className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm animate-pulse">
+                    <div className="h-3 w-20 bg-slate-200 rounded mb-3" />
+                    <div className="h-7 w-24 bg-slate-200 rounded mb-3" />
+                    <div className="h-2 w-full bg-slate-100 rounded" />
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
             {/* Progress Card */}
             <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
                 <div className="flex justify-between items-start mb-2">
@@ -234,6 +247,8 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                     </button>
                 </div>
             </div>
+              </>
+            )}
           </div>
 
           {/* Main Task List */}
@@ -268,10 +283,18 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
 
             {/* Grid View */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {loading && filteredTasks.length === 0 ? (
-                <div className="col-span-full text-center py-20 bg-white rounded-xl border border-slate-200">
-                  <p className="text-slate-400">Loading tasks...</p>
-                </div>
+              {showSkeletons ? (
+                <>
+                  {[1, 2, 3, 4].map((index) => (
+                    <div key={index} className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm animate-pulse">
+                      <div className="h-4 w-24 bg-slate-200 rounded mb-3" />
+                      <div className="h-6 w-2/3 bg-slate-200 rounded mb-2" />
+                      <div className="h-4 w-full bg-slate-100 rounded mb-1" />
+                      <div className="h-4 w-3/4 bg-slate-100 rounded mb-6" />
+                      <div className="h-8 w-full bg-slate-100 rounded" />
+                    </div>
+                  ))}
+                </>
               ) : filteredTasks.length === 0 ? (
                 <div className="col-span-full text-center py-20 bg-white rounded-xl border border-dashed border-slate-200">
                   <p className="text-slate-400">No tasks found matching your filters.</p>

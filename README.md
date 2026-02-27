@@ -220,8 +220,11 @@ Security notes:
 - Auth/session hydration now shows a neutral loading state to prevent brief login-page flicker on refresh.
 - Stakeholder UX updates:
   - Inbox `Open task` now deep-links task detail to the latest unread step context.
+  - Inbox supports quick triage filters (`All Discussions`, `My Assigned Tasks` for admin, `Blocked / Failed`).
   - Stakeholder dashboard filter/search state is persisted per market in local storage.
   - Step action area in task detail shows inline save feedback (`Saving step...`, `Step saved`, `Save failed`).
+  - Step comments now support multiline input, keyboard submit (`Ctrl/Cmd + Enter`), and inline post-state feedback.
+  - Stakeholder dashboard uses loading skeletons for KPI cards/task cards to reduce perceived loading delay.
 - Form styling is being consolidated with shared Apple-style utility classes:
   - `/Users/putra/Desktop/CTT-DKSH-main/components/ui/formClasses.ts`
 - Inline validation is now enforced in key task create/edit flows (client + server).

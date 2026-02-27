@@ -36,7 +36,8 @@ export async function GET() {
           id: true,
           title: true,
           countryCode: true,
-          status: true
+          status: true,
+          assigneeId: true
         }
       },
       author: {
@@ -59,6 +60,7 @@ export async function GET() {
       taskTitle: string;
       countryCode: string;
       status: string;
+      assigneeId: string | null;
       unreadCount: number;
       latestMessage: string;
       latestAt: string;
@@ -81,6 +83,7 @@ export async function GET() {
         taskTitle: comment.task.title,
         countryCode: comment.task.countryCode,
         status: comment.task.status,
+        assigneeId: comment.task.assigneeId,
         unreadCount: 1,
         latestMessage: preview,
         latestAt: comment.createdAt.toISOString(),
