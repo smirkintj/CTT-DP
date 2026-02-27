@@ -238,7 +238,7 @@ Security notes:
     - step/comment save-state micro-animations
     - smooth notification toggle transitions
   - All motion respects `prefers-reduced-motion`.
-  - In-portal Knowledge Base card now explains task status workflow and definitions in both stakeholder and admin dashboards.
+  - In-portal Knowledge Base card now explains task status workflow as a visual vertical timeline (plus exception route) in stakeholder and admin dashboards.
   - Stakeholder dashboard filter/search state is persisted per market in local storage.
   - Stakeholder dashboard now includes a lightweight “Getting Started” helper card (no overlay tour), dismissible per user.
   - Step action area in task detail shows inline save feedback (`Saving step...`, `Step saved`, `Save failed`).

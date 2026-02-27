@@ -311,7 +311,7 @@ Additional behavior:
   - quick action to mark current task discussions/comments as read
   - inline `@mention` autocomplete suggestions in comment composer
 - In-portal Knowledge Base:
-  - reusable knowledge-base card (workflow + status definitions)
+  - reusable knowledge-base card (visual vertical workflow timeline + status definitions)
   - rendered in both stakeholder and admin dashboards
 - Save-state + unsaved-change guards are implemented in:
   - `views/TaskDetail.tsx`

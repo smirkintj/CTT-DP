@@ -954,3 +954,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-27`: Completed #22 comment composer improvements with inline `@mention` autocomplete and stronger in-task discussion feedback.
 - `2026-02-27`: Added task-detail quick action to mark all discussion comments for current task as read.
 - `2026-02-27`: Completed #45 in-portal knowledge base card with workflow/status definitions for both stakeholder and admin dashboards.
+- `2026-02-27`: Refined knowledge base presentation into a visual vertical workflow timeline with explicit exception route (Blocked/Failed -> In Progress).

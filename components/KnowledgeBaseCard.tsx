@@ -3,30 +3,22 @@
 import React from 'react';
 
 export const KnowledgeBaseCard: React.FC = () => {
-  const statusDefinitions = [
+  const mainFlow = [
     {
       key: 'Draft',
-      value: 'Visible to stakeholder, but testing actions are locked until admin marks it READY.'
+      value: 'Visible to stakeholder, but testing actions are locked until admin marks READY.'
     },
     {
       key: 'Ready',
-      value: 'Task is prepared by admin and ready for stakeholder execution.'
+      value: 'Admin finalized details and released task for execution.'
     },
     {
       key: 'In Progress',
-      value: 'At least one test step is being executed or updated by stakeholder.'
-    },
-    {
-      key: 'Blocked',
-      value: 'Testing cannot proceed due to dependency or issue requiring intervention.'
-    },
-    {
-      key: 'Failed',
-      value: 'One or more steps failed and require correction/retest.'
+      value: 'Stakeholder is running steps, adding evidence, and updating results.'
     },
     {
       key: 'Passed',
-      value: 'All required steps are passing, pending final sign-off if not yet signed.'
+      value: 'All steps are passing and task is signed off.'
     },
     {
       key: 'Deployed',
@@ -37,35 +29,43 @@ export const KnowledgeBaseCard: React.FC = () => {
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 animate-card-enter">
       <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-2">Knowledge Base</h3>
-      <p className="text-xs text-slate-500 mb-4">Status workflow and what each status means.</p>
+      <p className="text-xs text-slate-500 mb-4">End-to-end status flow and exception path.</p>
 
-      <details className="group rounded-lg border border-slate-200 p-3">
-        <summary className="cursor-pointer list-none text-sm font-semibold text-slate-800 flex items-center justify-between">
-          Workflow
-          <span className="text-slate-400 group-open:rotate-180 transition-transform">⌄</span>
-        </summary>
-        <p className="text-xs text-slate-600 mt-3">
-          Draft → Ready → In Progress → Passed → Deployed
-        </p>
-        <p className="text-xs text-slate-500 mt-1">
-          Exception path: In Progress/Ready → Blocked or Failed, then return to In Progress after fix.
-        </p>
-      </details>
-
-      <details className="group rounded-lg border border-slate-200 p-3 mt-3">
-        <summary className="cursor-pointer list-none text-sm font-semibold text-slate-800 flex items-center justify-between">
-          Status Definitions
-          <span className="text-slate-400 group-open:rotate-180 transition-transform">⌄</span>
-        </summary>
-        <div className="mt-3 space-y-2">
-          {statusDefinitions.map((item) => (
-            <div key={item.key} className="text-xs">
-              <p className="font-semibold text-slate-700">{item.key}</p>
-              <p className="text-slate-600">{item.value}</p>
-            </div>
-          ))}
+      <div className="rounded-lg border border-slate-200 p-4">
+        <div className="relative">
+          <div className="absolute left-[11px] top-2 bottom-2 w-px bg-slate-200" />
+          <div className="space-y-4">
+            {mainFlow.map((item, index) => (
+              <div key={item.key} className="relative flex items-start gap-3">
+                <div
+                  className={`z-10 mt-0.5 h-5 w-5 rounded-full border flex items-center justify-center text-[10px] font-semibold ${
+                    index < 2
+                      ? 'bg-slate-900 border-slate-900 text-white'
+                      : index === 2
+                        ? 'bg-blue-600 border-blue-600 text-white'
+                        : 'bg-emerald-600 border-emerald-600 text-white'
+                  }`}
+                >
+                  {index + 1}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-800">{item.key}</p>
+                  <p className="text-xs text-slate-600">{item.value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </details>
+      </div>
+
+      <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <p className="text-xs font-semibold text-amber-800">Exception Route</p>
+        <p className="text-xs text-amber-700 mt-1">
+          From <span className="font-medium">Ready</span> or <span className="font-medium">In Progress</span>, task can move to
+          <span className="font-medium"> Blocked</span> or <span className="font-medium">Failed</span>. After fix, move back to
+          <span className="font-medium"> In Progress</span>.
+        </p>
+      </div>
     </div>
   );
 };
