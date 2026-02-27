@@ -225,6 +225,7 @@ Security notes:
 - Stakeholder UX updates:
   - Inbox `Open task` now deep-links task detail to the latest unread step/comment context.
   - Task detail auto-scrolls and temporarily highlights the target unread comment from inbox context.
+  - Task detail comment drafts are auto-saved per user/task in local storage and restored after refresh/navigation.
   - Inbox supports quick triage filters (`All Discussions`, `My Assigned Tasks` for admin, `Blocked / Failed`).
   - Stakeholder dashboard filter/search state is persisted per market in local storage.
   - Stakeholder dashboard now includes a lightweight “Getting Started” helper card (no overlay tour), dismissible per user.

@@ -297,6 +297,7 @@ Additional behavior:
   - sign-off email
 - Stakeholder dashboard now renders loading skeletons for KPI cards and task cards during initial fetch.
 - Step comment UX now supports multiline drafts, keyboard submit (`Ctrl/Cmd + Enter`), and inline posting feedback.
+- Step comment drafts are persisted per user/task in local storage and restored on revisit.
 - Save-state + unsaved-change guards are implemented in:
   - `views/TaskDetail.tsx`
   - `views/AdminTaskManagement.tsx` (create modal)

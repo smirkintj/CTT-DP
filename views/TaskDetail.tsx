@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Task, Status, User, Role, TestStep, Priority } from '../types';
 import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
@@ -150,6 +150,10 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   const [mentionUsers, setMentionUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentElementRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const commentDraftStorageKey = useMemo(
+    () => `task-comment-drafts:${currentUser.id}:${task.id}`,
+    [currentUser.id, task.id]
+  );
   
   // Signature State
   const [signatureData, setSignatureData] = useState<string | null>(null);
@@ -302,7 +306,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     }
 
     await refreshTask(localTask.id);
-    setCommentInputs({ ...commentInputs, [stepId]: '' });
+    setCommentInputs((prev) => ({ ...prev, [stepId]: '' }));
     setCommentSaveState((prev) => ({ ...prev, [stepId]: 'saved' }));
     window.setTimeout(() => {
       setCommentSaveState((prev) => ({ ...prev, [stepId]: 'idle' }));
@@ -706,6 +710,31 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       setHistoryItems([]);
     }
   }, [task.id, isAdmin]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(commentDraftStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      if (!parsed || typeof parsed !== 'object') return;
+      setCommentInputs(parsed);
+    } catch {
+      setCommentInputs({});
+    }
+  }, [commentDraftStorageKey]);
+
+  useEffect(() => {
+    try {
+      const entries = Object.entries(commentInputs).filter(([, value]) => (value ?? '').trim().length > 0);
+      if (entries.length === 0) {
+        window.localStorage.removeItem(commentDraftStorageKey);
+        return;
+      }
+      window.localStorage.setItem(commentDraftStorageKey, JSON.stringify(Object.fromEntries(entries)));
+    } catch {
+      // ignore storage errors
+    }
+  }, [commentDraftStorageKey, commentInputs]);
 
   useEffect(() => {
     if (!initialStepOrder) return;

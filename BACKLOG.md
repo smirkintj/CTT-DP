@@ -920,3 +920,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-27`: Completed #43 unread deep-link UX: task detail now auto-expands, scrolls to, and temporarily highlights the target unread comment when opened from inbox context.
 - `2026-02-27`: Completed #44 lightweight stakeholder onboarding helper card (dashboard inline, no overlay), including per-user dismiss persistence.
 - `2026-02-27`: Completed #23 notification preferences with DB-backed user toggles, self-service preference API, stakeholder settings UI, and preference-aware notification/inbox behavior.
+- `2026-02-27`: Advanced comment UX with per-user/task local draft autosave and restore for task-detail comment composer.
