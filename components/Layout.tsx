@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Role } from '../types';
-import { LogOut, LayoutGrid, UploadCloud, Bell, MessageSquare, AlertCircle, Check, Info, List, Database } from 'lucide-react';
+import { LogOut, LayoutGrid, UploadCloud, Bell, MessageSquare, AlertCircle, Check, Info, List, Database, BookOpen } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -114,14 +114,28 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
 
               {/* Main Nav */}
               <nav className="hidden md:flex gap-1 ml-4 items-center">
+                <NavItem
+                  active={currentView === (isAdmin ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}
+                  icon={<LayoutGrid size={16} />}
+                  label="Dashboard"
+                  onClick={() => onNavigate(isAdmin ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}
+                />
+                {!isAdmin && (
+                  <NavItem
+                    active={currentView === 'INBOX'}
+                    icon={<MessageSquare size={16} />}
+                    label="Inbox"
+                    onClick={() => onNavigate('INBOX')}
+                  />
+                )}
+                <NavItem
+                  active={currentView === 'KNOWLEDGE_BASE'}
+                  icon={<BookOpen size={16} />}
+                  label="Knowledge Base"
+                  onClick={() => onNavigate('KNOWLEDGE_BASE')}
+                />
                 {isAdmin ? (
                   <>
-                    <NavItem 
-                      active={currentView === 'DASHBOARD_ADMIN'} 
-                      icon={<LayoutGrid size={16} />} 
-                      label="Dashboard" 
-                      onClick={() => onNavigate('DASHBOARD_ADMIN')} 
-                    />
                     <NavItem 
                       active={currentView === 'ADMIN_TASK_MANAGEMENT'} 
                       icon={<List size={16} />} 

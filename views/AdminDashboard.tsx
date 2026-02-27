@@ -2,7 +2,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Task, User, Role } from '../types';
 import { Badge } from '../components/Badge';
-import { KnowledgeBaseCard } from '../components/KnowledgeBaseCard';
 import { AlertTriangle, TrendingUp, Clock, MessageSquare, ArrowRight, XCircle } from 'lucide-react';
 import { notify } from '../lib/notify';
 
@@ -376,7 +375,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                  )}
               </div>
            </div>
-           <KnowledgeBaseCard />
         </div>
 
       </div>

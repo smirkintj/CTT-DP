@@ -11,6 +11,7 @@ import { AdminDatabase } from './views/AdminDatabase';
 import { TaskDetail } from './views/TaskDetail';
 import { ImportWizard } from './views/ImportWizard';
 import { InboxView } from './views/InboxView';
+import { KnowledgeBaseView } from './views/KnowledgeBaseView';
 import { User, Task, Role, ViewState, CountryConfig } from './types';
 import { INITIAL_COUNTRIES, INITIAL_MODULES } from './constants';
 import { apiFetch } from './lib/http';
@@ -689,6 +690,12 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
           onOpenTask={handleOpenTaskFromInbox}
           currentUserId={currentUser.id}
           isAdmin={currentUser.role === Role.ADMIN}
+          onBack={() => handleNavigation(currentUser.role === Role.ADMIN ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}
+        />
+      )}
+
+      {view === 'KNOWLEDGE_BASE' && (
+        <KnowledgeBaseView
           onBack={() => handleNavigation(currentUser.role === Role.ADMIN ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}
         />
       )}

@@ -700,14 +700,12 @@ This backlog tracks improvement initiatives with:
 - What this is for:
   - Give users and admin a quick in-app reference for task lifecycle definitions without external documents.
 - Implementation:
-  - Added reusable `KnowledgeBaseCard` component with:
-    - workflow path (`Draft -> Ready -> In Progress -> Passed -> Deployed`)
-    - exception path (`Blocked/Failed` handling)
-    - plain-language status definitions.
-  - Embedded card in:
-    - stakeholder dashboard
-    - admin dashboard
-  - Uses compact accordion sections to keep layout clean.
+  - Added dedicated knowledge base page (`/knowledge-base`) for authenticated users.
+  - Added visual horizontal workflow presentation:
+    - `Draft -> Ready -> In Progress -> Passed -> Deployed`
+  - Added exception route explanation:
+    - `Ready/In Progress -> Blocked/Failed -> In Progress`
+  - Added plain-language status definitions in a dedicated knowledge section.
 - Impact if not done:
   - Users rely on tribal knowledge for status meaning.
   - Slower onboarding and inconsistent status interpretation.
@@ -955,3 +953,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-27`: Added task-detail quick action to mark all discussion comments for current task as read.
 - `2026-02-27`: Completed #45 in-portal knowledge base card with workflow/status definitions for both stakeholder and admin dashboards.
 - `2026-02-27`: Refined knowledge base presentation into a visual vertical workflow timeline with explicit exception route (Blocked/Failed -> In Progress).
+- `2026-02-27`: Moved knowledge base into dedicated `/knowledge-base` page and redesigned workflow visualization to horizontal flow with clearer status meaning sections.

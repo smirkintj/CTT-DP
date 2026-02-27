@@ -36,6 +36,7 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 - `/admin/database` → Admin database view
 - `/import` → Import wizard
 - `/tasks/[id]` → Task detail route
+- `/knowledge-base` → Shared knowledge base route (authenticated)
 
 ## Core UI Components
 ### Main App Shell
@@ -311,8 +312,9 @@ Additional behavior:
   - quick action to mark current task discussions/comments as read
   - inline `@mention` autocomplete suggestions in comment composer
 - In-portal Knowledge Base:
-  - reusable knowledge-base card (visual vertical workflow timeline + status definitions)
-  - rendered in both stakeholder and admin dashboards
+  - dedicated knowledge-base page with visual horizontal workflow timeline + exception route
+  - includes plain-language status definitions for stakeholder/admin reference
+  - route is available to authenticated users via top navigation
 - Save-state + unsaved-change guards are implemented in:
   - `views/TaskDetail.tsx`
   - `views/AdminTaskManagement.tsx` (create modal)

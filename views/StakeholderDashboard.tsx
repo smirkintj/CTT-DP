@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import { Task, Status } from '../types';
 import { Badge } from '../components/Badge';
-import { KnowledgeBaseCard } from '../components/KnowledgeBaseCard';
 import { Search, ArrowRight, MessageSquare, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { notify } from '../lib/notify';
 
@@ -368,9 +367,6 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
           <div className="lg:hidden">
             {notificationPreferenceCard}
           </div>
-          <div className="lg:hidden">
-            <KnowledgeBaseCard />
-          </div>
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -567,7 +563,6 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
         {/* Right Column: Activity Feed (Desktop) */}
         <div className="hidden lg:block space-y-6">
           {notificationPreferenceCard}
-          <KnowledgeBaseCard />
 
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 sticky top-24">
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4">Recent Activity</h3>
