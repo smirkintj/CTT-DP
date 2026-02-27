@@ -23,9 +23,9 @@ This backlog tracks improvement initiatives with:
 - `Implemented`
 
 ## Progress Snapshot
-- Overall: `18/44 Implemented` (40.9%)
+- Overall: `19/44 Implemented` (43.2%)
 - Active now: `5 In Progress`
-- Remaining: `23 Planned`
+- Remaining: `22 Planned`
 - High-priority lane (`P0 + P1`): `15/24 Implemented`
 - Technical debt lane (`#36-#41`): `3/6 Implemented`
 
@@ -654,20 +654,20 @@ This backlog tracks improvement initiatives with:
   - Users still spend time manually searching thread history.
   - Higher risk of missed critical unresolved discussions.
 
-## 44) User-Centred: Lightweight Stakeholder Onboarding Tips (No Overlay Tour)
+## 44) ~~User-Centred: Lightweight Stakeholder Onboarding Tips (No Overlay Tour)~~
 - Priority: `P2`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `Implemented`
+- Date implemented: `2026-02-27`
 - What this is for:
   - Help first-time stakeholders adopt the flow quickly without reintroducing heavyweight guided-tour overlays.
-- Implementation plan:
-  - Add a compact inline “Getting started” card on stakeholder dashboard only.
-  - Cover only 3 actions:
+- Implementation:
+  - Added compact inline “Getting started” card on stakeholder dashboard only.
+  - Covers 3 actions:
     - open task,
-    - run steps and update PASS/FAIL with comments/evidence,
+    - update PASS/FAIL with comments/evidence,
     - sign off.
-  - Add dismiss and “don’t show again” persistence per user.
-  - Design guardrail: no spotlight box/highlight overlay layer.
+  - Added dismiss with “Don’t show again” persistence per user.
+  - Guardrail honored: no spotlight/overlay tour layer.
 - Impact if not done:
   - New-market onboarding remains manual and slower.
   - Support load stays higher during rollout windows.
@@ -906,3 +906,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-27`: Added stakeholder inbox triage filters (`All`, `My Assigned`, `Blocked/Failed`), upgraded step comment composer (multiline + `Ctrl/Cmd + Enter` + inline post states), and added dashboard loading skeletons for KPI/task cards.
 - `2026-02-27`: Added backlog items #43 (unread comment deep-link + highlight) and #44 (lightweight stakeholder onboarding tips without overlay tour), and updated progress snapshot totals.
 - `2026-02-27`: Completed #43 unread deep-link UX: task detail now auto-expands, scrolls to, and temporarily highlights the target unread comment when opened from inbox context.
+- `2026-02-27`: Completed #44 lightweight stakeholder onboarding helper card (dashboard inline, no overlay), including per-user dismiss persistence.

@@ -619,6 +619,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
           onSelectTask={handleTaskSelect}
           currentUserCountry={currentUser.countryCode}
           currentUserName={currentUser.name}
+          currentUserId={currentUser.id}
           onOpenInbox={() => handleNavigation('INBOX')}
         />
       )}

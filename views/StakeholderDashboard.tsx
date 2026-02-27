@@ -10,6 +10,7 @@ interface StakeholderDashboardProps {
   onSelectTask: (task: Task) => void;
   currentUserCountry: string;
   currentUserName: string;
+  currentUserId: string;
   onOpenInbox: () => void;
 }
 
@@ -29,12 +30,13 @@ const getStatusLabel = (statusKey: string) => {
   return labels[statusKey] ?? statusKey;
 };
 
-export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ tasks, loading, onSelectTask, currentUserCountry, currentUserName, onOpenInbox }) => {
+export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ tasks, loading, onSelectTask, currentUserCountry, currentUserName, currentUserId, onOpenInbox }) => {
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [activityFeed, setActivityFeed] = useState<Array<{ id: string; type: string; message: string; createdAt: string }>>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [unreadComments, setUnreadComments] = useState(0);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   
   const myTasks = tasks.filter(t => t.countryCode === currentUserCountry);
   const statusFilteredTasks = filterStatus === 'ALL'
@@ -97,6 +99,26 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
       // ignore storage write errors
     }
   }, [currentUserCountry, filterStatus, searchTerm]);
+
+  useEffect(() => {
+    const key = `stakeholder-onboarding-dismissed:${currentUserId}`;
+    try {
+      const dismissed = window.localStorage.getItem(key) === '1';
+      setShowOnboarding(!dismissed);
+    } catch {
+      setShowOnboarding(true);
+    }
+  }, [currentUserId]);
+
+  const dismissOnboarding = () => {
+    const key = `stakeholder-onboarding-dismissed:${currentUserId}`;
+    try {
+      window.localStorage.setItem(key, '1');
+    } catch {
+      // ignore storage errors
+    }
+    setShowOnboarding(false);
+  };
 
   useEffect(() => {
     const loadActivities = async () => {
@@ -188,6 +210,59 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
             <h1 className="text-2xl font-bold text-slate-900">Hello, {currentUserName || 'User'}</h1>
             <p className="text-slate-500 mt-1">Here is the testing progress for {currentUserCountry}.</p>
           </div>
+
+          {showOnboarding && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Getting Started</h2>
+                  <p className="text-sm text-slate-500 mt-1">Complete these 3 steps to finish your UAT flow.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={dismissOnboarding}
+                  className="text-xs px-3 py-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
+                >
+                  Don&apos;t show again
+                </button>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold text-slate-700">1. Open a task</p>
+                  <p className="text-xs text-slate-500 mt-1">Choose an assigned task and review test steps.</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold text-slate-700">2. Update steps</p>
+                  <p className="text-xs text-slate-500 mt-1">Mark PASS/FAIL and add comments or evidence.</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold text-slate-700">3. Sign off</p>
+                  <p className="text-xs text-slate-500 mt-1">After completion, submit signature to close task.</p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (myTasks[0]) onSelectTask(myTasks[0]);
+                  }}
+                  disabled={!myTasks[0]}
+                  className="px-3 py-1.5 rounded-md bg-slate-900 text-white text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800"
+                >
+                  Open My First Task
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenInbox}
+                  className="px-3 py-1.5 rounded-md border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-50"
+                >
+                  Open Discussions
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

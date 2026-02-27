@@ -279,6 +279,10 @@ Additional behavior:
   - my assigned tasks (admin view)
   - blocked/failed discussions
 - Stakeholder dashboard persists filter/search state per market in local storage.
+- Stakeholder dashboard includes a lightweight onboarding helper card:
+  - 3-step guidance (open task, update steps, sign off)
+  - no spotlight/overlay layer
+  - dismiss persistence per user (`localStorage`)
 - Stakeholder dashboard now renders loading skeletons for KPI cards and task cards during initial fetch.
 - Step comment UX now supports multiline drafts, keyboard submit (`Ctrl/Cmd + Enter`), and inline posting feedback.
 - Save-state + unsaved-change guards are implemented in:

@@ -223,6 +223,7 @@ Security notes:
   - Task detail auto-scrolls and temporarily highlights the target unread comment from inbox context.
   - Inbox supports quick triage filters (`All Discussions`, `My Assigned Tasks` for admin, `Blocked / Failed`).
   - Stakeholder dashboard filter/search state is persisted per market in local storage.
+  - Stakeholder dashboard now includes a lightweight “Getting Started” helper card (no overlay tour), dismissible per user.
   - Step action area in task detail shows inline save feedback (`Saving step...`, `Step saved`, `Save failed`).
   - Step comments now support multiline input, keyboard submit (`Ctrl/Cmd + Enter`), and inline post-state feedback.
   - Stakeholder dashboard uses loading skeletons for KPI cards/task cards to reduce perceived loading delay.
