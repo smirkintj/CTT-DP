@@ -298,6 +298,9 @@ Additional behavior:
 - Stakeholder dashboard now renders loading skeletons for KPI cards and task cards during initial fetch.
 - Step comment UX now supports multiline drafts, keyboard submit (`Ctrl/Cmd + Enter`), and inline posting feedback.
 - Step comment drafts are persisted per user/task in local storage and restored on revisit.
+- Empty-state UX includes contextual actions:
+  - stakeholder task grid: clear filters or open discussions
+  - inbox: refresh and return-to-dashboard actions
 - Save-state + unsaved-change guards are implemented in:
   - `views/TaskDetail.tsx`
   - `views/AdminTaskManagement.tsx` (create modal)

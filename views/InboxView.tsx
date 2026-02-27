@@ -148,7 +148,25 @@ export const InboxView: React.FC<InboxViewProps> = ({ onOpenTask, onBack, curren
         {loading ? (
           <div className="p-6 text-sm text-slate-400">Loading inbox...</div>
         ) : filteredItems.length === 0 ? (
-          <div className="p-6 text-sm text-slate-400">No unread discussions.</div>
+          <div className="p-6 text-center">
+            <p className="text-sm text-slate-500">No unread discussions.</p>
+            <div className="mt-3 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => void loadInbox()}
+                className="px-3 py-1.5 rounded-md border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-50"
+              >
+                Refresh
+              </button>
+              <button
+                type="button"
+                onClick={onBack}
+                className="px-3 py-1.5 rounded-md bg-slate-900 text-white text-xs font-medium hover:bg-slate-800"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
         ) : (
           filteredItems.map((item) => (
             <button

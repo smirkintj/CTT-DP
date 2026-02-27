@@ -23,9 +23,9 @@ This backlog tracks improvement initiatives with:
 - `Implemented`
 
 ## Progress Snapshot
-- Overall: `20/44 Implemented` (45.5%)
+- Overall: `21/44 Implemented` (47.7%)
 - Active now: `5 In Progress`
-- Remaining: `21 Planned`
+- Remaining: `20 Planned`
 - High-priority lane (`P0 + P1`): `15/24 Implemented`
 - Technical debt lane (`#36-#41`): `3/6 Implemented`
 
@@ -333,14 +333,19 @@ This backlog tracks improvement initiatives with:
 - Impact if not done:
   - Users reapply filters every session.
 
-## 19) User-Centred: Empty-State Guidance
+## 19) ~~User-Centred: Empty-State Guidance~~
 - Priority: `P2`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `Implemented`
+- Date implemented: `2026-02-27`
 - What this is for:
   - Make “no tasks/comments” screens actionable instead of dead ends.
-- Implementation plan:
-  - Add contextual CTAs (create task, clear filters, open inbox, import).
+- Implementation:
+  - Stakeholder dashboard empty task states now provide contextual actions:
+    - no assignments: quick action to open discussions
+    - no filter results: quick action to clear filters/search
+  - Discussion inbox empty state now provides:
+    - refresh action
+    - quick return to dashboard
 - Impact if not done:
   - Users misinterpret empty pages as errors.
 
@@ -921,3 +926,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-27`: Completed #44 lightweight stakeholder onboarding helper card (dashboard inline, no overlay), including per-user dismiss persistence.
 - `2026-02-27`: Completed #23 notification preferences with DB-backed user toggles, self-service preference API, stakeholder settings UI, and preference-aware notification/inbox behavior.
 - `2026-02-27`: Advanced comment UX with per-user/task local draft autosave and restore for task-detail comment composer.
+- `2026-02-27`: Completed #19 empty-state guidance for stakeholder dashboard and inbox with contextual actions (clear filters, open discussions, refresh, back to dashboard).

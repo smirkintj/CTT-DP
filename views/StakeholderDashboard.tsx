@@ -86,6 +86,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
   // Identify blocked tasks for alert
   const blockedTasks = myTasks.filter(t => t.status === Status.BLOCKED);
   const showSkeletons = loading && myTasks.length === 0;
+  const hasActiveTaskFilters = filterStatus !== 'ALL' || searchTerm.trim().length > 0;
 
   useEffect(() => {
     const key = `stakeholder-dashboard-ui:${currentUserCountry}`;
@@ -464,8 +465,38 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                   ))}
                 </>
               ) : filteredTasks.length === 0 ? (
-                <div className="col-span-full text-center py-20 bg-white rounded-xl border border-dashed border-slate-200">
-                  <p className="text-slate-400">No tasks found matching your filters.</p>
+                <div className="col-span-full text-center py-16 bg-white rounded-xl border border-dashed border-slate-200 px-6">
+                  {myTasks.length === 0 ? (
+                    <>
+                      <p className="text-slate-600 font-medium">No tasks assigned yet for {currentUserCountry}.</p>
+                      <p className="text-slate-400 text-sm mt-1">You can check discussions while waiting for new assignments.</p>
+                      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={onOpenInbox}
+                          className="px-3 py-1.5 rounded-md bg-slate-900 text-white text-xs font-medium hover:bg-slate-800"
+                        >
+                          Open Discussions
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-slate-600 font-medium">No tasks found matching your filters.</p>
+                      {hasActiveTaskFilters && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFilterStatus('ALL');
+                            setSearchTerm('');
+                          }}
+                          className="mt-3 px-3 py-1.5 rounded-md border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-50"
+                        >
+                          Clear Filters
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
               ) : (
                 filteredTasks.map((task) => (
