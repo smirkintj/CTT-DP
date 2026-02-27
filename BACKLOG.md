@@ -201,7 +201,7 @@ This backlog tracks improvement initiatives with:
 
 ## 10) Mentions V2 (structured mentions + notifications)
 - Priority: `P2`
-- Status: `Planned`
+- Status: `In Progress`
 - Date implemented: `TBD`
 - What this is for:
   - Reliable user tagging and mention notification routing.
@@ -209,6 +209,10 @@ This backlog tracks improvement initiatives with:
   - Parse/store mentions as user IDs, not plain text.
   - Link mentions to inbox notifications.
   - Mark read/unread by mention thread.
+- Implementation progress:
+  - Added shared mention parsing utility with Unicode-safe normalization (`lib/mentions.ts`).
+  - Task detail composer now inserts structured mention token format (`@{...}`) from autocomplete.
+  - Comment POST now sends resolved `mentionUserIds` and persists mention IDs into task history metadata.
 - Impact if not done:
   - Tagging appears to work but is not reliably actionable.
 
@@ -589,6 +593,8 @@ This backlog tracks improvement initiatives with:
 - Implementation progress:
   - Added admin filtered CSV export in task management UI.
   - Added printable sign-off report template endpoint (`/api/tasks/[id]/signoff-report`) for PDF export flow.
+  - Added admin summary CSV export modal with optional created-date range and aggregate metrics by country/module.
+  - Updated CSV encoding to UTF-8 BOM for multilingual spreadsheet compatibility.
   - Remaining:
     - add richer admin summary exports (date range + aggregate reporting).
 - Impact if not done:
@@ -834,6 +840,8 @@ This backlog tracks improvement initiatives with:
   - Split list vs detail query shape more aggressively:
     - list API returns only fields needed for table/dashboard cards
     - task detail API keeps full relation payload
+- Implementation progress:
+  - Added admin metadata session-storage cache (countries/modules) with TTL and non-blocking revalidation to reduce repeated dashboard latency.
   - Remove redundant client refreshes/re-fetch loops in dashboard/task detail.
   - Add lightweight cache strategy for safe reads (short TTL/revalidate where appropriate).
   - Re-measure before/after; only then evaluate Prisma Accelerate adoption.
@@ -975,3 +983,6 @@ This backlog tracks improvement initiatives with:
 - `2026-02-27`: Refined workspace loading screen to full-width clean layout (less truncation risk) and added `?debugLoading=1` QA hold for animation validation.
 - `2026-02-27`: Completed sprint polish on admin task management with debounced search, sticky header, accessibility-focused checkbox states, and in-modal bulk action feedback/duplicate-submit guards.
 - `2026-02-27`: Refined workspace loader layout with compact width and stronger spacing rhythm while keeping design-system color usage.
+- `2026-02-27`: Advanced #33 reporting with summary CSV export (date-range scope + country/module aggregates) and UTF-8 BOM compatibility for multilingual spreadsheet text.
+- `2026-02-27`: Advanced #10 mentions by adding Unicode-safe structured mention parsing and passing/storing `mentionUserIds` metadata on comment events.
+- `2026-02-27`: Continued #41 performance work with admin metadata caching (session-storage TTL + revalidation) to reduce repeated admin dashboard fetch latency.

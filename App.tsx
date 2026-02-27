@@ -20,6 +20,8 @@ import { fieldBaseClass } from './components/ui/formClasses';
 
 const TASK_CACHE_TTL_MS = 30_000;
 const TASK_CACHE_KEY_PREFIX = 'ctt_tasks_cache_v1';
+const ADMIN_META_CACHE_TTL_MS = 10 * 60 * 1000;
+const ADMIN_META_CACHE_KEY_PREFIX = 'ctt_admin_meta_cache_v1';
 
 type CachedTasksPayload = {
   fetchedAt: number;
@@ -27,6 +29,7 @@ type CachedTasksPayload = {
 };
 
 const getTaskCacheKey = (userId: string) => `${TASK_CACHE_KEY_PREFIX}:${userId}`;
+const getAdminMetaCacheKey = (userId: string) => `${ADMIN_META_CACHE_KEY_PREFIX}:${userId}`;
 
 const readCachedTasks = (userId?: string | null): CachedTasksPayload | null => {
   if (!userId || typeof window === 'undefined') return null;
@@ -53,6 +56,41 @@ const writeCachedTasks = (userId: string, tasks: Task[]) => {
     window.sessionStorage.setItem(getTaskCacheKey(userId), JSON.stringify(payload));
   } catch {
     // Ignore storage failures to avoid impacting core task fetch flow.
+  }
+};
+
+type AdminMetaCachePayload = {
+  fetchedAt: number;
+  countries: CountryConfig[];
+  modules: string[];
+};
+
+const readCachedAdminMeta = (userId?: string | null): AdminMetaCachePayload | null => {
+  if (!userId || typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(getAdminMetaCacheKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AdminMetaCachePayload;
+    if (!parsed || !Array.isArray(parsed.countries) || !Array.isArray(parsed.modules) || typeof parsed.fetchedAt !== 'number') {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedAdminMeta = (userId: string, countries: CountryConfig[], modules: string[]) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const payload: AdminMetaCachePayload = {
+      fetchedAt: Date.now(),
+      countries,
+      modules
+    };
+    window.sessionStorage.setItem(getAdminMetaCacheKey(userId), JSON.stringify(payload));
+  } catch {
+    // no-op on storage failures
   }
 };
 
@@ -291,6 +329,14 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
   useEffect(() => {
     if (!session?.user || session.user.role !== 'ADMIN') return;
+    const userId = session.user.id;
+    const cached = readCachedAdminMeta(userId);
+    if (cached) {
+      setAvailableCountries(cached.countries);
+      setAvailableModules(cached.modules);
+    }
+    const isFreshCache = cached && Date.now() - cached.fetchedAt <= ADMIN_META_CACHE_TTL_MS;
+    if (isFreshCache) return;
 
     const loadAdminMetadata = async () => {
       try {
@@ -300,8 +346,13 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
         ]);
         if (Array.isArray(countries)) setAvailableCountries(countries);
         if (Array.isArray(modules)) setAvailableModules(modules);
+        if (Array.isArray(countries) && Array.isArray(modules)) {
+          writeCachedAdminMeta(userId, countries as CountryConfig[], modules);
+        }
       } catch {
-        notify('Failed to load admin metadata', 'error');
+        if (!cached) {
+          notify('Failed to load admin metadata', 'error');
+        }
       }
     };
 

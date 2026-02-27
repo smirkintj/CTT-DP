@@ -10,6 +10,7 @@ import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { ApiError } from '../lib/http';
 import { isValidJiraTicket, normalizeJiraTicketInput } from '../lib/taskValidation';
+import { resolveMentionUserIds } from '../lib/mentions';
 
 interface TaskDetailProps {
   task: Task;
@@ -188,13 +189,23 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     ? 'https://www.easyorderadminstg.dksh.com' 
     : 'https://www.easyorderstg.dksh.com';
 
+  const normalizeMentionSearch = (value: string) =>
+    value
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[\s._-]+/g, '');
+
   const getMentionContext = (value: string) => {
-    const match = value.match(/(^|\s)(@[^\s@]*)$/);
+    const match = value.match(/(^|\s)(@\{[^}]*\}|@[^\s@{}]*)$/);
     if (!match || typeof match.index !== 'number') return null;
     const start = match.index + match[1].length;
     const end = value.length;
     const raw = match[2] || '';
-    const query = raw.replace(/^@/, '').toLowerCase();
+    const query = raw
+      .replace(/^@\{?/, '')
+      .replace(/\}$/, '')
+      .toLowerCase();
     return { start, end, query };
   };
 
@@ -299,10 +310,16 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     if (!text || !text.trim()) return;
     setCommentSaveState((prev) => ({ ...prev, [stepId]: 'saving' }));
     const stepOrder = (localTask.steps ?? []).find((step) => step.id === stepId)?.order;
+    const mentionUserIds = resolveMentionUserIds(text, mentionUsers);
     const response = await fetch(`/api/tasks/${localTask.id}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body: text, stepOrder, expectedUpdatedAt: localTask.updatedAt })
+      body: JSON.stringify({
+        body: text,
+        stepOrder,
+        expectedUpdatedAt: localTask.updatedAt,
+        mentionUserIds
+      })
     });
 
     if (response.status === 409) {
@@ -331,11 +348,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     fileInputRef.current?.click();
   };
 
-  const handleInsertMention = (stepId: string, mentionName: string) => {
+  const handleInsertMention = (stepId: string, mentionToken: string) => {
     const currentValue = commentInputs[stepId] || '';
     const ctx = getMentionContext(currentValue);
     if (!ctx) return;
-    const nextValue = `${currentValue.slice(0, ctx.start)}@${mentionName} ${currentValue.slice(ctx.end)}`;
+    const nextValue = `${currentValue.slice(0, ctx.start)}@{${mentionToken}} ${currentValue.slice(ctx.end)}`;
     setCommentInputs((prev) => ({ ...prev, [stepId]: nextValue }));
   };
 
@@ -1136,9 +1153,12 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                       .filter((user) => {
                         const query = mentionContext.query;
                         if (!query) return true;
+                        const normalizedQuery = normalizeMentionSearch(query);
+                        const normalizedName = normalizeMentionSearch(user.name || '');
+                        const normalizedEmail = normalizeMentionSearch(user.email || '');
                         return (
-                          user.name.toLowerCase().includes(query) ||
-                          user.email.toLowerCase().includes(query)
+                          normalizedName.includes(normalizedQuery) ||
+                          normalizedEmail.includes(normalizedQuery)
                         );
                       })
                       .slice(0, 6)
@@ -1434,7 +1454,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                                             type="button"
                                             onMouseDown={(e) => {
                                               e.preventDefault();
-                                              handleInsertMention(step.id, user.name);
+                                              handleInsertMention(step.id, user.email || user.name);
                                             }}
                                             className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
                                           >

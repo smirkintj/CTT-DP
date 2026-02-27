@@ -22,6 +22,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = await req.json().catch(() => null);
   const text = body?.body as string | undefined;
   const stepOrder = typeof body?.stepOrder === 'number' ? body.stepOrder : undefined;
+  const mentionUserIdsRaw: unknown[] = Array.isArray(body?.mentionUserIds) ? body.mentionUserIds : [];
   const expectedUpdatedAt = body?.expectedUpdatedAt;
 
   if (!text || !text.trim()) {
@@ -64,6 +65,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
   });
 
+  const mentionCandidateIds: string[] = Array.from(
+    new Set<string>(
+      mentionUserIdsRaw
+        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+        .map((value) => value.trim())
+    )
+  ).filter((userId) => userId !== session.user.id);
+
+  const mentionUserIds =
+    mentionCandidateIds.length === 0
+      ? []
+      : (
+          await prisma.user.findMany({
+            where: {
+              id: { in: mentionCandidateIds },
+              isActive: true
+            },
+            select: { id: true }
+          })
+        ).map((user) => user.id);
+
   await prisma.task.update({
     where: { id },
     data: {
@@ -89,8 +111,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       type: ActivityType.COMMENT_ADDED,
       message:
         stepOrder && stepOrder > 0
-          ? `${session.user.name || session.user.email} added a comment on Step ${stepOrder} in ${task.title}.`
-          : `${session.user.name || session.user.email} added a comment on ${task.title}.`,
+          ? `${session.user.name || session.user.email} added a comment on Step ${stepOrder} in ${task.title}${mentionUserIds.length > 0 ? ` and tagged ${mentionUserIds.length} user(s)` : ''}.`
+          : `${session.user.name || session.user.email} added a comment on ${task.title}${mentionUserIds.length > 0 ? ` and tagged ${mentionUserIds.length} user(s)` : ''}.`,
       taskId: id,
       actorId: session.user.id,
       countryCode: task.countryCode
@@ -112,9 +134,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     after: {
       commentId: created.id,
       stepOrder: stepOrder && stepOrder > 0 ? stepOrder : null,
-      body: text.trim()
-    }
+      body: text.trim(),
+      mentionUserIds
+    },
+    metadata: mentionUserIds.length > 0 ? { mentionUserIds } : undefined
   });
 
-  return NextResponse.json({ ok: true, id: created.id });
+  return NextResponse.json({ ok: true, id: created.id, mentionUserIds });
 }

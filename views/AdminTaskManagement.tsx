@@ -81,6 +81,9 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
   const [bulkAssignSaving, setBulkAssignSaving] = useState(false);
   const [bulkAssignMessage, setBulkAssignMessage] = useState<string | null>(null);
+  const [isSummaryExportOpen, setIsSummaryExportOpen] = useState(false);
+  const [summaryDateFrom, setSummaryDateFrom] = useState('');
+  const [summaryDateTo, setSummaryDateTo] = useState('');
   const [bulkAssigneeByCountry, setBulkAssigneeByCountry] = useState<Record<string, string>>({});
   const [globalEdit, setGlobalEdit] = useState({
     title: '',
@@ -627,7 +630,8 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       formatDateTime(task.updatedAt)
     ]);
 
-    const csv = [headers, ...rows].map((row) => row.map(escapeCell).join(',')).join('\n');
+    const csvBody = [headers, ...rows].map((row) => row.map(escapeCell).join(',')).join('\n');
+    const csv = `\uFEFF${csvBody}`;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -636,6 +640,90 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     link.click();
     URL.revokeObjectURL(url);
     notify('CSV exported.', 'success');
+  };
+
+  const exportSummaryCsv = () => {
+    const from = summaryDateFrom ? new Date(`${summaryDateFrom}T00:00:00`) : null;
+    const to = summaryDateTo ? new Date(`${summaryDateTo}T23:59:59.999`) : null;
+    if (from && Number.isNaN(from.getTime())) {
+      notify('Invalid summary date range', 'error');
+      return;
+    }
+    if (to && Number.isNaN(to.getTime())) {
+      notify('Invalid summary date range', 'error');
+      return;
+    }
+    if (from && to && from.getTime() > to.getTime()) {
+      notify('Summary start date must be before end date', 'error');
+      return;
+    }
+
+    const withinRange = (task: Task) => {
+      if (!from && !to) return true;
+      const created = task.createdAt ? new Date(task.createdAt) : null;
+      if (!created || Number.isNaN(created.getTime())) return false;
+      if (from && created < from) return false;
+      if (to && created > to) return false;
+      return true;
+    };
+
+    const targetTasks = tasks.filter(withinRange);
+    const countrySummary = new Map<string, { total: number; signedOff: number; deployed: number; failed: number; blocked: number }>();
+    const moduleSummary = new Map<string, { total: number; signedOff: number; deployed: number; failed: number; blocked: number }>();
+    const seed = () => ({ total: 0, signedOff: 0, deployed: 0, failed: 0, blocked: 0 });
+
+    const bump = (
+      map: Map<string, { total: number; signedOff: number; deployed: number; failed: number; blocked: number }>,
+      key: string,
+      task: Task
+    ) => {
+      const row = map.get(key) || seed();
+      row.total += 1;
+      if (task.signedOffAt) row.signedOff += 1;
+      if ((task.status || '').toString().toUpperCase() === 'DEPLOYED') row.deployed += 1;
+      if ((task.status || '').toString().toUpperCase() === 'FAILED') row.failed += 1;
+      if ((task.status || '').toString().toUpperCase() === 'BLOCKED') row.blocked += 1;
+      map.set(key, row);
+    };
+
+    targetTasks.forEach((task) => {
+      bump(countrySummary, task.countryCode || 'N/A', task);
+      bump(moduleSummary, task.featureModule || 'General', task);
+    });
+
+    const summaryHeaders = ['Type', 'Dimension', 'Total Tasks', 'Signed Off', 'Deployed', 'Failed', 'Blocked'];
+    const summaryRows: Array<Array<string | number>> = [];
+    Array.from(countrySummary.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .forEach(([dimension, stats]) => summaryRows.push(['Country', dimension, stats.total, stats.signedOff, stats.deployed, stats.failed, stats.blocked]));
+    Array.from(moduleSummary.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .forEach(([dimension, stats]) => summaryRows.push(['Module', dimension, stats.total, stats.signedOff, stats.deployed, stats.failed, stats.blocked]));
+
+    if (summaryRows.length === 0) {
+      notify('No tasks found for selected range.', 'error');
+      return;
+    }
+
+    const escapeCell = (value: unknown) => {
+      const raw = String(value ?? '');
+      if (raw.includes(',') || raw.includes('"') || raw.includes('\n')) {
+        return `"${raw.replace(/"/g, '""')}"`;
+      }
+      return raw;
+    };
+
+    const csvBody = [summaryHeaders, ...summaryRows].map((row) => row.map(escapeCell).join(',')).join('\n');
+    const csv = `\uFEFF${csvBody}`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ctt_summary_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    notify(`Summary exported (${targetTasks.length} tasks in scope).`, 'success');
+    setIsSummaryExportOpen(false);
   };
 
   const toggleCountry = (code: string) => {
@@ -802,6 +890,12 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
              className={`${subtleButtonClass} shadow-sm flex items-center gap-2`}
            >
              <Download size={16}/> Export CSV
+           </button>
+           <button
+             onClick={() => setIsSummaryExportOpen(true)}
+             className={`${subtleButtonClass} shadow-sm flex items-center gap-2`}
+           >
+             <Download size={16}/> Export Summary
            </button>
            <button 
              onClick={onImport}
@@ -1392,6 +1486,35 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
               </button>
               <button onClick={handleApplyBulkAssignee} className={primaryButtonClass} disabled={bulkAssignSaving}>
                 {bulkAssignSaving ? 'Applying...' : 'Apply Assignment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isSummaryExportOpen && (
+        <div className="fixed inset-0 z-[110] bg-slate-900/50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-xl p-5">
+            <h3 className="text-base font-semibold text-slate-900">Export Summary CSV</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Optional created-date range. Export includes country/module aggregates with signed-off, deployed, failed, and blocked counts.
+            </p>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Created from</label>
+                <input type="date" className={fieldBaseClass} value={summaryDateFrom} onChange={(e) => setSummaryDateFrom(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Created to</label>
+                <input type="date" className={fieldBaseClass} value={summaryDateTo} onChange={(e) => setSummaryDateTo(e.target.value)} />
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setIsSummaryExportOpen(false)} className={subtleButtonClass}>
+                Cancel
+              </button>
+              <button onClick={exportSummaryCsv} className={primaryButtonClass}>
+                Download Summary CSV
               </button>
             </div>
           </div>

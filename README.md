@@ -195,8 +195,10 @@ Security notes:
   - task detail preview now shows affected market list and disables global apply when no editable tasks remain.
   - admin task table now supports selected-group global edit modal (same supported fields as task detail global update).
 - Reporting:
-  - Admin task table supports filtered CSV export.
-  - Sign-off report uses a dedicated portrait printable template via `/api/tasks/[id]/signoff-report`, includes recent task history plus step-grouped comments, and supports auto print prompt (`?autoprint=1`).
+- Admin task table supports filtered CSV export.
+- Admin task table supports summary CSV export (country/module aggregate counts with optional created-date range).
+- CSV exports now include UTF-8 BOM for better compatibility with multilingual text in Excel (VN/TH/HK/TW names and comments).
+- Sign-off report uses a dedicated portrait printable template via `/api/tasks/[id]/signoff-report`, includes recent task history plus step-grouped comments, and supports auto print prompt (`?autoprint=1`).
   - If a task has no comments, the comments section is omitted from the PDF output.
 
 ## Task Workflow
@@ -237,6 +239,7 @@ Security notes:
   - Task detail comment drafts are auto-saved per user/task in local storage and restored after refresh/navigation.
   - Task detail now includes `Mark discussions read` quick action for the current task thread.
   - Task detail comment composer supports inline `@mention` autocomplete suggestions.
+  - Mention parsing now supports structured token format (`@{user-email}`) and Unicode-friendly matching for names/emails.
   - Inbox supports quick triage filters (`All Discussions`, `My Assigned Tasks` for admin, `Blocked / Failed`).
   - Empty states now include contextual actions:
     - stakeholder task grid: clear filters or open discussions

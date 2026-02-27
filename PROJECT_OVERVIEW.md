@@ -282,6 +282,8 @@ Currently created events:
 - Existing-task replace confirmation is handled in-app (custom modal) instead of browser-native dialogs.
 - Critical destructive/discard confirmations are standardized to in-app modals across admin/task flows.
 - Admin task management supports filtered CSV export.
+- Admin task management supports summary CSV export (optional created-date range) with aggregate metrics by country and module.
+- CSV export is emitted as UTF-8 (BOM) to preserve multilingual text in spreadsheet tools.
 
 Additional behavior:
 - Failed events include step context when available (example: `Step 2 in <Task Title>`).
@@ -295,6 +297,7 @@ Additional behavior:
   - my assigned tasks (admin view)
   - blocked/failed discussions
 - Stakeholder dashboard persists filter/search state per market in local storage.
+- Mention handling now normalizes Unicode names/emails and sends structured mention IDs in comment payload for stronger mention tracking.
 - Stakeholder dashboard includes a lightweight onboarding helper card:
   - 3-step guidance (open task, update steps, sign off)
   - no spotlight/overlay layer
