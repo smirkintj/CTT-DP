@@ -111,6 +111,7 @@ Security notes:
   - server-side temporary lockout after repeated failed attempts
   - disabled users (`User.isActive = false`) cannot log in
   - forced permanent-password setup (`mustChangePassword`) before portal access, then user stays signed in and is redirected to dashboard
+  - password-change modal now uses focused centered width, stronger backdrop layering, and real-time password rule/match validation
   - accessibility improvements on login form controls and error/loading semantics
 - Recent Activity is database-backed via `Activity` and `ActivityRead` tables.
 - Task mutation APIs enforce:

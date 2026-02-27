@@ -118,6 +118,7 @@ Defined in `prisma/schema.prisma`.
 - `User.lastLoginAt` (admin visibility for account activity)
 - `User.mustChangePassword` (first-login/per-reset mandatory password update)
   - after successful password change, user is redirected to their dashboard without an extra re-login
+  - password-change modal includes real-time password policy and confirm-match validation feedback
 
 ## API Surface
 ### Auth

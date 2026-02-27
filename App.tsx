@@ -95,6 +95,14 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const isLocked = !!lockUntil && Date.now() < lockUntil;
   const mustChangePassword = Boolean(session?.user?.mustChangePassword);
   const passwordPolicyValid = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(newPasswordInput);
+  const passwordChecks = {
+    minLength: newPasswordInput.length >= 8,
+    uppercase: /[A-Z]/.test(newPasswordInput),
+    lowercase: /[a-z]/.test(newPasswordInput),
+    number: /\d/.test(newPasswordInput),
+    symbol: /[^A-Za-z\d]/.test(newPasswordInput)
+  };
+  const confirmMatches = confirmPasswordInput.length > 0 && newPasswordInput === confirmPasswordInput;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -641,8 +649,8 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     </Layout>
 
     {mustChangePassword && (
-      <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="password-change-title" aria-describedby="password-change-desc">
-        <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-xl p-6">
+      <div className="fixed inset-0 z-[9999] bg-slate-900/65 backdrop-blur-md flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="password-change-title" aria-describedby="password-change-desc">
+        <div className="w-[min(92vw,560px)] rounded-2xl border border-slate-200 bg-white shadow-2xl p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700">
               <ShieldCheck size={18} />
@@ -675,7 +683,20 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                 className={`${fieldBaseClass} mt-1`}
                 autoComplete="new-password"
               />
-              <p className="mt-1 text-xs text-slate-500">8+ chars with uppercase, lowercase, number, and symbol.</p>
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs">
+                {[
+                  { label: '8+ characters', ok: passwordChecks.minLength },
+                  { label: 'Uppercase letter', ok: passwordChecks.uppercase },
+                  { label: 'Lowercase letter', ok: passwordChecks.lowercase },
+                  { label: 'Number', ok: passwordChecks.number },
+                  { label: 'Symbol', ok: passwordChecks.symbol }
+                ].map(({ label, ok }) => (
+                  <div key={label} className={`flex items-center gap-1.5 ${ok ? 'text-emerald-600' : 'text-slate-500'}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${ok ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                    <span>{label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700">Confirm new password</label>
@@ -686,6 +707,11 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                 className={`${fieldBaseClass} mt-1`}
                 autoComplete="new-password"
               />
+              {confirmPasswordInput.length > 0 && (
+                <p className={`mt-1 text-xs ${confirmMatches ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {confirmMatches ? 'Passwords match.' : 'Passwords do not match.'}
+                </p>
+              )}
             </div>
             {passwordChangeError && (
               <div className="text-sm text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
@@ -694,9 +720,9 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
             )}
             <button
               type="submit"
-              disabled={changingPassword}
+              disabled={changingPassword || !currentPasswordInput || !passwordPolicyValid || !confirmMatches}
               className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                changingPassword
+                changingPassword || !currentPasswordInput || !passwordPolicyValid || !confirmMatches
                   ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                   : 'bg-slate-900 text-white hover:bg-slate-800'
               }`}
