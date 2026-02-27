@@ -35,34 +35,6 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
   const [activityFeed, setActivityFeed] = useState<Array<{ id: string; type: string; message: string; createdAt: string }>>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [unreadComments, setUnreadComments] = useState(0);
-  const [tourOpen, setTourOpen] = useState(false);
-  const [tourStep, setTourStep] = useState(0);
-  const [tourRect, setTourRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
-
-  const tourSteps = [
-    {
-      id: 'open-tasks-card',
-      title: 'Open Tasks',
-      description: 'This shows how many tasks still need your action.'
-    },
-    {
-      id: 'task-filters',
-      title: 'Filters and Search',
-      description: 'Use status filters and search to find your tasks quickly.'
-    },
-    {
-      id: 'task-card-grid',
-      title: 'Open Task Detail',
-      description: 'Click any task card to update steps, add evidence, and sign off when done.'
-    },
-    {
-      id: 'unread-card',
-      title: 'Discussions',
-      description: 'View unread comments and open the inbox from here.'
-    }
-  ];
-
-  const activeTourTarget = tourOpen ? tourSteps[tourStep]?.id : null;
   
   const myTasks = tasks.filter(t => t.countryCode === currentUserCountry);
   const statusFilteredTasks = filterStatus === 'ALL'
@@ -102,56 +74,6 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
 
   // Identify blocked tasks for alert
   const blockedTasks = myTasks.filter(t => t.status === Status.BLOCKED);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const dismissed = window.localStorage.getItem('ctt_stakeholder_tour_dismissed_v1') === '1';
-    if (!dismissed) {
-      setTourOpen(true);
-      setTourStep(0);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!tourOpen) {
-      setTourRect(null);
-      return;
-    }
-    const targetId = tourSteps[tourStep]?.id;
-    if (!targetId) return;
-
-    const updateRect = () => {
-      const element = document.querySelector(`[data-tour="${targetId}"]`) as HTMLElement | null;
-      if (!element) return;
-      const rect = element.getBoundingClientRect();
-      setTourRect({
-        top: rect.top + window.scrollY,
-        left: rect.left + window.scrollX,
-        width: rect.width,
-        height: rect.height
-      });
-    };
-
-    updateRect();
-    window.addEventListener('resize', updateRect);
-    window.addEventListener('scroll', updateRect, true);
-    return () => {
-      window.removeEventListener('resize', updateRect);
-      window.removeEventListener('scroll', updateRect, true);
-    };
-  }, [tourOpen, tourStep]);
-
-  const closeTour = (dismiss: boolean) => {
-    setTourOpen(false);
-    if (dismiss && typeof window !== 'undefined') {
-      window.localStorage.setItem('ctt_stakeholder_tour_dismissed_v1', '1');
-    }
-  };
-
-  const restartTour = () => {
-    setTourStep(0);
-    setTourOpen(true);
-  };
 
   useEffect(() => {
     const loadActivities = async () => {
@@ -242,21 +164,12 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Hello, {currentUserName || 'User'}</h1>
             <p className="text-slate-500 mt-1">Here is the testing progress for {currentUserCountry}.</p>
-            <button
-              onClick={restartTour}
-              className="mt-2 text-xs text-slate-500 hover:text-slate-700 underline underline-offset-2"
-            >
-              Take quick tour
-            </button>
           </div>
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Progress Card */}
-            <div
-              data-tour="open-tasks-card"
-              className={`bg-white rounded-xl border p-5 shadow-sm ${activeTourTarget === 'open-tasks-card' ? 'border-brand-400 ring-2 ring-brand-200' : 'border-slate-200'}`}
-            >
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
                 <div className="flex justify-between items-start mb-2">
                     <span className="text-sm font-medium text-slate-500 uppercase tracking-wide">Progress</span>
                     <CheckCircle size={20} className="text-brand-600"/>
@@ -283,10 +196,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
               </div>
 
             {/* Unread Comments Card */}
-            <div
-              data-tour="unread-card"
-              className={`bg-white rounded-xl border p-5 shadow-sm relative overflow-hidden ${activeTourTarget === 'unread-card' ? 'border-brand-400 ring-2 ring-brand-200' : 'border-slate-200'}`}
-            >
+            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-bl-full -mr-8 -mt-8 z-0"></div>
                 <div className="relative z-10">
                     <div className="flex justify-between items-start mb-2">
@@ -307,10 +217,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
           {/* Main Task List */}
           <div>
             {/* Filters */}
-            <div
-              data-tour="task-filters"
-              className={`flex flex-col sm:flex-row justify-between items-center bg-white p-2 rounded-lg border shadow-sm mb-6 ${activeTourTarget === 'task-filters' ? 'border-brand-400 ring-2 ring-brand-200' : 'border-slate-200'}`}
-            >
+            <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-2 rounded-lg border border-slate-200 shadow-sm mb-6">
               <div className="flex gap-1 bg-slate-100 p-1 rounded-md overflow-x-auto max-w-full">
                 {['ALL', 'IN_PROGRESS', 'PASSED', 'BLOCKED', 'FAILED'].map((statusKey) => (
                   <button
@@ -338,10 +245,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
             </div>
 
             {/* Grid View */}
-            <div
-              data-tour="task-card-grid"
-              className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${activeTourTarget === 'task-card-grid' ? 'rounded-xl ring-2 ring-brand-200' : ''}`}
-            >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {loading && filteredTasks.length === 0 ? (
                 <div className="col-span-full text-center py-20 bg-white rounded-xl border border-slate-200">
                   <p className="text-slate-400">Loading tasks...</p>
@@ -446,69 +350,6 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
         </div>
 
       </div>
-
-      {tourOpen && tourRect && (
-        <>
-          <div className="fixed inset-0 z-40 bg-slate-900/30" />
-          <div
-            className="absolute z-50 pointer-events-none rounded-xl border-2 border-brand-400"
-            style={{
-              top: tourRect.top - 6,
-              left: tourRect.left - 6,
-              width: tourRect.width + 12,
-              height: tourRect.height + 12
-            }}
-          />
-          <div
-            className="absolute z-50 w-[min(92vw,320px)] rounded-xl border border-slate-200 bg-white shadow-xl p-4"
-            style={{
-              top: tourRect.top + tourRect.height + 14,
-              left: Math.min(
-                tourRect.left,
-                Math.max(16, window.innerWidth - 336)
-              )
-            }}
-          >
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-600">
-              Step {tourStep + 1} of {tourSteps.length}
-            </p>
-            <h3 className="mt-1 text-sm font-semibold text-slate-900">{tourSteps[tourStep].title}</h3>
-            <p className="mt-1 text-sm text-slate-600">{tourSteps[tourStep].description}</p>
-            <div className="mt-3 flex items-center justify-between gap-2">
-              <button
-                onClick={() => closeTour(true)}
-                className="text-xs text-slate-500 hover:text-slate-700"
-              >
-                Don&apos;t show again
-              </button>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setTourStep((prev) => Math.max(0, prev - 1))}
-                  disabled={tourStep === 0}
-                  className="px-2.5 py-1.5 text-xs rounded-md border border-slate-200 text-slate-600 disabled:opacity-40"
-                >
-                  Back
-                </button>
-                {tourStep === tourSteps.length - 1 ? (
-                  <button
-                    onClick={() => closeTour(false)}
-                    className="px-2.5 py-1.5 text-xs rounded-md bg-slate-900 text-white"
-                  >
-                    Done
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setTourStep((prev) => Math.min(tourSteps.length - 1, prev + 1))}
-                    className="px-2.5 py-1.5 text-xs rounded-md bg-slate-900 text-white"
-                  >
-                    Next
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 };
