@@ -7,6 +7,73 @@ body {
   background-color: #f8fafc;
 }
 
+@keyframes ctt-status-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(2px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ctt-card-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ctt-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes ctt-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(280%);
+  }
+}
+
+.animate-status-pop {
+  animation: ctt-status-pop 220ms ease-out;
+}
+
+.animate-card-enter {
+  animation: ctt-card-enter 260ms ease-out;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 40%, #f1f5f9 60%);
+  background-size: 220% 100%;
+  animation: ctt-shimmer 1.25s linear infinite;
+}
+
+.animate-indeterminate {
+  animation: ctt-indeterminate 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-status-pop,
+  .animate-card-enter,
+  .animate-shimmer,
+  .animate-indeterminate {
+    animation: none !important;
+  }
+}
+
 /* Optional: nicer scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }

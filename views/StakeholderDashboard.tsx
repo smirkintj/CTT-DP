@@ -245,18 +245,28 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
   ];
 
   const notificationPreferenceCard = (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 animate-card-enter">
       <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4">Notification Preferences</h3>
       <div className="space-y-3">
         {notificationPreferenceItems.map((item) => (
           <label key={item.key} className="flex items-center justify-between gap-3 text-sm text-slate-700">
             <span>{item.label}</span>
-            <input
-              type="checkbox"
-              checked={notificationPrefs[item.key]}
-              onChange={(e) => updatePreference(item.key, e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-            />
+            <button
+              type="button"
+              role="switch"
+              aria-checked={notificationPrefs[item.key]}
+              aria-label={item.label}
+              onClick={() => updatePreference(item.key, !notificationPrefs[item.key])}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                notificationPrefs[item.key] ? 'bg-slate-900' : 'bg-slate-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  notificationPrefs[item.key] ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </label>
         ))}
       </div>
@@ -364,9 +374,9 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
               <>
                 {[1, 2, 3].map((index) => (
                   <div key={index} className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm animate-pulse">
-                    <div className="h-3 w-20 bg-slate-200 rounded mb-3" />
-                    <div className="h-7 w-24 bg-slate-200 rounded mb-3" />
-                    <div className="h-2 w-full bg-slate-100 rounded" />
+                    <div className="h-3 w-20 rounded mb-3 animate-shimmer" />
+                    <div className="h-7 w-24 rounded mb-3 animate-shimmer" />
+                    <div className="h-2 w-full rounded animate-shimmer" />
                   </div>
                 ))}
               </>
@@ -455,12 +465,12 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
               {showSkeletons ? (
                 <>
                   {[1, 2, 3, 4].map((index) => (
-                    <div key={index} className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm animate-pulse">
-                      <div className="h-4 w-24 bg-slate-200 rounded mb-3" />
-                      <div className="h-6 w-2/3 bg-slate-200 rounded mb-2" />
-                      <div className="h-4 w-full bg-slate-100 rounded mb-1" />
-                      <div className="h-4 w-3/4 bg-slate-100 rounded mb-6" />
-                      <div className="h-8 w-full bg-slate-100 rounded" />
+                    <div key={index} className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+                      <div className="h-4 w-24 rounded mb-3 animate-shimmer" />
+                      <div className="h-6 w-2/3 rounded mb-2 animate-shimmer" />
+                      <div className="h-4 w-full rounded mb-1 animate-shimmer" />
+                      <div className="h-4 w-3/4 rounded mb-6 animate-shimmer" />
+                      <div className="h-8 w-full rounded animate-shimmer" />
                     </div>
                   ))}
                 </>
@@ -503,7 +513,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                   <div 
                     key={task.id}
                     onClick={() => onSelectTask(task)}
-                    className="group bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-brand-200 transition-all cursor-pointer relative overflow-hidden flex flex-col h-full"
+                    className="group bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-brand-200 transition-all motion-safe:hover:-translate-y-0.5 cursor-pointer relative overflow-hidden flex flex-col h-full animate-card-enter"
                   >
                     {/* Status Strip */}
                     <div className={`absolute top-0 left-0 right-0 h-1 ${

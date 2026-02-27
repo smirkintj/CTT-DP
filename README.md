@@ -230,6 +230,12 @@ Security notes:
   - Empty states now include contextual actions:
     - stakeholder task grid: clear filters or open discussions
     - inbox: refresh or back to dashboard
+  - Motion polish added for key actions:
+    - login in-progress bar animation while signing in
+    - subtle card enter/lift transitions for stakeholder task and inbox cards
+    - step/comment save-state micro-animations
+    - smooth notification toggle transitions
+  - All motion respects `prefers-reduced-motion`.
   - Stakeholder dashboard filter/search state is persisted per market in local storage.
   - Stakeholder dashboard now includes a lightweight “Getting Started” helper card (no overlay tour), dismissible per user.
   - Step action area in task detail shows inline save feedback (`Saving step...`, `Step saved`, `Save failed`).

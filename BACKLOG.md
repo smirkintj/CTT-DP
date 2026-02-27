@@ -927,3 +927,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-27`: Completed #23 notification preferences with DB-backed user toggles, self-service preference API, stakeholder settings UI, and preference-aware notification/inbox behavior.
 - `2026-02-27`: Advanced comment UX with per-user/task local draft autosave and restore for task-detail comment composer.
 - `2026-02-27`: Completed #19 empty-state guidance for stakeholder dashboard and inbox with contextual actions (clear filters, open discussions, refresh, back to dashboard).
+- `2026-02-27`: Added motion polish for key stakeholder/login actions (login in-progress bar, subtle card transitions, save-state micro-animations, smooth preference toggles) with global reduced-motion support.

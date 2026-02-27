@@ -1305,9 +1305,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                               {canRunTestActions && (
                                 <div className="flex justify-end pt-2 border-t border-slate-50 print:hidden">
                                     <div className="mr-auto text-xs self-center">
-                                      {stepSaveState[step.id] === 'saving' && <span className="text-slate-500">Saving step...</span>}
-                                      {stepSaveState[step.id] === 'saved' && <span className="text-emerald-600">Step saved</span>}
-                                      {stepSaveState[step.id] === 'error' && <span className="text-rose-600">Save failed</span>}
+                                      {stepSaveState[step.id] === 'saving' && <span className="text-slate-500 animate-status-pop">Saving step...</span>}
+                                      {stepSaveState[step.id] === 'saved' && <span className="text-emerald-600 animate-status-pop">Step saved</span>}
+                                      {stepSaveState[step.id] === 'error' && <span className="text-rose-600 animate-status-pop">Save failed</span>}
                                     </div>
                                     <div className="flex gap-2">
                                       <span className="text-[11px] self-center px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-medium">
@@ -1369,9 +1369,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                                         {(commentInputs[step.id] || '').trim().length} characters
                                       </span>
                                       <div className="flex items-center gap-3">
-                                        {commentSaveState[step.id] === 'saving' && <span className="text-[11px] text-slate-500">Posting comment...</span>}
-                                        {commentSaveState[step.id] === 'saved' && <span className="text-[11px] text-emerald-600">Comment posted</span>}
-                                        {commentSaveState[step.id] === 'error' && <span className="text-[11px] text-rose-600">Comment failed</span>}
+                                        {commentSaveState[step.id] === 'saving' && <span className="text-[11px] text-slate-500 animate-status-pop">Posting comment...</span>}
+                                        {commentSaveState[step.id] === 'saved' && <span className="text-[11px] text-emerald-600 animate-status-pop">Comment posted</span>}
+                                        {commentSaveState[step.id] === 'error' && <span className="text-[11px] text-rose-600 animate-status-pop">Comment failed</span>}
                                         <button
                                           onClick={() => void handleAddComment(step.id)}
                                           disabled={commentSaveState[step.id] === 'saving' || !(commentInputs[step.id] || '').trim()}

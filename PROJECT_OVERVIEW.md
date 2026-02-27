@@ -301,6 +301,12 @@ Additional behavior:
 - Empty-state UX includes contextual actions:
   - stakeholder task grid: clear filters or open discussions
   - inbox: refresh and return-to-dashboard actions
+- Motion UX polish:
+  - login flow includes visible in-progress animation while credential validation runs
+  - stakeholder task/inbox cards use subtle enter and hover-lift transitions
+  - task-detail save-state labels use micro-animations for clearer feedback
+  - preference toggles use smooth switch transitions
+  - reduced-motion preference is respected globally
 - Save-state + unsaved-change guards are implemented in:
   - `views/TaskDetail.tsx`
   - `views/AdminTaskManagement.tsx` (create modal)

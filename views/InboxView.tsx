@@ -144,7 +144,7 @@ export const InboxView: React.FC<InboxViewProps> = ({ onOpenTask, onBack, curren
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100 animate-card-enter">
         {loading ? (
           <div className="p-6 text-sm text-slate-400">Loading inbox...</div>
         ) : filteredItems.length === 0 ? (
@@ -172,7 +172,7 @@ export const InboxView: React.FC<InboxViewProps> = ({ onOpenTask, onBack, curren
             <button
               key={item.taskId}
               onClick={() => void openTask(item)}
-              className="w-full text-left p-4 hover:bg-slate-50 transition-colors flex items-center justify-between gap-4"
+              className="w-full text-left p-4 hover:bg-slate-50 transition-all motion-safe:hover:-translate-y-0.5 flex items-center justify-between gap-4"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
