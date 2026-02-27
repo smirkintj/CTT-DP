@@ -62,6 +62,46 @@ interface AppProps {
   onRouteChange?: (nextView: ViewState, taskId?: string | null) => void;
 }
 
+const WorkspaceLoadingScreen: React.FC = () => {
+  const [progress, setProgress] = useState(18);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 90) return prev;
+        const increment = Math.max(2, Math.round((100 - prev) / 14));
+        return Math.min(90, prev + increment);
+      });
+    }, 260);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
+      <div className="w-full max-w-5xl py-10">
+        <div className="text-center px-2">
+          <p className="text-3xl font-semibold text-slate-900 leading-tight">Loading your workspace</p>
+          <p className="mt-3 text-slate-500 text-base leading-relaxed">Preparing tasks, comments, and notifications.</p>
+        </div>
+
+        <div className="mt-14 max-w-md mx-auto">
+          <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-slate-900 transition-all duration-300 ease-out"
+              style={{ width: `${progress}%` }}
+              aria-hidden="true"
+            />
+          </div>
+          <div className="mt-10 flex items-center justify-center gap-3 text-xs text-slate-500">
+            <Loader2 size={16} className="animate-spin text-slate-500" />
+            <span>{progress}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, onRouteChange }) => {
   const router = useRouter();
   const { data: session, status, update: updateSession } = useSession();
@@ -113,6 +153,16 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const [showCurrentPasswordModal, setShowCurrentPasswordModal] = useState(false);
   const [showNewPasswordModal, setShowNewPasswordModal] = useState(false);
   const [showConfirmPasswordModal, setShowConfirmPasswordModal] = useState(false);
+  const [debugLoadingHold, setDebugLoadingHold] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('debugLoading') !== '1') return;
+    setDebugLoadingHold(true);
+    const timer = window.setTimeout(() => setDebugLoadingHold(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -487,15 +537,8 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
   const selectedTask = selectedTaskId ? tasks.find(t => t.id === selectedTaskId) : null;
 
-  if (status === 'loading' || (session?.user && !currentUser)) {
-    return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl px-6 py-5 flex items-center gap-3">
-          <Loader2 size={18} className="animate-spin text-slate-500" />
-          <p className="text-sm text-slate-600 font-medium">Loading your workspace…</p>
-        </div>
-      </div>
-    );
+  if (status === 'loading' || (session?.user && !currentUser) || debugLoadingHold) {
+    return <WorkspaceLoadingScreen />;
   }
 
   // Render Login Screen if no user

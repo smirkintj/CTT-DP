@@ -474,6 +474,12 @@ This backlog tracks improvement initiatives with:
   - Added post-save summary feedback to admin (updated vs skipped counts).
   - Added admin task table bulk-selected global edit modal (same supported field set, grouped apply).
   - Added market list preview + disabled global apply when group has no editable task copies.
+  - Added admin task table bulk status modal for selected tasks:
+    - supports `Draft`, `Ready`, `In Progress`, `Blocked`, `Failed`, `Deployed`
+    - reuses existing secure per-task status API checks (transition, lock, role).
+  - Added admin task table bulk assignee modal for selected tasks:
+    - assignee selection is mapped by country
+    - signed-off tasks are excluded from mutation.
 - Impact if not done:
   - Admin operations remain slow and error-prone for large rollouts.
 
@@ -955,3 +961,8 @@ This backlog tracks improvement initiatives with:
 - `2026-02-27`: Refined knowledge base presentation into a visual vertical workflow timeline with explicit exception route (Blocked/Failed -> In Progress).
 - `2026-02-27`: Moved knowledge base into dedicated `/knowledge-base` page and redesigned workflow visualization to horizontal flow with clearer status meaning sections.
 - `2026-02-27`: Refined `/knowledge-base` UX with centered horizontal flow spacing, stronger per-status color distinction, and stakeholder tutorial cards using live stakeholder/admin names.
+- `2026-02-27`: Updated knowledge-base FAQ to clarify that PDF download is available from signed-off task detail (not from knowledge-base page).
+- `2026-02-27`: Added knowledge-base FAQ guidance so stakeholders can identify legitimate portal notification emails and avoid phishing confusion.
+- `2026-02-27`: Advanced #25 bulk admin actions with selected-row bulk status update and per-country bulk assignee update, while preserving signed-off lock and role/transition security checks.
+- `2026-02-27`: Improved session hydration UX with animated workspace loading feedback (indeterminate progress + pulse indicators) to reduce perceived idle wait.
+- `2026-02-27`: Refined workspace loading screen to full-width clean layout (less truncation risk) and added `?debugLoading=1` QA hold for animation validation.

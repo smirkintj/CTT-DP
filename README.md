@@ -215,6 +215,8 @@ Security notes:
 - `/admin/tasks` table rows are clickable to open task details.
 - Delete action is moved to Task Detail page (admin-only).
 - Bulk delete is supported from `/admin/tasks` via row selection.
+- Bulk status update is supported from `/admin/tasks` via row selection (`Draft/Ready/In Progress/Blocked/Failed/Deployed`), with signed-off tasks skipped.
+- Bulk assignee update is supported from `/admin/tasks` via row selection and country-based stakeholder mapping.
 - After task deletion from detail view, admin is redirected to task management table.
 - Due date in admin task table is date-only (no time).
 - Priority badges are standardized with colored dots for all levels.
@@ -223,6 +225,8 @@ Security notes:
   - Admin Task create modal
   - Admin Database notification settings (email + Teams)
 - Auth/session hydration now shows a neutral loading state to prevent brief login-page flicker on refresh.
+- Auth/session hydration loading state now includes a subtle animated progress bar + pulse indicators for clearer feedback while workspace loads.
+  - QA helper: append `?debugLoading=1` to hold the loading screen for 5 seconds and validate layout/animation.
 - Stakeholder UX updates:
   - Inbox `Open task` now deep-links task detail to the latest unread step/comment context.
   - Task detail auto-scrolls and temporarily highlights the target unread comment from inbox context.
@@ -243,6 +247,8 @@ Security notes:
     - centered horizontal status workflow with distinct per-status colors
     - clear status meaning text per stage
     - stakeholder tutorial section (pass/fail, comments, tagging) using live user/admin names from DB-backed session/data
+    - FAQ includes where to download sign-off PDF (available only after task is signed off)
+    - FAQ includes email legitimacy guidance (how to identify official portal notifications vs phishing)
   - Stakeholder dashboard filter/search state is persisted per market in local storage.
   - Stakeholder dashboard now includes a lightweight “Getting Started” helper card (no overlay tour), dismissible per user.
   - Step action area in task detail shows inline save feedback (`Saving step...`, `Step saved`, `Save failed`).

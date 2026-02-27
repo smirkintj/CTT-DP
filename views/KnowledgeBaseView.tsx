@@ -224,6 +224,19 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ onBack, on
             <p className="text-sm font-semibold text-slate-800">Why is task still In Progress after steps pass?</p>
             <p className="text-xs text-slate-600 mt-1">Task is treated complete only after sign-off.</p>
           </div>
+          <div className="rounded-lg border border-slate-200 p-4">
+            <p className="text-sm font-semibold text-slate-800">How do I download the signed-off PDF?</p>
+            <p className="text-xs text-slate-600 mt-1">
+              Open the signed-off task detail and use the sign-off report download action. PDF export is available only after sign-off.
+            </p>
+          </div>
+          <div className="rounded-lg border border-slate-200 p-4">
+            <p className="text-sm font-semibold text-slate-800">How do I know portal emails are legitimate?</p>
+            <p className="text-xs text-slate-600 mt-1">
+              Official notifications come from the configured portal sender address and include your task title, market, and portal context.
+              We do not ask for password, OTP, or bank/finance details by email. If content is suspicious, open the portal directly and verify the same task there.
+            </p>
+          </div>
         </div>
       )}
 

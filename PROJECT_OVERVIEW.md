@@ -257,6 +257,8 @@ Currently created events:
 - Admin task table rows are clickable to open Task Detail.
 - Delete action removed from table and moved to Task Detail (admin-only).
 - Admin task table supports bulk delete through row selection.
+- Admin task table supports bulk status updates across selected tasks (signed-off tasks skipped).
+- Admin task table supports bulk stakeholder reassignment using per-country assignee selection.
 - After admin deletes a task from detail, navigation returns to task management table.
 - Due date in admin table shows date-only.
 - Priority badge styling standardized across levels.
@@ -265,6 +267,8 @@ Currently created events:
   - right-side drawer for create/edit
   - disable/enable and temporary password reset actions
 - Login flow enforces an undismissable password change modal when `mustChangePassword` is true.
+- Session hydration screen now uses animated loading feedback (spinner + indeterminate bar + pulse dots) while user workspace initializes.
+- Added QA debug mode for loading screen validation: `?debugLoading=1` keeps loading view visible for 5 seconds.
 - Import wizard is functional for CSV files exported from Excel (column mapping + preview).
 - Import supports:
   - replace steps in an existing task, or
@@ -316,6 +320,8 @@ Additional behavior:
   - includes plain-language status definitions with distinct visual status separation
   - includes stakeholder tutorial cards (pass/fail, comment, mention tagging)
   - tutorial labels resolve stakeholder/admin names from session + DB user list context
+  - includes FAQ guidance on sign-off PDF download (from signed-off task detail)
+  - includes FAQ guidance for identifying legitimate portal notification emails
   - route is available to authenticated users via top navigation
 - Save-state + unsaved-change guards are implemented in:
   - `views/TaskDetail.tsx`

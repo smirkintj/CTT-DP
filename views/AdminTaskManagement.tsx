@@ -73,6 +73,12 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   });
   const [isGlobalEditOpen, setIsGlobalEditOpen] = useState(false);
   const [globalEditSaving, setGlobalEditSaving] = useState(false);
+  const [isBulkStatusOpen, setIsBulkStatusOpen] = useState(false);
+  const [bulkStatusSaving, setBulkStatusSaving] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState<'DRAFT' | 'READY' | 'IN_PROGRESS' | 'BLOCKED' | 'FAILED' | 'DEPLOYED'>('READY');
+  const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
+  const [bulkAssignSaving, setBulkAssignSaving] = useState(false);
+  const [bulkAssigneeByCountry, setBulkAssigneeByCountry] = useState<Record<string, string>>({});
   const [globalEdit, setGlobalEdit] = useState({
     title: '',
     description: '',
@@ -211,6 +217,21 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     return date.toISOString();
   };
 
+  const refreshTasks = async () => {
+    try {
+      const refreshed = await apiFetch<Task[]>('/api/tasks', { cache: 'no-store' });
+      const mappedTasks = Array.isArray(refreshed)
+        ? refreshed.map((task) => ({
+            ...task,
+            featureModule: task.featureModule ?? (task as any).module ?? 'General'
+          }))
+        : [];
+      onAddTask(mappedTasks);
+    } catch {
+      notify('Updated, but failed to refresh tasks. Please reload.', 'error');
+    }
+  };
+
   const filteredTasks = useMemo(() => {
     const filtered = tasks.filter(t => 
       t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -307,11 +328,17 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       confirmLabel: 'Delete',
       destructive: true,
       onConfirm: async () => {
+        const results = await Promise.allSettled(
+          selectedTaskIds.map((id) => fetch(`/api/tasks/${id}`, { method: 'DELETE' }))
+        );
         const failed: string[] = [];
-        for (const id of selectedTaskIds) {
-          const response = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
-          if (!response.ok) failed.push(id);
-        }
+        results.forEach((result, idx) => {
+          if (result.status === 'rejected') {
+            failed.push(selectedTaskIds[idx]);
+            return;
+          }
+          if (!result.value.ok) failed.push(selectedTaskIds[idx]);
+        });
         if (failed.length === 0) {
           notify(`Deleted ${selectedTaskIds.length} task(s).`, 'success');
         } else {
@@ -322,6 +349,120 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
         setSelectedTaskIds([]);
       }
     });
+  };
+
+  const openBulkStatusModal = () => {
+    if (selectedTaskIds.length === 0) return;
+    setBulkStatus('READY');
+    setIsBulkStatusOpen(true);
+  };
+
+  const handleApplyBulkStatus = async () => {
+    if (selectedTaskIds.length === 0 || bulkStatusSaving) return;
+    const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(task.id));
+    const actionable = selectedTasks.filter((task) => !task.signedOffAt);
+    if (actionable.length === 0) {
+      notify('No editable tasks selected (signed-off tasks are locked).', 'error');
+      return;
+    }
+
+    setBulkStatusSaving(true);
+    const responses = await Promise.allSettled(
+      actionable.map((task) =>
+        fetch(`/api/tasks/${task.id}/status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: bulkStatus,
+            expectedUpdatedAt: task.updatedAt
+          })
+        })
+      )
+    );
+
+    let successCount = 0;
+    responses.forEach((result) => {
+      if (result.status === 'fulfilled' && result.value.ok) {
+        successCount += 1;
+      }
+    });
+
+    const failedCount = actionable.length - successCount;
+    const lockedCount = selectedTasks.length - actionable.length;
+    if (successCount > 0) {
+      notify(
+        `Updated status for ${successCount} task(s).${failedCount > 0 ? ` ${failedCount} failed.` : ''}${lockedCount > 0 ? ` ${lockedCount} locked.` : ''}`,
+        failedCount > 0 ? 'error' : 'success'
+      );
+    } else {
+      notify(`No tasks updated.${lockedCount > 0 ? ` ${lockedCount} locked.` : ''}`, 'error');
+    }
+
+    await refreshTasks();
+    setBulkStatusSaving(false);
+    setIsBulkStatusOpen(false);
+    setSelectedTaskIds([]);
+  };
+
+  const openBulkAssignModal = () => {
+    if (selectedTaskIds.length === 0) return;
+    const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(task.id));
+    const uniqueCountries = Array.from(new Set(selectedTasks.map((task) => task.countryCode)));
+    const defaults: Record<string, string> = {};
+    for (const countryCode of uniqueCountries) {
+      const countryTasks = selectedTasks.filter((task) => task.countryCode === countryCode);
+      const assigneeIds = Array.from(new Set(countryTasks.map((task) => task.assigneeId).filter(Boolean)));
+      defaults[countryCode] = assigneeIds.length === 1 ? assigneeIds[0] : '';
+    }
+    setBulkAssigneeByCountry(defaults);
+    setIsBulkAssignOpen(true);
+  };
+
+  const handleApplyBulkAssignee = async () => {
+    if (selectedTaskIds.length === 0 || bulkAssignSaving) return;
+    const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(task.id));
+    const tasksToUpdate = selectedTasks.filter((task) => {
+      if (task.signedOffAt) return false;
+      const nextAssigneeId = bulkAssigneeByCountry[task.countryCode];
+      if (!nextAssigneeId) return false;
+      return nextAssigneeId !== task.assigneeId;
+    });
+
+    if (tasksToUpdate.length === 0) {
+      notify('No assignee changes to apply.', 'error');
+      return;
+    }
+
+    setBulkAssignSaving(true);
+    const responses = await Promise.allSettled(
+      tasksToUpdate.map((task) =>
+        fetch(`/api/tasks/${task.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assigneeId: bulkAssigneeByCountry[task.countryCode],
+            expectedUpdatedAt: task.updatedAt
+          })
+        })
+      )
+    );
+
+    let successCount = 0;
+    responses.forEach((result) => {
+      if (result.status === 'fulfilled' && result.value.ok) {
+        successCount += 1;
+      }
+    });
+    const failedCount = tasksToUpdate.length - successCount;
+    notify(
+      `Updated assignee for ${successCount}/${tasksToUpdate.length} task(s).`,
+      failedCount > 0 ? 'error' : 'success'
+    );
+
+    await refreshTasks();
+    setBulkAssignSaving(false);
+    setIsBulkAssignOpen(false);
+    setSelectedTaskIds([]);
   };
 
   const openGlobalEditModal = () => {
@@ -405,18 +546,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       }
     }
 
-    try {
-      const refreshed = await apiFetch<Task[]>('/api/tasks', { cache: 'no-store' });
-      const mappedTasks = Array.isArray(refreshed)
-        ? refreshed.map((task) => ({
-            ...task,
-            featureModule: task.featureModule ?? (task as any).module ?? 'General'
-          }))
-        : [];
-      onAddTask(mappedTasks);
-    } catch {
-      // non-blocking
-    }
+    await refreshTasks();
 
     setGlobalEditSaving(false);
     setIsGlobalEditOpen(false);
@@ -614,6 +744,20 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
            <p className="text-slate-500">Create, edit, and organize UAT scenarios.</p>
         </div>
         <div className="flex gap-2">
+           <button
+             onClick={openBulkStatusModal}
+             disabled={selectedTaskIds.length === 0}
+             className={`${subtleButtonClass} shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+           >
+             Bulk Status ({selectedTaskIds.length})
+           </button>
+           <button
+             onClick={openBulkAssignModal}
+             disabled={selectedTaskIds.length === 0}
+             className={`${subtleButtonClass} shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+           >
+             Bulk Assign ({selectedTaskIds.length})
+           </button>
            <button
              onClick={openGlobalEditModal}
              disabled={selectedTaskIds.length === 0}
@@ -1136,6 +1280,81 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
               </button>
               <button onClick={handleApplyGlobalEdit} className={primaryButtonClass} disabled={globalEditSaving}>
                 {globalEditSaving ? 'Applying...' : 'Apply Global Edit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isBulkStatusOpen && (
+        <div className="fixed inset-0 z-[110] bg-slate-900/50 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-xl p-5">
+            <h3 className="text-base font-semibold text-slate-900">Bulk Update Status</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Applies to selected tasks. Signed-off tasks remain unchanged.
+            </p>
+            <div className="mt-4">
+              <label className="block text-xs text-slate-500 mb-1">Target status</label>
+              <select
+                className={selectBaseClass}
+                value={bulkStatus}
+                onChange={(e) => setBulkStatus(e.target.value as typeof bulkStatus)}
+              >
+                <option value="DRAFT">Draft</option>
+                <option value="READY">Ready</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="BLOCKED">Blocked</option>
+                <option value="FAILED">Failed</option>
+                <option value="DEPLOYED">Deployed</option>
+              </select>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setIsBulkStatusOpen(false)} className={subtleButtonClass} disabled={bulkStatusSaving}>
+                Cancel
+              </button>
+              <button onClick={handleApplyBulkStatus} className={primaryButtonClass} disabled={bulkStatusSaving}>
+                {bulkStatusSaving ? 'Applying...' : 'Apply Status'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isBulkAssignOpen && (
+        <div className="fixed inset-0 z-[110] bg-slate-900/50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-xl p-5">
+            <h3 className="text-base font-semibold text-slate-900">Bulk Assign Stakeholders</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Choose assignee per country. Only selected tasks in that country will be updated.
+            </p>
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              {Array.from(new Set(tasks.filter((task) => selectedTaskIds.includes(task.id)).map((task) => task.countryCode))).map((countryCode) => {
+                const options = stakeholders.filter((u) => u.countryCode === countryCode);
+                return (
+                  <div key={countryCode}>
+                    <label className="block text-xs text-slate-500 mb-1">{countryCode}</label>
+                    <select
+                      className={selectBaseClass}
+                      value={bulkAssigneeByCountry[countryCode] || ''}
+                      onChange={(e) => setBulkAssigneeByCountry((prev) => ({ ...prev, [countryCode]: e.target.value }))}
+                    >
+                      <option value="">Keep current assignee</option>
+                      {options.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name || user.email}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={() => setIsBulkAssignOpen(false)} className={subtleButtonClass} disabled={bulkAssignSaving}>
+                Cancel
+              </button>
+              <button onClick={handleApplyBulkAssignee} className={primaryButtonClass} disabled={bulkAssignSaving}>
+                {bulkAssignSaving ? 'Applying...' : 'Apply Assignment'}
               </button>
             </div>
           </div>
