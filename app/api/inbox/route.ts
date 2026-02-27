@@ -62,6 +62,8 @@ export async function GET() {
       unreadCount: number;
       latestMessage: string;
       latestAt: string;
+      latestStepOrder: number | null;
+      latestCommentId: string;
     }
   >();
 
@@ -81,7 +83,9 @@ export async function GET() {
         status: comment.task.status,
         unreadCount: 1,
         latestMessage: preview,
-        latestAt: comment.createdAt.toISOString()
+        latestAt: comment.createdAt.toISOString(),
+        latestStepOrder: typeof comment.stepOrder === 'number' ? comment.stepOrder : null,
+        latestCommentId: comment.id
       });
       continue;
     }

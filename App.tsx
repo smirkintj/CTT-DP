@@ -72,6 +72,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [view, setView] = useState<ViewState>(initialView ?? 'LOGIN');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialSelectedTaskId);
+  const [selectedStepOrder, setSelectedStepOrder] = useState<number | null>(null);
 
   // Global Lists of Values
   const [availableCountries, setAvailableCountries] = useState<CountryConfig[]>(INITIAL_COUNTRIES);
@@ -406,6 +407,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
   const handleTaskSelect = (task: Task) => {
     setSelectedTaskId(task.id);
+    setSelectedStepOrder(null);
     setView('TASK_DETAIL');
     onRouteChange?.('TASK_DETAIL', task.id);
   };
@@ -417,8 +419,23 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       return;
     }
     setSelectedTaskId(taskId);
+    setSelectedStepOrder(null);
     setView('TASK_DETAIL');
     onRouteChange?.('TASK_DETAIL', taskId);
+  };
+
+  const handleOpenTaskFromInbox = (task: Task, options?: { stepOrder?: number | null; commentId?: string | null }) => {
+    setSelectedTaskId(task.id);
+    setSelectedStepOrder(options?.stepOrder ?? null);
+    setView('TASK_DETAIL');
+    onRouteChange?.('TASK_DETAIL', task.id);
+    setTasks((prev) => {
+      const exists = prev.some((t) => t.id === task.id);
+      if (exists) {
+        return prev.map((t) => (t.id === task.id ? task : t));
+      }
+      return [task, ...prev];
+    });
   };
 
   const handleTaskUpdate = (updatedTask: Task) => {
@@ -455,7 +472,10 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
   const handleNavigation = (targetView: ViewState) => {
     setView(targetView);
-    if (targetView !== 'TASK_DETAIL') setSelectedTaskId(null);
+    if (targetView !== 'TASK_DETAIL') {
+      setSelectedTaskId(null);
+      setSelectedStepOrder(null);
+    }
     onRouteChange?.(targetView, targetView === 'TASK_DETAIL' ? selectedTaskId : null);
   };
 
@@ -635,6 +655,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
         <TaskDetail 
           task={selectedTask} 
           currentUser={currentUser} 
+          initialStepOrder={selectedStepOrder}
           onBack={() => handleNavigation(currentUser.role === Role.ADMIN ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}
           onUpdateTask={handleTaskUpdate}
           onDeleteTask={handleTaskDelete}
@@ -653,7 +674,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
       {view === 'INBOX' && (
         <InboxView
-          onOpenTask={handleTaskSelect}
+          onOpenTask={handleOpenTaskFromInbox}
           onBack={() => handleNavigation(currentUser.role === Role.ADMIN ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}
         />
       )}

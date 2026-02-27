@@ -76,6 +76,28 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
   const blockedTasks = myTasks.filter(t => t.status === Status.BLOCKED);
 
   useEffect(() => {
+    const key = `stakeholder-dashboard-ui:${currentUserCountry}`;
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { filterStatus?: string; searchTerm?: string };
+      if (typeof parsed.filterStatus === 'string') setFilterStatus(parsed.filterStatus);
+      if (typeof parsed.searchTerm === 'string') setSearchTerm(parsed.searchTerm);
+    } catch {
+      // ignore malformed local state
+    }
+  }, [currentUserCountry]);
+
+  useEffect(() => {
+    const key = `stakeholder-dashboard-ui:${currentUserCountry}`;
+    try {
+      window.localStorage.setItem(key, JSON.stringify({ filterStatus, searchTerm }));
+    } catch {
+      // ignore storage write errors
+    }
+  }, [currentUserCountry, filterStatus, searchTerm]);
+
+  useEffect(() => {
     const loadActivities = async () => {
       setLoadingActivity(true);
       const response = await fetch('/api/activities', { cache: 'no-store' });

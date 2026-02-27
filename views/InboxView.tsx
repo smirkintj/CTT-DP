@@ -12,10 +12,12 @@ interface InboxItem {
   unreadCount: number;
   latestMessage: string;
   latestAt: string;
+  latestStepOrder: number | null;
+  latestCommentId: string;
 }
 
 interface InboxViewProps {
-  onOpenTask: (task: Task) => void;
+  onOpenTask: (task: Task, options?: { stepOrder?: number | null; commentId?: string | null }) => void;
   onBack: () => void;
 }
 
@@ -72,12 +74,16 @@ export const InboxView: React.FC<InboxViewProps> = ({ onOpenTask, onBack }) => {
     setItems((prev) => prev.map((item) => ({ ...item, unreadCount: 0 })));
   };
 
-  const openTask = async (taskId: string) => {
+  const openTask = async (item: InboxItem) => {
+    const taskId = item.taskId;
     const response = await fetch(`/api/tasks/${taskId}`, { cache: 'no-store' });
     if (!response.ok) return;
     const task = await response.json();
     await markTaskRead(taskId);
-    onOpenTask(task as Task);
+    onOpenTask(task as Task, {
+      stepOrder: item.latestStepOrder,
+      commentId: item.latestCommentId
+    });
   };
 
   return (
@@ -110,7 +116,7 @@ export const InboxView: React.FC<InboxViewProps> = ({ onOpenTask, onBack }) => {
           items.map((item) => (
             <button
               key={item.taskId}
-              onClick={() => void openTask(item.taskId)}
+              onClick={() => void openTask(item)}
               className="w-full text-left p-4 hover:bg-slate-50 transition-colors flex items-center justify-between gap-4"
             >
               <div className="min-w-0">

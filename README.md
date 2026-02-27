@@ -218,6 +218,10 @@ Security notes:
   - Admin Task create modal
   - Admin Database notification settings (email + Teams)
 - Auth/session hydration now shows a neutral loading state to prevent brief login-page flicker on refresh.
+- Stakeholder UX updates:
+  - Inbox `Open task` now deep-links task detail to the latest unread step context.
+  - Stakeholder dashboard filter/search state is persisted per market in local storage.
+  - Step action area in task detail shows inline save feedback (`Saving step...`, `Step saved`, `Save failed`).
 - Form styling is being consolidated with shared Apple-style utility classes:
   - `/Users/putra/Desktop/CTT-DKSH-main/components/ui/formClasses.ts`
 - Inline validation is now enforced in key task create/edit flows (client + server).

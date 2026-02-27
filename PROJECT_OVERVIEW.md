@@ -208,6 +208,15 @@ Admin audit checklist:
 - `POST /api/activities/mark-read`
   - mark one or mark all as read
 
+### Inbox
+- `GET /api/inbox`
+  - grouped unread-comment threads now include latest context fields:
+    - `latestStepOrder`
+    - `latestCommentId`
+  - used by client to deep-link task detail to the relevant step.
+- `POST /api/inbox/mark-read`
+  - marks task inbox thread read for current user.
+
 ### Debug
 - `GET /api/debug/env`
 - `GET /api/health`
@@ -262,6 +271,8 @@ Additional behavior:
 - Comment activity can include step context.
 - No-op status changes are ignored.
 - Mark-as-read is stored per user via `ActivityRead`.
+- Stakeholder inbox `Open task` now opens task detail with latest unread step expanded.
+- Stakeholder dashboard persists filter/search state per market in local storage.
 - Save-state + unsaved-change guards are implemented in:
   - `views/TaskDetail.tsx`
   - `views/AdminTaskManagement.tsx` (create modal)

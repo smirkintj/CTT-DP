@@ -1,6 +1,6 @@
 # Product Backlog (CTT UAT Portal)
 
-Last updated: 2026-02-25  
+Last updated: 2026-02-27  
 Owner: Product + Engineering  
 Scope: Next.js App Router + Prisma + NextAuth stack
 
@@ -866,3 +866,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-26`: Advanced #24 accessibility Phase 1 for login, admin task management, and task detail keyboard/ARIA support.
 - `2026-02-26`: Advanced #25 with phase-1 multi-market global metadata update (shared `taskGroupId`, group preview API, signed-off skip handling, and admin save summary).
 - `2026-02-26`: Extended #25 UX with selected-row global edit modal in task table and richer task-detail global preview (market list + editable-state guard).
+- `2026-02-27`: Improved stakeholder UX polish: inbox opens task detail with latest unread step context, task-detail step actions now show inline save state feedback, and stakeholder dashboard filter/search preferences persist per market.

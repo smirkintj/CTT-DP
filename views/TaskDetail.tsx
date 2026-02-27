@@ -14,6 +14,7 @@ import { isValidJiraTicket, normalizeJiraTicketInput } from '../lib/taskValidati
 interface TaskDetailProps {
   task: Task;
   currentUser: User;
+  initialStepOrder?: number | null;
   onBack: () => void;
   onUpdateTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
@@ -113,7 +114,7 @@ const getJiraUrl = (raw?: string) => {
   return `https://dkshdigital.atlassian.net/browse/${ticket}`;
 };
 
-export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBack, onUpdateTask, onDeleteTask }) => {
+export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initialStepOrder = null, onBack, onUpdateTask, onDeleteTask }) => {
   const [localTask, setLocalTask] = useState<Task>(() => normalizeTask(task));
   const [expandedStep, setExpandedStep] = useState<string | null>(() => {
     const safe = normalizeTask(task);
@@ -134,6 +135,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
   const [deploymentModalOpen, setDeploymentModalOpen] = useState(false);
   const [releaseVersion, setReleaseVersion] = useState('');
   const [commentInputs, setCommentInputs] = useState<{[key: string]: string}>({});
+  const [stepSaveState, setStepSaveState] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
   const [taskMetaSaveState, setTaskMetaSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [applyGlobalMetaUpdate, setApplyGlobalMetaUpdate] = useState(false);
   const [groupPreview, setGroupPreview] = useState<GroupUpdatePreview | null>(null);
@@ -178,6 +180,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
 
   // Handle Step Updates
   const persistStepProgress = async (stepId: string, updates: Partial<TestStep>) => {
+    setStepSaveState((prev) => ({ ...prev, [stepId]: 'saving' }));
     const response = await fetch(`/api/tasks/${localTask.id}/steps/${stepId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -191,7 +194,19 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
     if (response.status === 409) {
       notify('Task changed by another user. Reloaded latest data.', 'error');
       await refreshTask(localTask.id);
+      setStepSaveState((prev) => ({ ...prev, [stepId]: 'error' }));
+      return false;
     }
+    if (!response.ok) {
+      setStepSaveState((prev) => ({ ...prev, [stepId]: 'error' }));
+      notify('Failed to save step updates', 'error');
+      return false;
+    }
+    setStepSaveState((prev) => ({ ...prev, [stepId]: 'saved' }));
+    window.setTimeout(() => {
+      setStepSaveState((prev) => ({ ...prev, [stepId]: 'idle' }));
+    }, 1200);
+    return true;
   };
 
   const handleStepUpdate = (stepId: string, updates: Partial<TestStep>) => {
@@ -276,6 +291,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
 
     await refreshTask(localTask.id);
     setCommentInputs({ ...commentInputs, [stepId]: '' });
+    notify('Comment added', 'success');
   };
 
   const handleOpenUpload = (stepId: string) => {
@@ -674,6 +690,14 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
       setHistoryItems([]);
     }
   }, [task.id, isAdmin]);
+
+  useEffect(() => {
+    if (!initialStepOrder) return;
+    const target = (localTask.steps ?? []).find((step) => step.order === initialStepOrder);
+    if (target?.id) {
+      setExpandedStep(target.id);
+    }
+  }, [initialStepOrder, localTask.steps]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -1218,6 +1242,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, onBac
                               {/* Action Bar */}
                               {canRunTestActions && (
                                 <div className="flex justify-end pt-2 border-t border-slate-50 print:hidden">
+                                    <div className="mr-auto text-xs self-center">
+                                      {stepSaveState[step.id] === 'saving' && <span className="text-slate-500">Saving step...</span>}
+                                      {stepSaveState[step.id] === 'saved' && <span className="text-emerald-600">Step saved</span>}
+                                      {stepSaveState[step.id] === 'error' && <span className="text-rose-600">Save failed</span>}
+                                    </div>
                                     <div className="flex gap-2">
                                       <button 
                                         onClick={(e) => { e.stopPropagation(); handleStepUpdate(step.id, { isPassed: false }); }}
