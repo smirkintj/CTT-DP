@@ -78,9 +78,9 @@ const WorkspaceLoadingScreen: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-5xl py-10">
+      <div className="w-full max-w-2xl py-10">
         <div className="text-center px-2">
-          <p className="text-3xl font-semibold text-slate-900 leading-tight">Loading your workspace</p>
+          <p className="text-[2rem] font-semibold text-slate-900 leading-tight">Loading your workspace</p>
           <p className="mt-3 text-slate-500 text-base leading-relaxed">Preparing tasks, comments, and notifications.</p>
         </div>
 

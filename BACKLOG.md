@@ -480,6 +480,13 @@ This backlog tracks improvement initiatives with:
   - Added admin task table bulk assignee modal for selected tasks:
     - assignee selection is mapped by country
     - signed-off tasks are excluded from mutation.
+  - Added bulk action UX hardening:
+    - in-flight action locking on bulk controls
+    - inline operation feedback in bulk modals.
+  - Added admin table UX/performance polish:
+    - debounced search input
+    - sticky table header for long lists
+    - stronger keyboard focus visibility for selection checkboxes.
 - Impact if not done:
   - Admin operations remain slow and error-prone for large rollouts.
 
@@ -966,3 +973,5 @@ This backlog tracks improvement initiatives with:
 - `2026-02-27`: Advanced #25 bulk admin actions with selected-row bulk status update and per-country bulk assignee update, while preserving signed-off lock and role/transition security checks.
 - `2026-02-27`: Improved session hydration UX with animated workspace loading feedback (indeterminate progress + pulse indicators) to reduce perceived idle wait.
 - `2026-02-27`: Refined workspace loading screen to full-width clean layout (less truncation risk) and added `?debugLoading=1` QA hold for animation validation.
+- `2026-02-27`: Completed sprint polish on admin task management with debounced search, sticky header, accessibility-focused checkbox states, and in-modal bulk action feedback/duplicate-submit guards.
+- `2026-02-27`: Refined workspace loader layout with compact width and stronger spacing rhythm while keeping design-system color usage.

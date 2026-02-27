@@ -259,6 +259,9 @@ Currently created events:
 - Admin task table supports bulk delete through row selection.
 - Admin task table supports bulk status updates across selected tasks (signed-off tasks skipped).
 - Admin task table supports bulk stakeholder reassignment using per-country assignee selection.
+- Admin bulk status/assignee modals include inline result summaries and in-flight action locking to avoid duplicate submissions.
+- Admin task management search uses debounce for smoother typing on large lists.
+- Admin task table header is sticky and row-selection checkboxes include stronger keyboard focus styles.
 - After admin deletes a task from detail, navigation returns to task management table.
 - Due date in admin table shows date-only.
 - Priority badge styling standardized across levels.
@@ -269,6 +272,7 @@ Currently created events:
 - Login flow enforces an undismissable password change modal when `mustChangePassword` is true.
 - Session hydration screen now uses animated loading feedback (spinner + indeterminate bar + pulse dots) while user workspace initializes.
 - Added QA debug mode for loading screen validation: `?debugLoading=1` keeps loading view visible for 5 seconds.
+- Workspace loading view is now compact-width and uses clearer spacing between subtitle, progress bar, and spinner row.
 - Import wizard is functional for CSV files exported from Excel (column mapping + preview).
 - Import supports:
   - replace steps in an existing task, or

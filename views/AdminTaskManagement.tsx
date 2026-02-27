@@ -33,6 +33,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const [stakeholders, setStakeholders] = useState<Array<{ id: string; name: string; email: string; countryCode: string }>>([]);
   const [assigneeByCountry, setAssigneeByCountry] = useState<Record<string, string>>({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -75,9 +76,11 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const [globalEditSaving, setGlobalEditSaving] = useState(false);
   const [isBulkStatusOpen, setIsBulkStatusOpen] = useState(false);
   const [bulkStatusSaving, setBulkStatusSaving] = useState(false);
+  const [bulkStatusMessage, setBulkStatusMessage] = useState<string | null>(null);
   const [bulkStatus, setBulkStatus] = useState<'DRAFT' | 'READY' | 'IN_PROGRESS' | 'BLOCKED' | 'FAILED' | 'DEPLOYED'>('READY');
   const [isBulkAssignOpen, setIsBulkAssignOpen] = useState(false);
   const [bulkAssignSaving, setBulkAssignSaving] = useState(false);
+  const [bulkAssignMessage, setBulkAssignMessage] = useState<string | null>(null);
   const [bulkAssigneeByCountry, setBulkAssigneeByCountry] = useState<Record<string, string>>({});
   const [globalEdit, setGlobalEdit] = useState({
     title: '',
@@ -186,6 +189,13 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       return next;
     });
   }, [stakeholders, selectedCountries]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearchTerm(searchInput);
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   const normalizeStatusKey = (status: string) => status?.toString().trim().replace(/\s+/g, '_').toUpperCase();
   const normalizePriorityKey = (priority: string) => priority?.toString().trim().replace(/\s+/g, '_').toUpperCase();
@@ -300,6 +310,8 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     return sorted;
   }, [tasks, searchTerm, statusFilter, priorityFilter, countryFilter, signedOffFilter, sortBy]);
 
+  const isAnyBulkActionSaving = bulkAssignSaving || bulkStatusSaving || globalEditSaving;
+
   useEffect(() => {
     setSelectedTaskIds((prev) => prev.filter((id) => filteredTasks.some((task) => task.id === id)));
   }, [filteredTasks]);
@@ -354,6 +366,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const openBulkStatusModal = () => {
     if (selectedTaskIds.length === 0) return;
     setBulkStatus('READY');
+    setBulkStatusMessage(null);
     setIsBulkStatusOpen(true);
   };
 
@@ -363,6 +376,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     const actionable = selectedTasks.filter((task) => !task.signedOffAt);
     if (actionable.length === 0) {
       notify('No editable tasks selected (signed-off tasks are locked).', 'error');
+      setBulkStatusMessage('No editable tasks selected. Signed-off tasks are locked.');
       return;
     }
 
@@ -390,11 +404,14 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     const failedCount = actionable.length - successCount;
     const lockedCount = selectedTasks.length - actionable.length;
     if (successCount > 0) {
+      const message = `Updated status for ${successCount} task(s).${failedCount > 0 ? ` ${failedCount} failed.` : ''}${lockedCount > 0 ? ` ${lockedCount} locked.` : ''}`;
+      setBulkStatusMessage(message);
       notify(
-        `Updated status for ${successCount} task(s).${failedCount > 0 ? ` ${failedCount} failed.` : ''}${lockedCount > 0 ? ` ${lockedCount} locked.` : ''}`,
+        message,
         failedCount > 0 ? 'error' : 'success'
       );
     } else {
+      setBulkStatusMessage(`No tasks updated.${lockedCount > 0 ? ` ${lockedCount} locked.` : ''}`);
       notify(`No tasks updated.${lockedCount > 0 ? ` ${lockedCount} locked.` : ''}`, 'error');
     }
 
@@ -415,6 +432,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       defaults[countryCode] = assigneeIds.length === 1 ? assigneeIds[0] : '';
     }
     setBulkAssigneeByCountry(defaults);
+    setBulkAssignMessage(null);
     setIsBulkAssignOpen(true);
   };
 
@@ -430,6 +448,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
 
     if (tasksToUpdate.length === 0) {
       notify('No assignee changes to apply.', 'error');
+      setBulkAssignMessage('No assignee changes to apply.');
       return;
     }
 
@@ -454,8 +473,10 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       }
     });
     const failedCount = tasksToUpdate.length - successCount;
+    const resultMessage = `Updated assignee for ${successCount}/${tasksToUpdate.length} task(s).`;
+    setBulkAssignMessage(resultMessage);
     notify(
-      `Updated assignee for ${successCount}/${tasksToUpdate.length} task(s).`,
+      resultMessage,
       failedCount > 0 ? 'error' : 'success'
     );
 
@@ -746,29 +767,33 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
         <div className="flex gap-2">
            <button
              onClick={openBulkStatusModal}
-             disabled={selectedTaskIds.length === 0}
+             disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
              className={`${subtleButtonClass} shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+             aria-disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
            >
              Bulk Status ({selectedTaskIds.length})
            </button>
            <button
              onClick={openBulkAssignModal}
-             disabled={selectedTaskIds.length === 0}
+             disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
              className={`${subtleButtonClass} shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+             aria-disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
            >
              Bulk Assign ({selectedTaskIds.length})
            </button>
            <button
              onClick={openGlobalEditModal}
-             disabled={selectedTaskIds.length === 0}
+             disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
              className={`${subtleButtonClass} shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+             aria-disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
            >
              <Save size={16}/> Global Edit ({selectedTaskIds.length})
            </button>
            <button
              onClick={handleBulkDelete}
-             disabled={selectedTaskIds.length === 0}
+             disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
              className={`${subtleButtonClass} shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+             aria-disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
            >
              <Trash2 size={16}/> Delete Selected ({selectedTaskIds.length})
            </button>
@@ -802,13 +827,13 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
             <div className="relative max-w-sm w-full">
                <label htmlFor="admin-task-search" className="sr-only">Search tasks</label>
                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-               <input 
+               <input
                  id="admin-task-search"
                  type="text" 
                  className={`w-full pl-9 pr-4 py-2 ${fieldBaseClass}`} 
                  placeholder="Search tasks..."
-                 value={searchTerm}
-                 onChange={(e) => setSearchTerm(e.target.value)}
+                 value={searchInput}
+                 onChange={(e) => setSearchInput(e.target.value)}
                />
             </div>
             <div className="flex items-center gap-2">
@@ -900,10 +925,10 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
          )}
 
          {/* Table */}
-         <div>
+         <div className="max-h-[68vh] overflow-auto">
             <table className="w-full table-fixed text-sm text-left">
                <caption className="sr-only">Admin task management table</caption>
-               <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+               <thead className="sticky top-0 z-10 bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
                   <tr>
                      <th className="px-3 py-4 w-[4%]">
                        <input
@@ -911,6 +936,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                          checked={filteredTasks.length > 0 && selectedTaskIds.length === filteredTasks.length}
                          onChange={(e) => toggleSelectAllVisible(e.target.checked)}
                          onClick={(e) => e.stopPropagation()}
+                         className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500"
                          aria-label="Select all visible tasks"
                        />
                      </th>
@@ -928,13 +954,13 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                   {loading && filteredTasks.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-6 py-10 text-center text-slate-500">
-                        Loading tasks...
+                        Loading tasks for task management...
                       </td>
                     </tr>
                   ) : filteredTasks.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-6 py-10 text-center text-slate-400">
-                        No tasks found.
+                        No tasks found. Adjust filters or search to continue.
                       </td>
                     </tr>
                   ) : (
@@ -957,6 +983,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                              type="checkbox"
                              checked={selectedTaskIds.includes(task.id)}
                              onChange={(e) => toggleTaskSelection(task.id, e.target.checked)}
+                             className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-2 focus:ring-slate-500"
                              aria-label={`Select task ${task.title}`}
                            />
                          </td>
@@ -1288,7 +1315,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
 
       {isBulkStatusOpen && (
         <div className="fixed inset-0 z-[110] bg-slate-900/50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-xl p-5">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-xl p-5" aria-busy={bulkStatusSaving}>
             <h3 className="text-base font-semibold text-slate-900">Bulk Update Status</h3>
             <p className="text-xs text-slate-500 mt-1">
               Applies to selected tasks. Signed-off tasks remain unchanged.
@@ -1308,6 +1335,11 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                 <option value="DEPLOYED">Deployed</option>
               </select>
             </div>
+            {bulkStatusMessage && (
+              <p className="mt-3 text-xs text-slate-500" role="status" aria-live="polite">
+                {bulkStatusMessage}
+              </p>
+            )}
             <div className="mt-5 flex justify-end gap-2">
               <button onClick={() => setIsBulkStatusOpen(false)} className={subtleButtonClass} disabled={bulkStatusSaving}>
                 Cancel
@@ -1322,7 +1354,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
 
       {isBulkAssignOpen && (
         <div className="fixed inset-0 z-[110] bg-slate-900/50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-xl p-5">
+          <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-xl p-5" aria-busy={bulkAssignSaving}>
             <h3 className="text-base font-semibold text-slate-900">Bulk Assign Stakeholders</h3>
             <p className="text-xs text-slate-500 mt-1">
               Choose assignee per country. Only selected tasks in that country will be updated.
@@ -1349,6 +1381,11 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                 );
               })}
             </div>
+            {bulkAssignMessage && (
+              <p className="mt-3 text-xs text-slate-500" role="status" aria-live="polite">
+                {bulkAssignMessage}
+              </p>
+            )}
             <div className="mt-5 flex justify-end gap-2">
               <button onClick={() => setIsBulkAssignOpen(false)} className={subtleButtonClass} disabled={bulkAssignSaving}>
                 Cancel

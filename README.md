@@ -217,6 +217,9 @@ Security notes:
 - Bulk delete is supported from `/admin/tasks` via row selection.
 - Bulk status update is supported from `/admin/tasks` via row selection (`Draft/Ready/In Progress/Blocked/Failed/Deployed`), with signed-off tasks skipped.
 - Bulk assignee update is supported from `/admin/tasks` via row selection and country-based stakeholder mapping.
+- Bulk action modals now show inline result feedback and enforce in-flight disable states to prevent duplicate submissions.
+- Admin task table now uses debounced search input and sticky header for smoother scanning in long lists.
+- Admin task selection checkboxes now use stronger keyboard focus styles for accessibility.
 - After task deletion from detail view, admin is redirected to task management table.
 - Due date in admin task table is date-only (no time).
 - Priority badges are standardized with colored dots for all levels.
@@ -227,6 +230,7 @@ Security notes:
 - Auth/session hydration now shows a neutral loading state to prevent brief login-page flicker on refresh.
 - Auth/session hydration loading state now includes a subtle animated progress bar + pulse indicators for clearer feedback while workspace loads.
   - QA helper: append `?debugLoading=1` to hold the loading screen for 5 seconds and validate layout/animation.
+  - Loading view refined to compact width with larger spacing between subtitle and loader block.
 - Stakeholder UX updates:
   - Inbox `Open task` now deep-links task detail to the latest unread step/comment context.
   - Task detail auto-scrolls and temporarily highlights the target unread comment from inbox context.

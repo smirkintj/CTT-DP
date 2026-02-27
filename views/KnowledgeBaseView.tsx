@@ -233,8 +233,9 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ onBack, on
           <div className="rounded-lg border border-slate-200 p-4">
             <p className="text-sm font-semibold text-slate-800">How do I know portal emails are legitimate?</p>
             <p className="text-xs text-slate-600 mt-1">
-              Official notifications come from the configured portal sender address and include your task title, market, and portal context.
-              We do not ask for password, OTP, or bank/finance details by email. If content is suspicious, open the portal directly and verify the same task there.
+              Official notifications come from the configured portal sender address and include your task title, country, and portal context.
+              The portal will never ask for your password, OTP, or payment details by email. If anything looks suspicious, do not click links:
+              open the portal directly, then verify the same task in Task Detail/Inbox before taking action.
             </p>
           </div>
         </div>
