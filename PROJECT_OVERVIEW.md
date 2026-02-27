@@ -307,6 +307,12 @@ Additional behavior:
   - task-detail save-state labels use micro-animations for clearer feedback
   - preference toggles use smooth switch transitions
   - reduced-motion preference is respected globally
+- Task detail discussion UX:
+  - quick action to mark current task discussions/comments as read
+  - inline `@mention` autocomplete suggestions in comment composer
+- In-portal Knowledge Base:
+  - reusable knowledge-base card (workflow + status definitions)
+  - rendered in both stakeholder and admin dashboards
 - Save-state + unsaved-change guards are implemented in:
   - `views/TaskDetail.tsx`
   - `views/AdminTaskManagement.tsx` (create modal)

@@ -226,6 +226,8 @@ Security notes:
   - Inbox `Open task` now deep-links task detail to the latest unread step/comment context.
   - Task detail auto-scrolls and temporarily highlights the target unread comment from inbox context.
   - Task detail comment drafts are auto-saved per user/task in local storage and restored after refresh/navigation.
+  - Task detail now includes `Mark discussions read` quick action for the current task thread.
+  - Task detail comment composer supports inline `@mention` autocomplete suggestions.
   - Inbox supports quick triage filters (`All Discussions`, `My Assigned Tasks` for admin, `Blocked / Failed`).
   - Empty states now include contextual actions:
     - stakeholder task grid: clear filters or open discussions
@@ -236,6 +238,7 @@ Security notes:
     - step/comment save-state micro-animations
     - smooth notification toggle transitions
   - All motion respects `prefers-reduced-motion`.
+  - In-portal Knowledge Base card now explains task status workflow and definitions in both stakeholder and admin dashboards.
   - Stakeholder dashboard filter/search state is persisted per market in local storage.
   - Stakeholder dashboard now includes a lightweight “Getting Started” helper card (no overlay tour), dismissible per user.
   - Step action area in task detail shows inline save feedback (`Saving step...`, `Step saved`, `Save failed`).

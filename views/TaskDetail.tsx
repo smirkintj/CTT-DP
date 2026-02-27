@@ -139,6 +139,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   const [stepSaveState, setStepSaveState] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
   const [commentSaveState, setCommentSaveState] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
   const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
+  const [activeMentionStepId, setActiveMentionStepId] = useState<string | null>(null);
+  const [markingCommentsRead, setMarkingCommentsRead] = useState(false);
   const [taskMetaSaveState, setTaskMetaSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [applyGlobalMetaUpdate, setApplyGlobalMetaUpdate] = useState(false);
   const [groupPreview, setGroupPreview] = useState<GroupUpdatePreview | null>(null);
@@ -185,6 +187,16 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   const portalUrl = localTask.targetSystem === 'Admin Portal' 
     ? 'https://www.easyorderadminstg.dksh.com' 
     : 'https://www.easyorderstg.dksh.com';
+
+  const getMentionContext = (value: string) => {
+    const match = value.match(/(^|\s)(@[^\s@]*)$/);
+    if (!match || typeof match.index !== 'number') return null;
+    const start = match.index + match[1].length;
+    const end = value.length;
+    const raw = match[2] || '';
+    const query = raw.replace(/^@/, '').toLowerCase();
+    return { start, end, query };
+  };
 
   // Handle Step Updates
   const persistStepProgress = async (stepId: string, updates: Partial<TestStep>) => {
@@ -317,6 +329,28 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   const handleOpenUpload = (stepId: string) => {
     setUploadStepId(stepId);
     fileInputRef.current?.click();
+  };
+
+  const handleInsertMention = (stepId: string, mentionName: string) => {
+    const currentValue = commentInputs[stepId] || '';
+    const ctx = getMentionContext(currentValue);
+    if (!ctx) return;
+    const nextValue = `${currentValue.slice(0, ctx.start)}@${mentionName} ${currentValue.slice(ctx.end)}`;
+    setCommentInputs((prev) => ({ ...prev, [stepId]: nextValue }));
+  };
+
+  const handleMarkTaskCommentsRead = async () => {
+    try {
+      setMarkingCommentsRead(true);
+      const response = await fetch(`/api/tasks/${localTask.id}/comments/read`, { method: 'POST' });
+      if (!response.ok) {
+        notify('Failed to mark discussions as read', 'error');
+        return;
+      }
+      notify('Discussions marked as read', 'success');
+    } finally {
+      setMarkingCommentsRead(false);
+    }
   };
 
   const handleUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1070,6 +1104,14 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
             </h3>
             <div className="flex items-center gap-3 text-xs font-medium text-slate-500">
               {(localTask.steps ?? []).filter(s => s.isPassed === true).length} / {(localTask.steps ?? []).length} Steps Completed
+              <button
+                type="button"
+                onClick={() => void handleMarkTaskCommentsRead()}
+                disabled={markingCommentsRead}
+                className="ml-2 px-2.5 py-1.5 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed print:hidden"
+              >
+                {markingCommentsRead ? 'Marking...' : 'Mark discussions read'}
+              </button>
               {isAdmin && (
                 <button
                   onClick={handleAddStep}
@@ -1087,6 +1129,20 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                 const statusColor = step.isPassed === true ? 'bg-emerald-100 border-emerald-200 text-emerald-700' : 
                                   step.isPassed === false ? 'bg-rose-100 border-rose-200 text-rose-700' : 
                                   'bg-white border-slate-200 text-slate-500';
+                const commentDraft = commentInputs[step.id] || '';
+                const mentionContext = activeMentionStepId === step.id ? getMentionContext(commentDraft) : null;
+                const mentionSuggestions = mentionContext
+                  ? mentionUsers
+                      .filter((user) => {
+                        const query = mentionContext.query;
+                        if (!query) return true;
+                        return (
+                          user.name.toLowerCase().includes(query) ||
+                          user.email.toLowerCase().includes(query)
+                        );
+                      })
+                      .slice(0, 6)
+                  : [];
                 
                 return (
                   <div 
@@ -1355,8 +1411,14 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                                       <textarea
                                       className="w-full text-xs border-slate-200 rounded-lg px-3 py-2.5 focus:ring-brand-500 focus:border-brand-500 resize-y min-h-[74px]"
                                       placeholder="Add a comment... (use @Name to tag, Ctrl/Cmd + Enter to send)"
-                                      value={commentInputs[step.id] || ''}
-                                      onChange={(e) => setCommentInputs({...commentInputs, [step.id]: e.target.value})}
+                                      value={commentDraft}
+                                      onFocus={() => setActiveMentionStepId(step.id)}
+                                      onBlur={() => {
+                                        window.setTimeout(() => {
+                                          setActiveMentionStepId((current) => (current === step.id ? null : current));
+                                        }, 120);
+                                      }}
+                                      onChange={(e) => setCommentInputs((prev) => ({ ...prev, [step.id]: e.target.value }))}
                                       onKeyDown={(e) => {
                                         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                                           e.preventDefault();
@@ -1364,9 +1426,27 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                                         }
                                       }}
                                     />
+                                    {mentionSuggestions.length > 0 && (
+                                      <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+                                        {mentionSuggestions.map((user) => (
+                                          <button
+                                            key={user.id}
+                                            type="button"
+                                            onMouseDown={(e) => {
+                                              e.preventDefault();
+                                              handleInsertMention(step.id, user.name);
+                                            }}
+                                            className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
+                                          >
+                                            <p className="text-xs font-medium text-slate-800">{user.name}</p>
+                                            <p className="text-[11px] text-slate-500">{user.email}</p>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
                                     <div className="flex items-center justify-between">
                                       <span className="text-[11px] text-slate-500">
-                                        {(commentInputs[step.id] || '').trim().length} characters
+                                        {commentDraft.trim().length} characters
                                       </span>
                                       <div className="flex items-center gap-3">
                                         {commentSaveState[step.id] === 'saving' && <span className="text-[11px] text-slate-500 animate-status-pop">Posting comment...</span>}
@@ -1374,7 +1454,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                                         {commentSaveState[step.id] === 'error' && <span className="text-[11px] text-rose-600 animate-status-pop">Comment failed</span>}
                                         <button
                                           onClick={() => void handleAddComment(step.id)}
-                                          disabled={commentSaveState[step.id] === 'saving' || !(commentInputs[step.id] || '').trim()}
+                                          disabled={commentSaveState[step.id] === 'saving' || !commentDraft.trim()}
                                           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-slate-900 text-white text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800"
                                           aria-label={`Send comment for Step ${idx + 1}`}
                                         >
@@ -1424,12 +1504,6 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
           className="hidden"
           onChange={handleUploadFile}
         />
-        <datalist id="mention-users">
-          {mentionUsers.map((user) => (
-            <option key={user.id} value={`@${user.name}`} />
-          ))}
-        </datalist>
-
         {/* Sign-off Section */}
         <div className="bg-slate-50 rounded-xl border border-slate-200 p-6 flex flex-col items-center justify-center text-center print:border-0 print:bg-white">
            {isSignedOff ? (

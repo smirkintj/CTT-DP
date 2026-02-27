@@ -23,9 +23,9 @@ This backlog tracks improvement initiatives with:
 - `Implemented`
 
 ## Progress Snapshot
-- Overall: `21/44 Implemented` (47.7%)
+- Overall: `23/45 Implemented` (51.1%)
 - Active now: `5 In Progress`
-- Remaining: `20 Planned`
+- Remaining: `17 Planned`
 - High-priority lane (`P0 + P1`): `15/24 Implemented`
 - Technical debt lane (`#36-#41`): `3/6 Implemented`
 
@@ -384,14 +384,18 @@ This backlog tracks improvement initiatives with:
 - Impact if not done:
   - Lost work when modal closes/reload occurs.
 
-## 22) User-Centred: Comment Composer Improvements
+## 22) ~~User-Centred: Comment Composer Improvements~~
 - Priority: `P2`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `Implemented`
+- Date implemented: `2026-02-27`
 - What this is for:
   - Make discussions clearer and faster.
-- Implementation plan:
-  - Add multiline input, mention autocomplete list, attach indicator, send on Ctrl/Cmd+Enter.
+- Implementation:
+  - Multiline comment composer in task detail.
+  - Keyboard send shortcut (`Ctrl/Cmd + Enter`).
+  - Inline mention autocomplete list while typing `@`.
+  - Per-step comment posting states (`posting/success/fail`).
+  - Per-user/task local draft autosave and restore.
 - Impact if not done:
   - Slower collaboration and unclear context in long threads.
 
@@ -689,6 +693,25 @@ This backlog tracks improvement initiatives with:
   - New-market onboarding remains manual and slower.
   - Support load stays higher during rollout windows.
 
+## 45) ~~User-Centred: In-Portal Knowledge Base (Status Workflow)~~
+- Priority: `P2`
+- Status: `Implemented`
+- Date implemented: `2026-02-27`
+- What this is for:
+  - Give users and admin a quick in-app reference for task lifecycle definitions without external documents.
+- Implementation:
+  - Added reusable `KnowledgeBaseCard` component with:
+    - workflow path (`Draft -> Ready -> In Progress -> Passed -> Deployed`)
+    - exception path (`Blocked/Failed` handling)
+    - plain-language status definitions.
+  - Embedded card in:
+    - stakeholder dashboard
+    - admin dashboard
+  - Uses compact accordion sections to keep layout clean.
+- Impact if not done:
+  - Users rely on tribal knowledge for status meaning.
+  - Slower onboarding and inconsistent status interpretation.
+
 ---
 
 ## Technical Debt Backlog
@@ -928,3 +951,6 @@ This backlog tracks improvement initiatives with:
 - `2026-02-27`: Advanced comment UX with per-user/task local draft autosave and restore for task-detail comment composer.
 - `2026-02-27`: Completed #19 empty-state guidance for stakeholder dashboard and inbox with contextual actions (clear filters, open discussions, refresh, back to dashboard).
 - `2026-02-27`: Added motion polish for key stakeholder/login actions (login in-progress bar, subtle card transitions, save-state micro-animations, smooth preference toggles) with global reduced-motion support.
+- `2026-02-27`: Completed #22 comment composer improvements with inline `@mention` autocomplete and stronger in-task discussion feedback.
+- `2026-02-27`: Added task-detail quick action to mark all discussion comments for current task as read.
+- `2026-02-27`: Completed #45 in-portal knowledge base card with workflow/status definitions for both stakeholder and admin dashboards.
