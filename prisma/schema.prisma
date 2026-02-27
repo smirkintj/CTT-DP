@@ -58,6 +58,10 @@ model User {
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
   mustChangePassword Boolean @default(true)
+  notifyOnAssignmentEmail Boolean @default(true)
+  notifyOnReminderEmail   Boolean @default(true)
+  notifyOnMentionInbox    Boolean @default(true)
+  notifyOnSignoffEmail    Boolean @default(true)
   passwordHash String
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

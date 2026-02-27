@@ -28,7 +28,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       assignee: {
         select: {
           email: true,
-          name: true
+          name: true,
+          notifyOnSignoffEmail: true
         }
       }
     }
@@ -86,14 +87,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const adminUser = await prisma.user.findFirst({
     where: { role: 'ADMIN' },
-    select: { email: true }
+    select: { email: true, notifyOnSignoffEmail: true }
   });
 
-  if (adminUser?.email) {
+  const to = adminUser?.notifyOnSignoffEmail === false ? undefined : adminUser?.email;
+  const cc = task.assignee?.notifyOnSignoffEmail === false ? undefined : task.assignee?.email ?? undefined;
+
+  if (to || cc) {
     await sendTaskSignedOffEmail({
-      to: adminUser.email,
-      cc: task.assignee?.email ?? undefined,
-      recipientName: adminUser.email,
+      to: to || cc || '',
+      cc: to && cc ? cc : undefined,
+      recipientName: adminUser?.email,
       taskTitle: task.title,
       taskId: task.id,
       signedOffBy: session.user.name || session.user.email || 'User',

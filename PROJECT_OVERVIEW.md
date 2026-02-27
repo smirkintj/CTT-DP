@@ -119,6 +119,11 @@ Defined in `prisma/schema.prisma`.
 - `User.mustChangePassword` (first-login/per-reset mandatory password update)
   - after successful password change, user is redirected to their dashboard without an extra re-login
   - password-change modal includes real-time password policy and confirm-match validation feedback
+- `User` notification preferences:
+  - `notifyOnAssignmentEmail`
+  - `notifyOnReminderEmail`
+  - `notifyOnMentionInbox`
+  - `notifyOnSignoffEmail`
 
 ## API Surface
 ### Auth
@@ -191,6 +196,8 @@ Task mutation guarantees:
   - Admin-only temp-password reset (rate-limited).
 - `POST /api/users/change-password`
   - Authenticated password change endpoint; clears `mustChangePassword`.
+- `GET/PATCH /api/users/notification-preferences`
+  - Authenticated self-service notification settings (no cross-user update allowed).
 
 Admin audit checklist:
 - `ADMIN_AUDIT_COVERAGE.md` tracks coverage status for admin/task write endpoints.
@@ -283,6 +290,11 @@ Additional behavior:
   - 3-step guidance (open task, update steps, sign off)
   - no spotlight/overlay layer
   - dismiss persistence per user (`localStorage`)
+- Stakeholder dashboard includes notification preference settings card:
+  - assignment email
+  - reminder email
+  - mention/inbox
+  - sign-off email
 - Stakeholder dashboard now renders loading skeletons for KPI cards and task cards during initial fetch.
 - Step comment UX now supports multiline drafts, keyboard submit (`Ctrl/Cmd + Enter`), and inline posting feedback.
 - Save-state + unsaved-change guards are implemented in:

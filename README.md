@@ -141,6 +141,10 @@ Security notes:
   - Assignment email: `/api/tasks/[id]/notify-assigned`
   - Manual reminder email: `/api/tasks/[id]/reminder`
   - Sign-off email is triggered from `/api/tasks/[id]/signoff`
+  - User notification preference API: `/api/users/notification-preferences`
+    - toggles: assignment email, reminder email, mention/inbox, sign-off email
+    - users can only read/update their own preferences
+  - Notification senders now respect user preferences for assignment/reminder/sign-off, and inbox/unread routes respect mention/inbox preference.
 - Admin user management:
   - List/create/update/disable/reset password endpoints:
     - `/api/admin/users`

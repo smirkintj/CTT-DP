@@ -23,9 +23,9 @@ This backlog tracks improvement initiatives with:
 - `Implemented`
 
 ## Progress Snapshot
-- Overall: `19/44 Implemented` (43.2%)
+- Overall: `20/44 Implemented` (45.5%)
 - Active now: `5 In Progress`
-- Remaining: `22 Planned`
+- Remaining: `21 Planned`
 - High-priority lane (`P0 + P1`): `15/24 Implemented`
 - Technical debt lane (`#36-#41`): `3/6 Implemented`
 
@@ -390,15 +390,27 @@ This backlog tracks improvement initiatives with:
 - Impact if not done:
   - Slower collaboration and unclear context in long threads.
 
-## 23) User-Centred: Notification Preferences
+## 23) ~~User-Centred: Notification Preferences~~
 - Priority: `P2`
-- Status: `Planned`
-- Date implemented: `TBD`
+- Status: `Implemented`
+- Date implemented: `2026-02-27`
 - What this is for:
   - Let users control email and in-app noise.
-- Implementation plan:
-  - Per-user toggles: assignment, reminder, mentions, sign-off alerts.
-  - Add settings UI + backend preference model.
+- Implementation:
+  - Added user-level notification preference fields in `User` model:
+    - `notifyOnAssignmentEmail`
+    - `notifyOnReminderEmail`
+    - `notifyOnMentionInbox`
+    - `notifyOnSignoffEmail`
+  - Added authenticated self-service API:
+    - `GET/PATCH /api/users/notification-preferences`
+  - Added stakeholder settings UI card with toggle controls and save feedback:
+    - `views/StakeholderDashboard.tsx`
+  - Wired send/read paths to respect preferences:
+    - assignment email triggers
+    - reminder email triggers
+    - sign-off email recipients
+    - inbox/unread count visibility for mention/inbox preference
 - Impact if not done:
   - Notification fatigue or missed critical updates.
 
@@ -907,3 +919,4 @@ This backlog tracks improvement initiatives with:
 - `2026-02-27`: Added backlog items #43 (unread comment deep-link + highlight) and #44 (lightweight stakeholder onboarding tips without overlay tour), and updated progress snapshot totals.
 - `2026-02-27`: Completed #43 unread deep-link UX: task detail now auto-expands, scrolls to, and temporarily highlights the target unread comment when opened from inbox context.
 - `2026-02-27`: Completed #44 lightweight stakeholder onboarding helper card (dashboard inline, no overlay), including per-user dismiss persistence.
+- `2026-02-27`: Completed #23 notification preferences with DB-backed user toggles, self-service preference API, stakeholder settings UI, and preference-aware notification/inbox behavior.

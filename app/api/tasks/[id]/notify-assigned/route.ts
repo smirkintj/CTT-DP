@@ -28,7 +28,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       assignee: {
         select: {
           email: true,
-          name: true
+          name: true,
+          notifyOnAssignmentEmail: true
         }
       }
     }
@@ -54,6 +55,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (!task.assignee?.email) {
     return NextResponse.json({ error: 'Task assignee email is missing' }, { status: 400 });
+  }
+
+  if (task.assignee.notifyOnAssignmentEmail === false) {
+    await createAdminAudit({
+      actorId: session.user.id,
+      countryCode: task.countryCode,
+      message: `Assignment email skipped for "${task.title}" due to assignee preference.`,
+      metadata: { action: 'TASK_ASSIGNMENT_EMAIL_SKIPPED', taskId: task.id, assigneeEmail: task.assignee.email }
+    });
+    return NextResponse.json({ success: true, skipped: true, reason: 'ASSIGNEE_PREF_DISABLED' });
   }
 
   const sent = await sendTaskAssignedEmail({

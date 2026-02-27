@@ -37,7 +37,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       assignee: {
         select: {
           email: true,
-          name: true
+          name: true,
+          notifyOnAssignmentEmail: true
         }
       }
     }
@@ -90,7 +91,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
   });
 
-  if (previousStatus === 'DRAFT' && dbStatus === 'READY' && task.assignee?.email) {
+  if (
+    previousStatus === 'DRAFT' &&
+    dbStatus === 'READY' &&
+    task.assignee?.email &&
+    task.assignee.notifyOnAssignmentEmail !== false
+  ) {
     await sendTaskAssignedEmail({
       to: task.assignee.email,
       assigneeName: task.assignee.name ?? undefined,

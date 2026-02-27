@@ -1,0 +1,5 @@
+ALTER TABLE "User"
+ADD COLUMN "notifyOnAssignmentEmail" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN "notifyOnReminderEmail" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN "notifyOnMentionInbox" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN "notifyOnSignoffEmail" BOOLEAN NOT NULL DEFAULT true;

@@ -6,8 +6,19 @@ import { unauthorized } from '../../../../lib/apiError';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return unauthorized('Unauthorized', 'AUTH_REQUIRED');
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { notifyOnMentionInbox: true }
+  });
+  if (!user) {
+    return unauthorized('Unauthorized', 'AUTH_USER_NOT_FOUND');
+  }
+  if (user.notifyOnMentionInbox === false) {
+    return NextResponse.json({ count: 0 });
   }
 
   const isAdmin = session.user.role === 'ADMIN';

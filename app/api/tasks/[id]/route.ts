@@ -291,7 +291,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const assignmentChanged =
     typeof body?.assigneeId === 'string' && body.assigneeId !== existingTask.assigneeId;
   const shouldSendAssignmentEmail = assignmentChanged && nextAssignee?.email && task.status !== 'DRAFT';
-  if (shouldSendAssignmentEmail && nextAssignee?.email) {
+  let assigneeAllowsAssignmentEmail = true;
+  if (shouldSendAssignmentEmail && nextAssignee?.id) {
+    const assigneePref = await prisma.user.findUnique({
+      where: { id: nextAssignee.id },
+      select: { notifyOnAssignmentEmail: true }
+    });
+    assigneeAllowsAssignmentEmail = assigneePref?.notifyOnAssignmentEmail !== false;
+  }
+
+  if (shouldSendAssignmentEmail && nextAssignee?.email && assigneeAllowsAssignmentEmail) {
     await sendTaskAssignedEmail({
       to: nextAssignee.email,
       assigneeName: nextAssignee.name ?? undefined,
