@@ -5,6 +5,7 @@ import { Trash2, Plus, Package, Bell, Users, Search, X, RotateCcw, UserPlus } fr
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass } from '../components/ui/formClasses';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { DEFAULT_HELPFUL_LINKS } from '../lib/helpfulLinks';
 
 interface AdminDatabaseProps {
   countries: CountryConfig[];
@@ -104,6 +105,9 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     notifyFailedStep: boolean;
   }>>({});
   const [teamsSaveStateByCountry, setTeamsSaveStateByCountry] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
+  const [helpfulLinks, setHelpfulLinks] = useState(DEFAULT_HELPFUL_LINKS);
+  const [savedHelpfulLinks, setSavedHelpfulLinks] = useState(DEFAULT_HELPFUL_LINKS);
+  const [helpfulLinksSaveState, setHelpfulLinksSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   useEffect(() => {
     try {
@@ -137,6 +141,19 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
       setSavedTeamsConfigs(next);
     })();
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'notifications') return;
+    void (async () => {
+      const response = await fetch('/api/admin/helpful-links', { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json().catch(() => null);
+      if (Array.isArray(data)) {
+        setHelpfulLinks(data);
+        setSavedHelpfulLinks(data);
+      }
+    })();
+  }, [activeTab]);
 
   const loadUsers = async () => {
     setUsersLoading(true);
@@ -311,6 +328,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     };
     return JSON.stringify(current) !== JSON.stringify(saved);
   });
+  const helpfulLinksDirty = JSON.stringify(helpfulLinks) !== JSON.stringify(savedHelpfulLinks);
 
   const filteredUsers = users.filter((user) => {
     const query = userSearch.trim().toLowerCase();
@@ -442,8 +460,35 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     })();
   };
 
+  const updateHelpfulLink = (index: number, field: 'label' | 'url', value: string) => {
+    setHelpfulLinks((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const saveHelpfulLinks = () => {
+    void (async () => {
+      setHelpfulLinksSaveState('saving');
+      const response = await fetch('/api/admin/helpful-links', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ links: helpfulLinks })
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        setHelpfulLinksSaveState('error');
+        notify(data?.error || 'Failed to save helpful links', 'error');
+        return;
+      }
+      setSavedHelpfulLinks(helpfulLinks);
+      setHelpfulLinksSaveState('saved');
+      notify('Helpful links saved', 'success');
+      window.setTimeout(() => setHelpfulLinksSaveState('idle'), 1200);
+    })();
+  };
+
   const handleTabChange = (nextTab: 'countries' | 'modules' | 'notifications' | 'users') => {
-    if (activeTab === 'notifications' && nextTab !== 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig)) {
+    if (activeTab === 'notifications' && nextTab !== 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig || helpfulLinksDirty)) {
       setConfirmDialog({
         open: true,
         title: 'Unsaved Notification Settings',
@@ -458,14 +503,14 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (activeTab === 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig)) {
+      if (activeTab === 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig || helpfulLinksDirty)) {
         event.preventDefault();
         event.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [activeTab, emailSettingsDirty, hasUnsavedTeamsConfig]);
+  }, [activeTab, emailSettingsDirty, hasUnsavedTeamsConfig, helpfulLinksDirty]);
 
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
@@ -777,6 +822,46 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-200 pt-5 space-y-4">
+                  <h3 className="text-sm font-semibold text-slate-900">Stakeholder Helpful Links</h3>
+                  <p className="text-xs text-slate-500">
+                    These links appear in the stakeholder dashboard sidebar.
+                  </p>
+                  <div className="space-y-3">
+                    {helpfulLinks.map((link, index) => (
+                      <div key={link.id || index} className="grid grid-cols-1 md:grid-cols-2 gap-2 rounded-lg border border-slate-200 p-3 bg-slate-50">
+                        <input
+                          type="text"
+                          value={link.label}
+                          onChange={(event) => updateHelpfulLink(index, 'label', event.target.value)}
+                          className={fieldBaseClass}
+                          placeholder="Link label"
+                        />
+                        <input
+                          type="url"
+                          value={link.url}
+                          onChange={(event) => updateHelpfulLink(index, 'url', event.target.value)}
+                          className={fieldBaseClass}
+                          placeholder="https://..."
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={saveHelpfulLinks}
+                      disabled={!helpfulLinksDirty || helpfulLinksSaveState === 'saving'}
+                      className="bg-slate-900 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {helpfulLinksSaveState === 'saving'
+                        ? 'Saving...'
+                        : helpfulLinksSaveState === 'saved'
+                          ? 'Saved'
+                          : 'Save Helpful Links'}
+                    </button>
                   </div>
                 </div>
             </div>

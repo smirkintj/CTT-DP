@@ -96,6 +96,8 @@ export function mapTaskToUi(task: any): TaskDTO {
       testData: step.testData ?? null,
       actualResult: step.actualResult ?? null,
       isPassed: step.isPassed ?? null,
+      stepResult: step.stepResult ?? null,
+      conditionalReason: step.conditionalReason ?? null,
       attachments: step.attachments ?? [],
       comments: stepCommentMap.get(step.order) ?? [],
       createdAt: toIso(step.createdAt),

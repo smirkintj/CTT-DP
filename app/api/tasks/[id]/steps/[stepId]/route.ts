@@ -4,7 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../../lib/auth';
 import { validateExpectedUpdatedAt } from '../../../../../../lib/taskGuards';
 import { createTaskHistory } from '../../../../../../lib/taskHistory';
-import { TaskHistoryAction } from '@prisma/client';
+import { StepResult, TaskHistoryAction } from '@prisma/client';
+import { logPilotEvent } from '../../../../../../lib/telemetry';
 
 export async function PATCH(
   req: Request,
@@ -17,6 +18,7 @@ export async function PATCH(
 
   const session = await getServerSession(authOptions);
   if (!session?.user) {
+    logPilotEvent('step.update.denied', { reason: 'unauthorized', taskId: id, stepId });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -25,6 +27,7 @@ export async function PATCH(
   });
 
   if (!task) {
+    logPilotEvent('step.update.denied', { reason: 'task_not_found', taskId: id, stepId, actorId: session.user.id });
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
@@ -51,6 +54,15 @@ export async function PATCH(
   }
 
   const body = await req.json().catch(() => null);
+  const requestedStepResult =
+    body?.stepResult && Object.values(StepResult).includes(body.stepResult as StepResult)
+      ? (body.stepResult as StepResult)
+      : undefined;
+  const conditionalReason =
+    typeof body?.conditionalReason === 'string' ? body.conditionalReason.trim() : undefined;
+  if (!isAdmin && requestedStepResult === StepResult.CONDITIONAL && !conditionalReason) {
+    return NextResponse.json({ error: 'Conditional pass reason is required' }, { status: 400 });
+  }
   const staleMessage = validateExpectedUpdatedAt(task.updatedAt, body?.expectedUpdatedAt);
   if (staleMessage) {
     return NextResponse.json({ error: staleMessage }, { status: 409 });
@@ -63,7 +75,21 @@ export async function PATCH(
         testData: body?.testData ?? undefined
       }
     : {
-        isPassed: body?.isPassed ?? undefined,
+        isPassed:
+          requestedStepResult === StepResult.PASSED
+            ? true
+            : requestedStepResult === StepResult.FAILED
+              ? false
+              : requestedStepResult === StepResult.CONDITIONAL
+                ? null
+                : body?.isPassed ?? undefined,
+        stepResult: requestedStepResult ?? (body?.isPassed === true ? StepResult.PASSED : body?.isPassed === false ? StepResult.FAILED : undefined),
+        conditionalReason:
+          requestedStepResult === StepResult.CONDITIONAL
+            ? conditionalReason
+            : requestedStepResult
+              ? null
+              : undefined,
         actualResult: body?.actualResult ?? undefined,
         attachments: body?.attachments ?? undefined
       };
@@ -90,15 +116,26 @@ export async function PATCH(
       expectedResult: stepRecord.expectedResult,
       testData: stepRecord.testData,
       actualResult: stepRecord.actualResult,
-      isPassed: stepRecord.isPassed
+      isPassed: stepRecord.isPassed,
+      stepResult: stepRecord.stepResult,
+      conditionalReason: stepRecord.conditionalReason
     },
     after: {
       description: step.description,
       expectedResult: step.expectedResult,
       testData: step.testData,
       actualResult: step.actualResult,
-      isPassed: step.isPassed
+      isPassed: step.isPassed,
+      stepResult: step.stepResult,
+      conditionalReason: step.conditionalReason
     }
+  });
+
+  logPilotEvent('step.update.success', {
+    taskId: id,
+    stepId,
+    actorId: session.user.id,
+    stepResult: step.stepResult ?? null
   });
 
   return NextResponse.json(step);

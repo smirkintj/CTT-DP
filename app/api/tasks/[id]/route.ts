@@ -11,6 +11,7 @@ import { badRequest, conflict, forbidden, internalError, notFound, unauthorized 
 import { isValidDueDate, isValidJiraTicket } from '../../../../lib/taskValidation';
 import { taskRelationIncludeFull, taskRelationIncludeSafe } from '../_query';
 import { randomUUID } from 'crypto';
+import { logPilotEvent } from '../../../../lib/telemetry';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const startedAt = Date.now();
@@ -23,6 +24,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
+    logPilotEvent('task.detail.denied', { reason: 'unauthorized', taskId: id });
     return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   }
 
@@ -124,10 +126,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
+    logPilotEvent('task.update.denied', { reason: 'unauthorized', taskId: id });
     return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   }
 
   if (session.user.role !== 'ADMIN') {
+    logPilotEvent('task.update.denied', { reason: 'forbidden', taskId: id, userId: session.user.id });
     return forbidden('Forbidden', 'ADMIN_REQUIRED');
   }
 
@@ -485,6 +489,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       };
     }
   }
+
+  logPilotEvent('task.update.success', {
+    actorId: session.user.id,
+    taskId: id,
+    applyToGroup,
+    assigneeChanged: typeof body?.assigneeId !== 'undefined'
+  });
 
   return NextResponse.json({
     ...mapTaskToUi(task),

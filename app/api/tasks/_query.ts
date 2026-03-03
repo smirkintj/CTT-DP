@@ -70,7 +70,8 @@ export const taskRelationIncludeList = {
     select: {
       id: true,
       order: true,
-      isPassed: true
+      isPassed: true,
+      stepResult: true
     },
     orderBy: {
       order: 'asc' as const

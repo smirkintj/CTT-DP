@@ -46,6 +46,31 @@ const formatDate = (dateStr?: string) => {
   return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
 };
 
+const getSignedOffDate = (task: Task) => {
+  const value = task.signedOffAt || task.signedOff?.signedAt;
+  return value ? formatDate(value) : null;
+};
+
+const getSignedOffByLabel = (task: Task) => {
+  return task.signedOffBy?.name || task.signedOffBy?.email || task.signedOff?.signedBy || null;
+};
+
+const isTaskCompleted = (task: Task) => {
+  const statusKey = normalizeStatusKey(task.status as unknown as string);
+  return statusKey === 'DEPLOYED' || Boolean(task.signedOffAt || task.signedOff?.signedAt);
+};
+
+const isTaskOverdue = (task: Task) => {
+  if (isTaskCompleted(task) || !task.dueDate) return false;
+  const dueTime = new Date(task.dueDate).getTime();
+  if (Number.isNaN(dueTime)) return false;
+  return dueTime < Date.now();
+};
+
+const hasConditionalStep = (task: Task) => {
+  return (task.steps ?? []).some((step) => step.stepResult === 'CONDITIONAL');
+};
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, onSelectTask, onManageTasks, currentUser }) => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
@@ -320,6 +345,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                          <div className="flex items-center gap-2">
                             <Badge type="module" value={task.featureModule} />
                             <span className="text-xs text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">{task.countryCode}</span>
+                            {isTaskOverdue(task) && (
+                              <span className="text-xs text-rose-700 font-semibold bg-rose-100 px-2 py-0.5 rounded-full">Overdue</span>
+                            )}
+                            {hasConditionalStep(task) && (
+                              <span className="text-xs text-amber-700 font-semibold bg-amber-100 px-2 py-0.5 rounded-full">Conditional</span>
+                            )}
                          </div>
                          <h4 className="font-semibold text-slate-900 group-hover:text-brand-600">{task.title}</h4>
                          <p className="text-sm text-slate-500 line-clamp-1">{task.description}</p>
@@ -327,12 +358,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                       <Badge type="status" value={task.status} />
                    </div>
                    
-                   <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
-                      <div className="flex items-center gap-4 text-xs text-slate-500">
+                   <div className="mt-4 pt-4 border-t border-slate-100">
+                      <div className="flex justify-between items-center gap-4 text-xs text-slate-500">
                          <span>Assignee: <strong>{task.assignee?.name || task.assignee?.email || task.assigneeId || 'Unassigned'}</strong></span>
                          <span>Due: {formatDate(task.dueDate)}</span>
                       </div>
-                      <ArrowRight size={18} className="text-slate-300 group-hover:text-brand-500" />
+                      {getSignedOffDate(task) && (
+                        <div className="mt-2 text-xs text-emerald-700 font-medium">
+                          Signed off on {getSignedOffDate(task)}
+                          {getSignedOffByLabel(task) ? ` by ${getSignedOffByLabel(task)}` : ''}
+                        </div>
+                      )}
+                      <div className="mt-2 flex justify-end">
+                        <ArrowRight size={18} className="text-slate-300 group-hover:text-brand-500" />
+                      </div>
                    </div>
                 </div>
                ))

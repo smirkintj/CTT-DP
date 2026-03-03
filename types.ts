@@ -106,6 +106,8 @@ export interface TestStep {
   testData?: string;
   actualResult?: string;
   isPassed?: boolean | null;
+  stepResult?: 'PASSED' | 'FAILED' | 'CONDITIONAL' | null;
+  conditionalReason?: string | null;
   createdAt?: string;
   updatedAt?: string;
   completedAt?: string;

@@ -187,12 +187,19 @@ Security notes:
   - Existing-task replacement uses in-app confirmation modal (no browser-native confirm popup).
 - Multi-market global admin update:
   - tasks created for multiple countries now share `taskGroupId` automatically.
-  - in task detail, admin can opt to apply supported fields across the full group:
+- in task detail, admin can opt to apply supported fields across the full group:
     - title, description, Jira ticket, CR number, developer, due date
   - signed-off tasks are skipped automatically and reported in save summary.
   - preview API: `/api/tasks/[id]/group-preview`
   - security: global update is ADMIN-only and still enforces signed-off locks.
-  - task detail preview now shows affected market list and disables global apply when no editable tasks remain.
+- task detail preview now shows affected market list and disables global apply when no editable tasks remain.
+- task detail admin step edit now uses multiline input for `Test Data` (newline-friendly).
+- task detail header now shows current task country for admin context.
+- `Mark as READY` now shows in-button loading state while status update is in progress.
+- comment mentions now render highlighted (bold + colored) and display user name in comment body.
+- `Sign & Complete Task` now shows in-button loading state while sign-off request is processing.
+- Task detail image evidence upload/paste now auto-optimizes (resize + compression) before save to reduce storage payload.
+- Sign-off PDF report now includes step evidence images (auto-scaled thumbnail layout).
   - admin task table now supports selected-group global edit modal (same supported fields as task detail global update).
 - Reporting:
 - Admin task table supports filtered CSV export.
@@ -261,12 +268,40 @@ Security notes:
   - Step action area in task detail shows inline save feedback (`Saving step...`, `Step saved`, `Save failed`).
   - Step comments now support multiline input, keyboard submit (`Ctrl/Cmd + Enter`), and inline post-state feedback.
   - Stakeholder dashboard uses loading skeletons for KPI cards/task cards to reduce perceived loading delay.
+  - Task detail signed state now shows `Signed by [name] on [date]` with stronger visual contrast and a read-only lock message.
+  - Stakeholder and admin dashboard task cards now show:
+    - signed-off line (`Signed off on ... by ...`) when available
+    - overdue indicator for tasks past due and not completed/signed-off
 - Form styling is being consolidated with shared Apple-style utility classes:
   - `/Users/putra/Desktop/CTT-DKSH-main/components/ui/formClasses.ts`
 - Inline validation is now enforced in key task create/edit flows (client + server).
 - Jira validation/normalization is centralized via `lib/taskValidation.ts` and reused in task create/edit UI.
 - Import wizard new-task path now validates title length and due date format before submit.
 - Critical confirmations use in-app modals (no browser-native confirm popups).
+- Admin task management header actions are now compacted:
+  - secondary actions grouped under a single `Actions` menu
+  - primary CTA keeps only `New Task` visible
+  - selected-row count is shown on the actions button for quick context
+- Admin create-task step builder now uses textarea input for `Test Data` (supports multiline content).
+- In task detail (admin), metadata now supports post-create assignee reassignment for the task country.
+- In task detail (admin), module editing now uses a dropdown sourced from active module options.
+- Task detail metadata save errors are now surfaced in one place (inline near `Save changes`) to avoid duplicate mixed error prompts.
+- Step execution now supports 3 explicit outcomes:
+  - `PASS`
+  - `FAIL`
+  - `CONDITIONAL` (accepted with caveat)
+- Conditional step now requires a reason:
+  - when `CONDITIONAL` is selected, user must save a reason
+  - reason is shown in task detail and included in sign-off PDF report
+- Conditional outcomes are now visible in:
+  - task detail step state (`Current: CONDITIONAL`)
+  - stakeholder/admin dashboard task cards (Conditional chip)
+  - sign-off PDF report (`Conditional Pass`)
+- New admin-managed helpful links:
+  - stakeholder dashboard helpful links now come from DB-backed settings
+  - admin can edit links in `/admin/database` → Email Notifications tab
+- Pilot telemetry logs:
+  - key API flows now emit `[pilot]` server logs for list/save/comment/step/sign-off flows.
 
 ## Troubleshooting
 ### 1) Vercel build error: `Property 'activity' does not exist on type PrismaClient`

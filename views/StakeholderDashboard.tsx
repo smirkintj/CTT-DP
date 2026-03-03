@@ -4,6 +4,7 @@ import { Task, Status } from '../types';
 import { Badge } from '../components/Badge';
 import { Search, ArrowRight, MessageSquare, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { notify } from '../lib/notify';
+import { DEFAULT_HELPFUL_LINKS } from '../lib/helpfulLinks';
 
 interface StakeholderDashboardProps {
   tasks: Task[];
@@ -46,6 +47,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
   });
   const [prefsDirty, setPrefsDirty] = useState(false);
   const [savingPrefs, setSavingPrefs] = useState(false);
+  const [helpfulLinks, setHelpfulLinks] = useState(DEFAULT_HELPFUL_LINKS);
   
   const myTasks = tasks.filter(t => t.countryCode === currentUserCountry);
   const statusFilteredTasks = filterStatus === 'ALL'
@@ -162,6 +164,20 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
   }, [myTasks.length]);
 
   useEffect(() => {
+    const loadHelpfulLinks = async () => {
+      const response = await fetch('/api/helpful-links', { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json().catch(() => null);
+      if (Array.isArray(data)) {
+        setHelpfulLinks(
+          data.filter((item) => typeof item?.label === 'string' && typeof item?.url === 'string')
+        );
+      }
+    };
+    void loadHelpfulLinks();
+  }, []);
+
+  useEffect(() => {
     let active = true;
     const loadNotificationPreferences = async () => {
       const response = await fetch('/api/users/notification-preferences', { cache: 'no-store' });
@@ -225,6 +241,31 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return 'N/A';
     return date.toLocaleDateString(undefined, { dateStyle: 'medium' });
+  };
+
+  const getSignedOffDate = (task: Task) => {
+    const value = task.signedOffAt || task.signedOff?.signedAt;
+    return value ? formatDateOnly(value) : null;
+  };
+
+  const getSignedOffByLabel = (task: Task) => {
+    return task.signedOffBy?.name || task.signedOffBy?.email || task.signedOff?.signedBy || null;
+  };
+
+  const isTaskCompleted = (task: Task) => {
+    const statusKey = normalizeStatusKey(task.status as unknown as string);
+    return statusKey === 'DEPLOYED' || Boolean(task.signedOffAt || task.signedOff?.signedAt);
+  };
+
+  const isTaskOverdue = (task: Task) => {
+    if (isTaskCompleted(task) || !task.dueDate) return false;
+    const dueTime = new Date(task.dueDate).getTime();
+    if (Number.isNaN(dueTime)) return false;
+    return dueTime < Date.now();
+  };
+
+  const hasConditionalStep = (task: Task) => {
+    return (task.steps ?? []).some((step) => step.stepResult === 'CONDITIONAL');
   };
 
   const getAssigneeName = (task: Task) => {
@@ -525,7 +566,19 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                     }`} />
 
                     <div className="flex justify-between items-start mb-3 pt-2">
-                       <Badge type="module" value={task.featureModule} />
+                       <div className="flex items-center gap-2">
+                         <Badge type="module" value={task.featureModule} />
+                         {isTaskOverdue(task) && (
+                           <span className="inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+                             Overdue
+                           </span>
+                         )}
+                         {hasConditionalStep(task) && (
+                           <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                             Conditional
+                           </span>
+                         )}
+                       </div>
                        <Badge type="status" value={task.status} />
                     </div>
 
@@ -534,16 +587,17 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                     </h3>
                     <p className="text-slate-500 text-sm line-clamp-2 mb-4 flex-1">{task.description}</p>
 
-                    <div className="border-t border-slate-100 pt-3 mt-auto flex items-center justify-between">
-                       <div className="flex items-center gap-2">
+                    <div className="border-t border-slate-100 pt-3 mt-auto">
+                       <div className="flex items-center justify-between gap-3">
+                         <div className="flex items-center gap-2">
                           {getAssigneeAvatar(task) ? (
                             <img src={getAssigneeAvatar(task)} alt="Assignee" className="w-6 h-6 rounded-full border border-slate-200"/>
                           ) : (
                             <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">?</div>
                           )}
                           <span className="text-xs text-slate-600 font-medium">{getAssigneeName(task)}</span>
-                       </div>
-                       <div className="flex items-center gap-3">
+                         </div>
+                         <div className="flex items-center gap-3">
                           <span className="text-xs text-slate-500">Due: {formatDateOnly(task.dueDate)}</span>
                           {(task.commentCount ?? (task.steps ?? []).reduce((acc, step) => acc + (step.comments?.length ?? 0), 0)) > 0 && (
                              <span className="flex items-center text-xs text-slate-400 gap-1">
@@ -551,7 +605,14 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                              </span>
                           )}
                           <Badge type="priority" value={task.priority} />
+                         </div>
                        </div>
+                       {getSignedOffDate(task) && (
+                         <div className="mt-2 text-xs text-emerald-700 font-medium">
+                           Signed off on {getSignedOffDate(task)}
+                           {getSignedOffByLabel(task) ? ` by ${getSignedOffByLabel(task)}` : ''}
+                         </div>
+                       )}
                     </div>
                   </div>
                 ))
@@ -596,9 +657,13 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
               <div className="pt-4 border-t border-slate-100">
                   <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Helpful Links</h4>
                   <ul className="space-y-2">
-                    <li><a href="#" className="text-sm text-brand-600 hover:underline">UAT Guidelines PDF</a></li>
-                    <li><a href="#" className="text-sm text-brand-600 hover:underline">Report a System Bug</a></li>
-                    <li><a href="#" className="text-sm text-brand-600 hover:underline">Contact Admin</a></li>
+                    {helpfulLinks.map((link) => (
+                      <li key={link.id}>
+                        <a href={link.url} target="_blank" rel="noreferrer" className="text-sm text-brand-600 hover:underline">
+                          {link.label}
+                        </a>
+                      </li>
+                    ))}
                   </ul>
               </div>
             </div>

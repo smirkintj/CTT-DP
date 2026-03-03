@@ -1,8 +1,8 @@
 'use client';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Task, Priority, TestStep, TargetSystem, CountryConfig } from '../types';
 import { Badge } from '../components/Badge';
-import { Trash2, Plus, UploadCloud, Search, Filter, X, Save, Globe, Download } from 'lucide-react';
+import { Trash2, Plus, Search, Filter, X, Save, Globe } from 'lucide-react';
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
@@ -82,6 +82,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const [bulkAssignSaving, setBulkAssignSaving] = useState(false);
   const [bulkAssignMessage, setBulkAssignMessage] = useState<string | null>(null);
   const [isSummaryExportOpen, setIsSummaryExportOpen] = useState(false);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [summaryDateFrom, setSummaryDateFrom] = useState('');
   const [summaryDateTo, setSummaryDateTo] = useState('');
   const [bulkAssigneeByCountry, setBulkAssigneeByCountry] = useState<Record<string, string>>({});
@@ -98,6 +99,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const [steps, setSteps] = useState<Partial<TestStep>[]>([
       { id: '1', description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }
   ]);
+  const actionsMenuRef = useRef<HTMLDivElement | null>(null);
 
   const defaultNewTask: Partial<Task> = {
     title: '',
@@ -809,7 +811,6 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
        setCreateSaveState('saved');
        notify('Task(s) created successfully', 'success');
      } catch (error) {
-       notify(error instanceof Error ? error.message : 'Failed to create tasks', 'error');
        setCreateError(error instanceof Error ? error.message : 'Failed to create tasks');
        setCreateSaveState('error');
      } finally {
@@ -845,6 +846,17 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [isModalOpen, isCreateDirty]);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!actionsMenuRef.current) return;
+      if (!actionsMenuRef.current.contains(event.target as Node)) {
+        setIsActionMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <div className="space-y-6 animate-fade-in relative">
       <div className="flex justify-between items-center">
@@ -852,60 +864,98 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
            <h1 className="text-2xl font-bold text-slate-900">Task Management</h1>
            <p className="text-slate-500">Create, edit, and organize UAT scenarios.</p>
         </div>
-        <div className="flex gap-2">
-           <button
-             onClick={openBulkStatusModal}
-             disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
-             className={`${subtleButtonClass} shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
-             aria-disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
-           >
-             Bulk Status ({selectedTaskIds.length})
-           </button>
-           <button
-             onClick={openBulkAssignModal}
-             disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
-             className={`${subtleButtonClass} shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
-             aria-disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
-           >
-             Bulk Assign ({selectedTaskIds.length})
-           </button>
-           <button
-             onClick={openGlobalEditModal}
-             disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
-             className={`${subtleButtonClass} shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
-             aria-disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
-           >
-             <Save size={16}/> Global Edit ({selectedTaskIds.length})
-           </button>
-           <button
-             onClick={handleBulkDelete}
-             disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
-             className={`${subtleButtonClass} shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
-             aria-disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
-           >
-             <Trash2 size={16}/> Delete Selected ({selectedTaskIds.length})
-           </button>
-           <button 
-             onClick={exportFilteredTasksCsv}
-             className={`${subtleButtonClass} shadow-sm flex items-center gap-2`}
-           >
-             <Download size={16}/> Export CSV
-           </button>
-           <button
-             onClick={() => setIsSummaryExportOpen(true)}
-             className={`${subtleButtonClass} shadow-sm flex items-center gap-2`}
-           >
-             <Download size={16}/> Export Summary
-           </button>
-           <button 
-             onClick={onImport}
-             className={`${subtleButtonClass} shadow-sm flex items-center gap-2`}
-           >
-             <UploadCloud size={16}/> Import Steps
-           </button>
+        <div className="flex items-center gap-2">
+           <div className="relative" ref={actionsMenuRef}>
+             <button
+               onClick={() => setIsActionMenuOpen((prev) => !prev)}
+               className={`${subtleButtonClass} shadow-sm flex items-center gap-2`}
+               aria-expanded={isActionMenuOpen}
+               aria-haspopup="menu"
+             >
+               Actions
+               {selectedTaskIds.length > 0 && (
+                 <span className="rounded-full bg-slate-900 text-white px-2 py-0.5 text-[10px] font-semibold">
+                   {selectedTaskIds.length}
+                 </span>
+               )}
+             </button>
+             {isActionMenuOpen && (
+               <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white shadow-lg p-2 z-30" role="menu">
+                 <button
+                   onClick={() => {
+                     setIsActionMenuOpen(false);
+                     openBulkStatusModal();
+                   }}
+                   disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
+                   className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                 >
+                   Bulk Status ({selectedTaskIds.length})
+                 </button>
+                 <button
+                   onClick={() => {
+                     setIsActionMenuOpen(false);
+                     openBulkAssignModal();
+                   }}
+                   disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
+                   className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                 >
+                   Bulk Assign ({selectedTaskIds.length})
+                 </button>
+                 <button
+                   onClick={() => {
+                     setIsActionMenuOpen(false);
+                     openGlobalEditModal();
+                   }}
+                   disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
+                   className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                 >
+                   Global Edit ({selectedTaskIds.length})
+                 </button>
+                 <button
+                   onClick={() => {
+                     setIsActionMenuOpen(false);
+                     handleBulkDelete();
+                   }}
+                   disabled={selectedTaskIds.length === 0 || isAnyBulkActionSaving}
+                   className="w-full text-left px-3 py-2 rounded-lg text-sm text-rose-700 hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                 >
+                   Delete Selected ({selectedTaskIds.length})
+                 </button>
+                 <div className="my-2 border-t border-slate-100" />
+                 <button
+                   onClick={() => {
+                     setIsActionMenuOpen(false);
+                     exportFilteredTasksCsv();
+                   }}
+                   className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50"
+                 >
+                   Export CSV
+                 </button>
+                 <button
+                   onClick={() => {
+                     setIsActionMenuOpen(false);
+                     setIsSummaryExportOpen(true);
+                   }}
+                   className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50"
+                 >
+                   Export Summary
+                 </button>
+                 <button
+                   onClick={() => {
+                     setIsActionMenuOpen(false);
+                     onImport();
+                   }}
+                   className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50"
+                 >
+                   Import Steps
+                 </button>
+               </div>
+             )}
+           </div>
            <button 
              onClick={() => {
                resetCreateForm();
+               setIsActionMenuOpen(false);
                setIsModalOpen(true);
              }}
              className={`${primaryButtonClass} shadow-sm flex items-center gap-2`}
@@ -1317,9 +1367,10 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                                       />
                                    </div>
                                    <div className="col-span-2">
-                                      <input 
+                                      <textarea
                                          placeholder="Input data..."
                                          className="w-full text-xs border-slate-300 rounded focus:ring-slate-500 focus:border-slate-500"
+                                         rows={2}
                                          value={step.testData}
                                          onChange={(e) => updateStep(idx, 'testData', e.target.value)}
                                       />

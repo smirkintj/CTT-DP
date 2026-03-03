@@ -5,7 +5,7 @@ import { Task, Status, User, Role, TestStep, Priority } from '../types';
 import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer, Trash2, Loader2 } from 'lucide-react';
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { ApiError } from '../lib/http';
@@ -116,11 +116,22 @@ const getJiraUrl = (raw?: string) => {
   return `https://dkshdigital.atlassian.net/browse/${ticket}`;
 };
 
+const getStepOutcome = (step: TestStep): 'PASSED' | 'FAILED' | 'CONDITIONAL' | null => {
+  if (step.stepResult === 'PASSED' || step.stepResult === 'FAILED' || step.stepResult === 'CONDITIONAL') {
+    return step.stepResult;
+  }
+  if (step.isPassed === true) return 'PASSED';
+  if (step.isPassed === false) return 'FAILED';
+  return null;
+};
+
+const isStepResolved = (step: TestStep) => getStepOutcome(step) !== null;
+
 export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initialStepOrder = null, initialCommentId = null, onBack, onUpdateTask, onDeleteTask }) => {
   const [localTask, setLocalTask] = useState<Task>(() => normalizeTask(task));
   const [expandedStep, setExpandedStep] = useState<string | null>(() => {
     const safe = normalizeTask(task);
-    return safe.steps.find(s => s.isPassed === null)?.id || safe.steps[0]?.id || null;
+    return safe.steps.find((s) => !isStepResolved(s))?.id || safe.steps[0]?.id || null;
   });
   const [taskEdits, setTaskEdits] = useState({
     title: task.title ?? '',
@@ -130,19 +141,24 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     developer: task.developer ?? '',
     dueDate: toDateInputValue(task.dueDate),
     priority: task.priority ?? Priority.MEDIUM,
-    featureModule: task.featureModule ?? ''
+    featureModule: task.featureModule ?? '',
+    assigneeId: task.assignee?.id ?? ''
   });
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
   const [stepEdits, setStepEdits] = useState<{ [key: string]: Partial<TestStep> }>({});
   const [deploymentModalOpen, setDeploymentModalOpen] = useState(false);
   const [releaseVersion, setReleaseVersion] = useState('');
   const [commentInputs, setCommentInputs] = useState<{[key: string]: string}>({});
+  const [conditionalReasonInputs, setConditionalReasonInputs] = useState<Record<string, string>>({});
   const [stepSaveState, setStepSaveState] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
   const [commentSaveState, setCommentSaveState] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
   const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
   const [activeMentionStepId, setActiveMentionStepId] = useState<string | null>(null);
   const [markingCommentsRead, setMarkingCommentsRead] = useState(false);
+  const [markingReady, setMarkingReady] = useState(false);
+  const [signingOff, setSigningOff] = useState(false);
   const [taskMetaSaveState, setTaskMetaSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [taskMetaError, setTaskMetaError] = useState<string | null>(null);
   const [applyGlobalMetaUpdate, setApplyGlobalMetaUpdate] = useState(false);
   const [groupPreview, setGroupPreview] = useState<GroupUpdatePreview | null>(null);
   const [loadingGroupPreview, setLoadingGroupPreview] = useState(false);
@@ -151,6 +167,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   const [viewImage, setViewImage] = useState<string | null>(null);
   const [uploadStepId, setUploadStepId] = useState<string | null>(null);
   const [mentionUsers, setMentionUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [availableModules, setAvailableModules] = useState<string[]>([]);
+  const [stakeholderOptions, setStakeholderOptions] = useState<Array<{ id: string; name: string; email: string; countryCode: string }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentElementRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const commentDraftStorageKey = useMemo(
@@ -183,6 +201,16 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   const isDraft = statusKey === 'DRAFT';
   const canRunTestActions = !isSignedOff && !isDraft;
   const canEditTaskMeta = isAdmin && !isSignedOff;
+  const signedByLabel =
+    localTask.signedOffBy?.name ||
+    localTask.signedOffBy?.email ||
+    localTask.signedOff?.signedBy ||
+    'Stakeholder';
+  const signedOnValue = localTask.signedOffAt || localTask.signedOff?.signedAt;
+  const signedOnLabel = formatDateTimeLocal(signedOnValue ?? undefined);
+  const countryStakeholders = stakeholderOptions.filter((user) => user.countryCode === localTask.countryCode);
+  const moduleOptions = Array.from(new Set([...(availableModules || []), localTask.featureModule || ''])).filter(Boolean);
+  const canUnassign = isDraft;
 
   // Portal URL Logic
   const portalUrl = localTask.targetSystem === 'Admin Portal' 
@@ -209,22 +237,74 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     return { start, end, query };
   };
 
+  const mentionNameByToken = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const user of mentionUsers) {
+      const cleanName = (user.name || '').trim();
+      const cleanEmail = (user.email || '').trim().toLowerCase();
+      if (cleanEmail) {
+        map.set(cleanEmail, cleanName || user.email);
+      }
+      if (cleanName) {
+        map.set(cleanName.toLowerCase(), cleanName);
+      }
+    }
+    return map;
+  }, [mentionUsers]);
+
+  const renderCommentBody = (value: string) => {
+    const parts = value.split(/(@\{[^}]+\}|@[^\s@{}]+)/g);
+    return parts.map((part, idx) => {
+      if (part.startsWith('@{') && part.endsWith('}')) {
+        const token = part.slice(2, -1).trim().toLowerCase();
+        const display = mentionNameByToken.get(token) || 'User';
+        return (
+          <span key={`${part}-${idx}`} className="font-semibold text-indigo-700">
+            @{display}
+          </span>
+        );
+      }
+      if (part.startsWith('@')) {
+        const token = part.slice(1).trim().toLowerCase();
+        const display = mentionNameByToken.get(token);
+        if (display) {
+          return (
+            <span key={`${part}-${idx}`} className="font-semibold text-indigo-700">
+              @{display}
+            </span>
+          );
+        }
+      }
+      return <React.Fragment key={`${part}-${idx}`}>{part}</React.Fragment>;
+    });
+  };
+
   // Handle Step Updates
-  const persistStepProgress = async (stepId: string, updates: Partial<TestStep>) => {
+  const persistStepProgress = async (
+    stepId: string,
+    updates: Partial<TestStep>,
+    expectedUpdatedAt: string = localTask.updatedAt,
+    hasRetried = false
+  ) => {
     setStepSaveState((prev) => ({ ...prev, [stepId]: 'saving' }));
     const response = await fetch(`/api/tasks/${localTask.id}/steps/${stepId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        stepResult: updates.stepResult,
+        conditionalReason: updates.conditionalReason,
         isPassed: updates.isPassed,
         actualResult: updates.actualResult,
         attachments: updates.attachments,
-        expectedUpdatedAt: localTask.updatedAt
+        expectedUpdatedAt
       })
     });
     if (response.status === 409) {
+      const latest = await refreshTask(localTask.id, { silentOnError: true });
+      if (!hasRetried && latest?.updatedAt) {
+        return persistStepProgress(stepId, updates, latest.updatedAt, true);
+      }
       notify('Task changed by another user. Reloaded latest data.', 'error');
-      await refreshTask(localTask.id);
       setStepSaveState((prev) => ({ ...prev, [stepId]: 'error' }));
       return false;
     }
@@ -245,10 +325,13 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
 
     const updatedSteps = (localTask.steps ?? []).map(step => {
       if (step.id === stepId) {
+        const nextOutcome =
+          updates.stepResult ??
+          (updates.isPassed === true ? 'PASSED' : updates.isPassed === false ? 'FAILED' : null);
         return { 
           ...step, 
           ...updates, 
-          completedAt: updates.isPassed !== null ? new Date().toLocaleString() : undefined 
+          completedAt: nextOutcome ? new Date().toLocaleString() : undefined 
         };
       }
       return step;
@@ -259,12 +342,13 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     
     // Auto-update task status from step execution.
     // Task should only become PASSED after explicit sign-off.
-    const allPassed = updatedSteps.every(s => s.isPassed === true);
+    const outcomes = updatedSteps.map(getStepOutcome);
+    const allPassed = outcomes.length > 0 && outcomes.every((outcome) => outcome === 'PASSED');
     if (allPassed && localTask.status !== Status.DEPLOYED) {
       updatedTask.status = Status.IN_PROGRESS;
-    } else if (updatedSteps.some(s => s.isPassed === false)) {
+    } else if (outcomes.some((outcome) => outcome === 'FAILED')) {
       updatedTask.status = Status.FAILED;
-    } else if (updatedSteps.some(s => s.isPassed === true) && statusKey === 'READY') {
+    } else if (outcomes.some((outcome) => outcome === 'PASSED' || outcome === 'CONDITIONAL') && statusKey === 'READY') {
       updatedTask.status = Status.IN_PROGRESS;
     }
 
@@ -273,7 +357,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
 
     if (updatedTask.status !== previousStatus) {
       const failedStepOrder =
-        updates.isPassed === false
+        (updates.stepResult === 'FAILED' || updates.isPassed === false)
           ? (localTask.steps ?? []).find((step) => step.id === stepId)?.order
           : undefined;
       void persistStatus(updatedTask.status, failedStepOrder);
@@ -283,7 +367,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     }
 
     // Auto-advance logic
-    if (updates.isPassed === true) {
+    if (updates.stepResult === 'PASSED' || updates.isPassed === true) {
         const currentIndex = localTask.steps.findIndex(s => s.id === stepId);
         const nextStep = localTask.steps[currentIndex + 1];
         if (nextStep) {
@@ -304,7 +388,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     handleStepUpdate(stepId, { attachments: newAttachments });
   };
 
-  const handleAddComment = async (stepId: string) => {
+  const handleAddComment = async (stepId: string, expectedUpdatedAt: string = localTask.updatedAt, hasRetried = false) => {
     if (!canRunTestActions) return;
     const text = commentInputs[stepId];
     if (!text || !text.trim()) return;
@@ -317,14 +401,17 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       body: JSON.stringify({
         body: text,
         stepOrder,
-        expectedUpdatedAt: localTask.updatedAt,
+        expectedUpdatedAt,
         mentionUserIds
       })
     });
 
     if (response.status === 409) {
+      const latest = await refreshTask(localTask.id, { silentOnError: true });
+      if (!hasRetried && latest?.updatedAt) {
+        return handleAddComment(stepId, latest.updatedAt, true);
+      }
       notify('Task changed by another user. Reloaded latest data.', 'error');
-      await refreshTask(localTask.id);
       setCommentSaveState((prev) => ({ ...prev, [stepId]: 'error' }));
       return;
     }
@@ -370,19 +457,41 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     }
   };
 
+  const optimizeImageBlob = async (blob: Blob) => {
+    const imageBitmap = await createImageBitmap(blob);
+    const maxWidth = 1600;
+    const maxHeight = 1600;
+    const scale = Math.min(1, maxWidth / imageBitmap.width, maxHeight / imageBitmap.height);
+    const width = Math.max(1, Math.round(imageBitmap.width * scale));
+    const height = Math.max(1, Math.round(imageBitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      imageBitmap.close();
+      throw new Error('Failed to get 2D canvas context');
+    }
+    context.drawImage(imageBitmap, 0, 0, width, height);
+    imageBitmap.close();
+    return canvas.toDataURL('image/jpeg', 0.78);
+  };
+
   const handleUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !uploadStepId) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      const currentStep = (localTask.steps ?? []).find((step) => step.id === uploadStepId);
-      if (currentStep) {
-        const currentAttachments = currentStep.attachments || [];
-        handleStepUpdate(uploadStepId, { attachments: [...currentAttachments, base64] });
+    void (async () => {
+      try {
+        const optimized = await optimizeImageBlob(file);
+        const currentStep = (localTask.steps ?? []).find((step) => step.id === uploadStepId);
+        if (currentStep) {
+          const currentAttachments = currentStep.attachments || [];
+          handleStepUpdate(uploadStepId, { attachments: [...currentAttachments, optimized] });
+        }
+      } catch {
+        notify('Failed to process image', 'error');
       }
-    };
-    reader.readAsDataURL(file);
+    })();
     e.target.value = '';
   };
 
@@ -393,16 +502,20 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     for (let i = 0; i < items.length; i++) {
         if (items[i].type.indexOf('image') !== -1) {
             const blob = items[i].getAsFile();
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const base64 = event.target?.result as string;
-                const currentStep = (localTask.steps ?? []).find(s => s.id === stepId);
-                if (currentStep) {
+            if (blob) {
+              void (async () => {
+                try {
+                  const optimized = await optimizeImageBlob(blob);
+                  const currentStep = (localTask.steps ?? []).find((s) => s.id === stepId);
+                  if (currentStep) {
                     const currentAttachments = currentStep.attachments || [];
-                    handleStepUpdate(stepId, { attachments: [...currentAttachments, base64] });
+                    handleStepUpdate(stepId, { attachments: [...currentAttachments, optimized] });
+                  }
+                } catch {
+                  notify('Failed to process pasted image', 'error');
                 }
-            };
-            if (blob) reader.readAsDataURL(blob);
+              })();
+            }
             e.preventDefault(); // Prevent pasting into text inputs if focused
         }
     }
@@ -412,8 +525,12 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     if (!canRunTestActions) return;
     if (!signatureData || !acknowledged) return;
     void (async () => {
+      setSigningOff(true);
       const statusUpdated = await persistStatus(Status.PASSED);
-      if (!statusUpdated) return;
+      if (!statusUpdated) {
+        setSigningOff(false);
+        return;
+      }
       const response = await fetch(`/api/tasks/${localTask.id}/signoff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
@@ -422,9 +539,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
         const data = await response.json().catch(() => null);
         notify(data?.error || 'Failed to sign off task', 'error');
         await refreshTask(localTask.id);
+        setSigningOff(false);
         return;
       }
       await refreshTask(localTask.id);
+      setSigningOff(false);
       notify('Task signed off successfully.', 'success');
     })();
   };
@@ -453,10 +572,14 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
         notify('Assign a stakeholder before marking task as READY.', 'error');
         return;
       }
+      setMarkingReady(true);
       const statusUpdated = await persistStatus('READY' as unknown as Status);
-      if (!statusUpdated) return;
+      if (!statusUpdated) {
+        setMarkingReady(false);
+        return;
+      }
       await refreshTask(localTask.id);
-      notify('Task is now READY. Assignment email has been sent.', 'success');
+      setMarkingReady(false);
     })();
   };
 
@@ -486,19 +609,22 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     });
   };
 
-  const refreshTask = async (taskId: string) => {
+  const refreshTask = async (taskId: string, options?: { silentOnError?: boolean }) => {
     try {
       const updated = await apiFetch<Task>(`/api/tasks/${taskId}`, { cache: 'no-store' });
       const safeUpdated = normalizeTask(updated as Task);
       setLocalTask(safeUpdated);
       onUpdateTask(safeUpdated);
       void fetch(`/api/tasks/${taskId}/comments/read`, { method: 'POST' });
+      return safeUpdated;
     } catch (error) {
+      if (options?.silentOnError) return null;
       if (error instanceof ApiError) {
         notify(error.message || 'Failed to refresh task', 'error');
-        return;
+        return null;
       }
       notify('Failed to refresh task', 'error');
+      return null;
     }
   };
 
@@ -514,15 +640,23 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     }
   };
 
-  const persistStatus = async (status: Status, stepOrder?: number) => {
+  const persistStatus = async (
+    status: Status,
+    stepOrder?: number,
+    expectedUpdatedAt: string = localTask.updatedAt,
+    hasRetried = false
+  ) => {
     const response = await fetch(`/api/tasks/${localTask.id}/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, stepOrder, expectedUpdatedAt: localTask.updatedAt })
+      body: JSON.stringify({ status, stepOrder, expectedUpdatedAt })
     });
     if (response.status === 409) {
+      const latest = await refreshTask(localTask.id, { silentOnError: true });
+      if (!hasRetried && latest?.updatedAt) {
+        return persistStatus(status, stepOrder, latest.updatedAt, true);
+      }
       notify('Task changed by another user. Reloaded latest data.', 'error');
-      await refreshTask(localTask.id);
       return false;
     }
     return response.ok;
@@ -548,6 +682,12 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
 
     const performSave = async () => {
       setTaskMetaSaveState('saving');
+      setTaskMetaError(null);
+      const currentAssigneeId = localTask.assignee?.id ?? '';
+      const requestedAssigneeId = taskEdits.assigneeId ?? '';
+      const includeAssigneePatch =
+        requestedAssigneeId !== currentAssigneeId &&
+        (requestedAssigneeId !== '' || canUnassign);
       const response = await fetch(`/api/tasks/${localTask.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -560,13 +700,16 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
           dueDate: fromDateInputValue(taskEdits.dueDate),
           priority: taskEdits.priority,
           module: taskEdits.featureModule,
+          ...(includeAssigneePatch ? { assigneeId: requestedAssigneeId || null } : {}),
           expectedUpdatedAt: localTask.updatedAt,
           applyToGroup: applyGlobalMetaUpdate
         })
       });
 
       if (!response.ok) {
-        notify('Failed to save task details', 'error');
+        const data = await response.json().catch(() => null);
+        const message = data?.error || 'Failed to save task details';
+        setTaskMetaError(message);
         setTaskMetaSaveState('error');
         return;
       }
@@ -574,6 +717,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       const safeUpdated = normalizeTask(updated as Task);
       setLocalTask(safeUpdated);
       onUpdateTask(safeUpdated);
+      setTaskMetaError(null);
       setTaskEdits({
         title: safeUpdated.title ?? '',
         description: safeUpdated.description ?? '',
@@ -582,7 +726,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
         developer: safeUpdated.developer ?? '',
         dueDate: toDateInputValue(safeUpdated.dueDate),
         priority: safeUpdated.priority ?? Priority.MEDIUM,
-        featureModule: safeUpdated.featureModule ?? ''
+        featureModule: safeUpdated.featureModule ?? '',
+        assigneeId: safeUpdated.assignee?.id ?? ''
       });
       const summary = (updated as any)?.globalUpdateSummary;
       if (summary?.requested) {
@@ -632,6 +777,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     (taskEdits.jiraTicket ?? '') !== (localTask.jiraTicket ?? '') ||
     (taskEdits.developer ?? '') !== (localTask.developer ?? '') ||
     (taskEdits.featureModule ?? '') !== (localTask.featureModule ?? '') ||
+    (taskEdits.assigneeId ?? '') !== (localTask.assignee?.id ?? '') ||
     taskEdits.priority !== (localTask.priority ?? Priority.MEDIUM) ||
     (taskEdits.dueDate ?? '') !== toDateInputValue(localTask.dueDate) ||
     (localTask.title ?? '') !== taskEdits.title ||
@@ -739,8 +885,10 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       developer: safe.developer ?? '',
       dueDate: toDateInputValue(safe.dueDate),
       priority: safe.priority ?? Priority.MEDIUM,
-      featureModule: safe.featureModule ?? ''
+      featureModule: safe.featureModule ?? '',
+      assigneeId: safe.assignee?.id ?? ''
     });
+    setTaskMetaError(null);
     const needsHydration =
       (safe.steps ?? []).length === 0 ||
       (safe.steps ?? []).some(
@@ -852,6 +1000,33 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     void loadMentionUsers();
   }, []);
 
+  useEffect(() => {
+    if (!isAdmin) return;
+    const loadAdminOptions = async () => {
+      const [modulesRes, stakeholdersRes] = await Promise.all([
+        fetch('/api/admin/modules', { cache: 'no-store' }),
+        fetch('/api/admin/stakeholders', { cache: 'no-store' })
+      ]);
+      if (modulesRes.ok) {
+        const modules = await modulesRes.json();
+        if (Array.isArray(modules)) setAvailableModules(modules);
+      }
+      if (stakeholdersRes.ok) {
+        const stakeholders = await stakeholdersRes.json();
+        if (Array.isArray(stakeholders)) setStakeholderOptions(stakeholders);
+      }
+    };
+    void loadAdminOptions();
+  }, [isAdmin]);
+
+  useEffect(() => {
+    const next: Record<string, string> = {};
+    for (const step of localTask.steps ?? []) {
+      next[step.id] = conditionalReasonInputs[step.id] ?? (step.conditionalReason ?? '');
+    }
+    setConditionalReasonInputs(next);
+  }, [localTask.id, localTask.steps]);
+
   return (
     <div className="max-w-5xl mx-auto animate-fade-in pb-20 print:p-0 print:max-w-none">
       
@@ -867,9 +1042,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
           {isAdmin && isDraft && !isSignedOff && (
             <button
               onClick={handleMarkReady}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
+              disabled={markingReady}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <CheckCircle size={16} /> Mark as READY
+              {markingReady ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+              {markingReady ? 'Marking as READY...' : 'Mark as READY'}
             </button>
           )}
           {isAdmin && (
@@ -909,6 +1086,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
           <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex flex-wrap gap-2">
                 <Badge type="module" value={localTask.featureModule} />
+                {isAdmin && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-sky-50 text-sky-700 border border-sky-100">
+                    Country: {localTask.countryCode}
+                  </span>
+                )}
                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${localTask.scope === 'Global' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                   <Globe size={12} /> {localTask.scope}
                 </span>
@@ -1053,13 +1235,38 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
               <div>
                 <span className="text-xs text-slate-400 block mb-1">Module</span>
                 {canEditTaskMeta ? (
-                  <input
+                  <select
                     className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
                     value={taskEdits.featureModule}
                     onChange={(e) => setTaskEdits({ ...taskEdits, featureModule: e.target.value })}
-                  />
+                  >
+                    {moduleOptions.map((moduleName) => (
+                      <option key={moduleName} value={moduleName}>
+                        {moduleName}
+                      </option>
+                    ))}
+                  </select>
                 ) : (
                   <span className="text-sm text-slate-700">{localTask.featureModule}</span>
+                )}
+              </div>
+              <div>
+                <span className="text-xs text-slate-400 block mb-1">Assignee</span>
+                {canEditTaskMeta ? (
+                  <select
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                    value={taskEdits.assigneeId}
+                    onChange={(e) => setTaskEdits({ ...taskEdits, assigneeId: e.target.value })}
+                  >
+                    {canUnassign && <option value="">Unassigned</option>}
+                    {countryStakeholders.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name || user.email}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-sm text-slate-700">{localTask.assignee?.name || localTask.assignee?.email || 'Unassigned'}</span>
                 )}
               </div>
           </div>
@@ -1071,7 +1278,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                   <span className="text-xs text-slate-500" role="status" aria-live="polite">
                     {taskMetaSaveState === 'saving' && 'Saving...'}
                     {taskMetaSaveState === 'saved' && 'Saved'}
-                    {taskMetaSaveState === 'error' && 'Save failed'}
+                    {taskMetaSaveState === 'error' && (taskMetaError || 'Save failed')}
                     {taskMetaSaveState === 'idle' && isTaskMetaDirty && 'Unsaved changes'}
                   </span>
                   <button
@@ -1113,6 +1320,12 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
           )}
         </div>
 
+        {isSignedOff && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            This task is signed off and now read-only. No further edits are allowed.
+          </div>
+        )}
+
         {/* Test Execution Accordion */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print:border-0 print:shadow-none">
           <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center print:bg-white print:border-b-2 print:border-slate-800">
@@ -1120,7 +1333,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
               <CheckCircle size={18} className="text-slate-400"/> Test Steps
             </h3>
             <div className="flex items-center gap-3 text-xs font-medium text-slate-500">
-              {(localTask.steps ?? []).filter(s => s.isPassed === true).length} / {(localTask.steps ?? []).length} Steps Completed
+              {(localTask.steps ?? []).filter((s) => isStepResolved(s)).length} / {(localTask.steps ?? []).length} Steps Completed
               <button
                 type="button"
                 onClick={() => void handleMarkTaskCommentsRead()}
@@ -1143,9 +1356,15 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
           <div className="divide-y divide-slate-100">
               {(localTask.steps ?? []).map((step, idx) => {
                 const isOpen = expandedStep === step.id;
-                const statusColor = step.isPassed === true ? 'bg-emerald-100 border-emerald-200 text-emerald-700' : 
-                                  step.isPassed === false ? 'bg-rose-100 border-rose-200 text-rose-700' : 
-                                  'bg-white border-slate-200 text-slate-500';
+                const stepOutcome = getStepOutcome(step);
+                const statusColor =
+                  stepOutcome === 'PASSED'
+                    ? 'bg-emerald-100 border-emerald-200 text-emerald-700'
+                    : stepOutcome === 'FAILED'
+                      ? 'bg-rose-100 border-rose-200 text-rose-700'
+                      : stepOutcome === 'CONDITIONAL'
+                        ? 'bg-amber-100 border-amber-200 text-amber-700'
+                        : 'bg-white border-slate-200 text-slate-500';
                 const commentDraft = commentInputs[step.id] || '';
                 const mentionContext = activeMentionStepId === step.id ? getMentionContext(commentDraft) : null;
                 const mentionSuggestions = mentionContext
@@ -1187,13 +1406,18 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                       }}
                     >
                         <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-sm font-bold flex-shrink-0 ${statusColor}`}>
-                          {step.isPassed === true ? <CheckCircle size={16}/> : step.isPassed === false ? <XCircle size={16}/> : idx + 1}
+                          {stepOutcome === 'PASSED' ? <CheckCircle size={16}/> : stepOutcome === 'FAILED' ? <XCircle size={16}/> : stepOutcome === 'CONDITIONAL' ? <AlertCircle size={16}/> : idx + 1}
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                              <p className={`text-sm font-medium ${step.isPassed === true ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                              <p className={`text-sm font-medium ${stepOutcome === 'PASSED' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
                                 {step.description}
                               </p>
+                              {stepOutcome === 'CONDITIONAL' && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">
+                                  Conditional
+                                </span>
+                              )}
                           </div>
                           {step.completedAt && <p className="text-[10px] text-slate-400">Executed: {step.completedAt}</p>}
                         </div>
@@ -1262,8 +1486,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                                   </div>
                                   <div>
                                     <label className="text-xs font-medium text-slate-500 mb-1 block">Test Data</label>
-                                    <input
+                                    <textarea
                                       className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
+                                      rows={3}
                                       value={stepEdits[step.id]?.testData ?? ''}
                                       onChange={(e) =>
                                         setStepEdits((prev) => ({
@@ -1374,34 +1599,83 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                                               </div>
                                           )}
                                       </div>
+                                      {stepOutcome === 'CONDITIONAL' && (step.conditionalReason || conditionalReasonInputs[step.id]) && (
+                                        <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                                          <span className="font-semibold">Conditional reason:</span>{' '}
+                                          {(step.conditionalReason || conditionalReasonInputs[step.id])}
+                                        </div>
+                                      )}
                                   </div>
                               </div>
 
                               {/* Action Bar */}
                               {canRunTestActions && (
-                                <div className="flex justify-end pt-2 border-t border-slate-50 print:hidden">
-                                    <div className="mr-auto text-xs self-center">
+                                <div className="pt-2 border-t border-slate-50 print:hidden space-y-2">
+                                    <div className="flex justify-end">
+                                      <div className="mr-auto text-xs self-center">
                                       {stepSaveState[step.id] === 'saving' && <span className="text-slate-500 animate-status-pop">Saving step...</span>}
                                       {stepSaveState[step.id] === 'saved' && <span className="text-emerald-600 animate-status-pop">Step saved</span>}
                                       {stepSaveState[step.id] === 'error' && <span className="text-rose-600 animate-status-pop">Save failed</span>}
-                                    </div>
-                                    <div className="flex gap-2">
+                                      </div>
+                                      <div className="flex gap-2">
                                       <span className="text-[11px] self-center px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-medium">
-                                        {step.isPassed === true ? 'Current: PASS' : step.isPassed === false ? 'Current: FAIL' : 'Current: Not set'}
+                                        {stepOutcome === 'PASSED' ? 'Current: PASS' : stepOutcome === 'FAILED' ? 'Current: FAIL' : stepOutcome === 'CONDITIONAL' ? 'Current: CONDITIONAL' : 'Current: Not set'}
                                       </span>
                                       <button 
-                                        onClick={(e) => { e.stopPropagation(); handleStepUpdate(step.id, { isPassed: false }); }}
-                                        className={`px-4 py-2 rounded-lg text-xs font-bold border transition-colors flex items-center gap-2 ${step.isPassed === false ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-rose-600 border-rose-200 hover:bg-rose-50'}`}
+                                        onClick={(e) => { e.stopPropagation(); handleStepUpdate(step.id, { stepResult: 'FAILED', isPassed: false, conditionalReason: null }); }}
+                                        className={`px-4 py-2 rounded-lg text-xs font-bold border transition-colors flex items-center gap-2 ${stepOutcome === 'FAILED' ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-rose-600 border-rose-200 hover:bg-rose-50'}`}
                                       >
                                         <XCircle size={14} /> FAIL
                                       </button>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleStepUpdate(step.id, { stepResult: 'CONDITIONAL', isPassed: null }); }}
+                                        className={`px-4 py-2 rounded-lg text-xs font-bold border transition-colors flex items-center gap-2 ${stepOutcome === 'CONDITIONAL' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'}`}
+                                      >
+                                        <AlertCircle size={14} /> CONDITIONAL
+                                      </button>
                                       <button 
-                                        onClick={(e) => { e.stopPropagation(); handleStepUpdate(step.id, { isPassed: true }); }}
-                                        className={`px-4 py-2 rounded-lg text-xs font-bold border transition-colors flex items-center gap-2 ${step.isPassed === true ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50'}`}
+                                        onClick={(e) => { e.stopPropagation(); handleStepUpdate(step.id, { stepResult: 'PASSED', isPassed: true, conditionalReason: null }); }}
+                                        className={`px-4 py-2 rounded-lg text-xs font-bold border transition-colors flex items-center gap-2 ${stepOutcome === 'PASSED' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50'}`}
                                       >
                                         <CheckCircle size={14} /> PASS
                                       </button>
+                                      </div>
                                     </div>
+                                    {stepOutcome === 'CONDITIONAL' && (
+                                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                                        <label className="text-[11px] font-semibold text-amber-800 block mb-1">
+                                          Conditional reason (required)
+                                        </label>
+                                        <textarea
+                                          className="w-full text-xs border-amber-200 rounded focus:ring-amber-400 focus:border-amber-400 min-h-[68px]"
+                                          placeholder="Describe why this is conditionally passed..."
+                                          value={conditionalReasonInputs[step.id] ?? step.conditionalReason ?? ''}
+                                          onChange={(e) =>
+                                            setConditionalReasonInputs((prev) => ({
+                                              ...prev,
+                                              [step.id]: e.target.value
+                                            }))
+                                          }
+                                        />
+                                        <div className="mt-2 flex justify-end">
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              const reason = (conditionalReasonInputs[step.id] ?? '').trim();
+                                              if (!reason) {
+                                                notify('Conditional reason is required', 'error');
+                                                return;
+                                              }
+                                              handleStepUpdate(step.id, { stepResult: 'CONDITIONAL', isPassed: null, conditionalReason: reason });
+                                            }}
+                                            className="px-3 py-1.5 rounded-md text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700"
+                                          >
+                                            Save Reason
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
                                 </div>
                               )}
 
@@ -1419,7 +1693,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                                         }`}
                                       >
                                          <span className="font-bold text-slate-800">{c.userId}</span>
-                                         <span className="text-slate-600">{c.text}</span>
+                                         <span className="text-slate-600 whitespace-pre-wrap break-words">{renderCommentBody(c.text)}</span>
                                          <span className="text-slate-400 ml-auto">{formatDateTimeLocal(c.createdAt)}</span>
                                       </div>
                                     ))}
@@ -1532,7 +1806,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                    <Lock size={24} />
                 </div>
                 <h3 className="font-bold text-lg text-emerald-800">Testing Completed & Signed</h3>
-                <p className="text-sm text-slate-500 mt-1 mb-4">Signed by {localTask.signedOff?.signedBy} on {localTask.signedOff?.signedAt}</p>
+                <p className="text-sm text-slate-600 mt-1 mb-4">
+                  Signed by {signedByLabel} on {signedOnLabel}
+                </p>
                 {localTask.signedOff?.signatureData && (
                   <div className="border border-slate-200 rounded bg-white p-2">
                     <img src={localTask.signedOff.signatureData} alt="Signature" className="h-24 opacity-80" />
@@ -1580,18 +1856,19 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
 
                <button 
                  onClick={handleSignOff}
-                 disabled={(localTask.steps ?? []).some(s => s.isPassed === null) || !signatureData || !acknowledged}
+                 disabled={signingOff || (localTask.steps ?? []).some((s) => !isStepResolved(s) || (getStepOutcome(s) === 'CONDITIONAL' && !(s.conditionalReason || '').trim())) || !signatureData || !acknowledged}
                  className={`w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors ${
-                   ((localTask.steps ?? []).some(s => s.isPassed === null) || !signatureData || !acknowledged)
+                   (signingOff || (localTask.steps ?? []).some((s) => !isStepResolved(s) || (getStepOutcome(s) === 'CONDITIONAL' && !(s.conditionalReason || '').trim())) || !signatureData || !acknowledged)
                     ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
                     : 'bg-slate-900 text-white hover:bg-slate-800 shadow-md'
                  }`}
                >
-                 <PenTool size={16} /> Sign & Complete Task
+                 {signingOff ? <Loader2 size={16} className="animate-spin" /> : <PenTool size={16} />}
+                 {signingOff ? 'Completing task...' : 'Sign & Complete Task'}
                </button>
                
-               {(localTask.steps ?? []).some(s => s.isPassed === null) && (
-                 <p className="text-xs text-rose-500 mt-2">Please complete all test steps before signing.</p>
+               {(localTask.steps ?? []).some((s) => !isStepResolved(s) || (getStepOutcome(s) === 'CONDITIONAL' && !(s.conditionalReason || '').trim())) && (
+                 <p className="text-xs text-rose-500 mt-2">Please complete all test steps and fill conditional reasons before signing.</p>
                )}
              </div>
            )}

@@ -8,6 +8,7 @@ import { sendTaskSignedOffEmail } from '../../../../../lib/email';
 import { sendTeamsMessage } from '../../../../../lib/teams';
 import { validateExpectedUpdatedAt } from '../../../../../lib/taskGuards';
 import { createTaskHistory } from '../../../../../lib/taskHistory';
+import { logPilotEvent } from '../../../../../lib/telemetry';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,6 +18,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const session = await getServerSession(authOptions);
   if (!session?.user) {
+    logPilotEvent('task.signoff.denied', { reason: 'unauthorized', taskId: id });
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -36,6 +38,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
 
   if (!task) {
+    logPilotEvent('task.signoff.denied', { reason: 'task_not_found', taskId: id, actorId: session.user.id });
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
@@ -116,6 +119,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       { name: 'Country', value: task.countryCode },
       { name: 'Signed Off By', value: session.user.name || session.user.email || 'User' }
     ]
+  });
+
+  logPilotEvent('task.signoff.success', {
+    taskId: id,
+    actorId: session.user.id,
+    countryCode: task.countryCode
   });
 
   return NextResponse.json({ ok: true });

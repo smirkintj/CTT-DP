@@ -21,6 +21,11 @@ function formatDateTime(value?: Date | null) {
   return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+function extractAttachmentImages(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item): item is string => typeof item === 'string' && item.startsWith('data:image/')).slice(0, 8);
+}
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const autoPrint = new URL(_req.url).searchParams.get('autoprint') === '1';
   const session = await getServerSession(authOptions);
@@ -74,14 +79,45 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const stepsRows = task.steps
     .map(
-      (step) => `
+      (step) => {
+        const attachmentImages = extractAttachmentImages(step.attachments as unknown);
+        const evidenceCell =
+          attachmentImages.length === 0
+            ? '—'
+            : `<div class="evidence-grid">${attachmentImages
+                .map(
+                  (src, index) =>
+                    `<img src="${src}" alt="Step ${step.order} evidence ${index + 1}" class="evidence-image" />`
+                )
+                .join('')}</div>`;
+        return `
       <tr>
         <td>${step.order}</td>
         <td>${escapeHtml(step.description)}</td>
         <td>${escapeHtml(step.expectedResult)}</td>
         <td>${escapeHtml(step.actualResult || '—')}</td>
-        <td>${step.isPassed === true ? 'Passed' : step.isPassed === false ? 'Failed' : 'Not completed'}</td>
-      </tr>`
+        <td>${
+          step.stepResult === 'PASSED'
+            ? 'Passed'
+            : step.stepResult === 'FAILED'
+              ? 'Failed'
+              : step.stepResult === 'CONDITIONAL'
+                ? 'Conditional Pass'
+                : step.isPassed === true
+                  ? 'Passed'
+                  : step.isPassed === false
+                    ? 'Failed'
+                    : 'Not completed'
+        }</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td colspan="4">
+          ${step.conditionalReason ? `<div><span class="label">Conditional Reason:</span> ${escapeHtml(step.conditionalReason)}</div>` : ''}
+          <div><span class="label">Evidence:</span> ${evidenceCell}</div>
+        </td>
+      </tr>`;
+      }
     )
     .join('');
 
@@ -165,6 +201,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     th { background: #f8fafc; font-weight: 600; }
     .muted { color: #64748b; text-align: center; }
     .comment-cell { max-width: 430px; white-space: normal; word-break: break-word; line-height: 1.45; }
+    .evidence-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+    .evidence-image { width: 100%; max-height: 120px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; }
     .section-row td { background: #f8fafc; font-weight: 600; color: #334155; }
     .footer { margin-top: 14px; color: #64748b; font-size: 11px; }
   </style>

@@ -986,3 +986,13 @@ This backlog tracks improvement initiatives with:
 - `2026-02-27`: Advanced #33 reporting with summary CSV export (date-range scope + country/module aggregates) and UTF-8 BOM compatibility for multilingual spreadsheet text.
 - `2026-02-27`: Advanced #10 mentions by adding Unicode-safe structured mention parsing and passing/storing `mentionUserIds` metadata on comment events.
 - `2026-02-27`: Continued #41 performance work with admin metadata caching (session-storage TTL + revalidation) to reduce repeated admin dashboard fetch latency.
+- `2026-02-27`: Polished task detail admin UX with country context badge, READY action loading indicator, multiline step test-data editor, and highlighted mention-name rendering in comments.
+- `2026-02-27`: Expanded task-detail reliability/exports: optimistic-conflict auto-retry for status/step/comment writes, sign-off button loading state, optimized evidence image storage, and sign-off PDF evidence thumbnail rendering.
+- `2026-02-27`: Improved signed-state clarity and monitoring: task detail now shows styled `Signed by [name] on [date]` plus explicit read-only lock notice; stakeholder/admin task cards now show signed-off metadata and overdue flags for incomplete past-due tasks.
+- `2026-02-27`: Added conditional pass capability in step execution (`PASS / FAIL / CONDITIONAL`) with DB persistence (`TaskStep.stepResult`), dashboard conditional indicators, and sign-off report export labeling (`Conditional Pass`).
+- `2026-02-27`: Simplified admin task-management header by consolidating bulk/export/import controls into a single `Actions` menu, reducing top-bar button clutter while preserving all existing actions.
+- `2026-02-27`: Improved admin task-detail/edit flow: module field switched to dropdown options, assignee can be changed post-creation in task detail, and create-task step `Test Data` now supports multiline textarea input.
+- `2026-02-27`: Reduced duplicate error noise on task-detail metadata saves by consolidating failure feedback to the inline save-state area (no parallel toast for the same failure).
+- `2026-03-03`: Added mandatory conditional-pass reason capture (`TaskStep.conditionalReason`) with API enforcement and sign-off report rendering.
+- `2026-03-03`: Added admin-manageable stakeholder helpful links (DB-backed portal settings + admin UI + stakeholder dashboard consumption).
+- `2026-03-03`: Added pilot observability logs (`[pilot]`) for key list/update/comment/step/sign-off API events.

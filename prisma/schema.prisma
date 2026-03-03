@@ -28,6 +28,12 @@ enum TaskPriority {
   HIGH
 }
 
+enum StepResult {
+  PASSED
+  FAILED
+  CONDITIONAL
+}
+
 enum ActivityType {
   TASK_ASSIGNED
   STATUS_CHANGED
@@ -74,6 +80,7 @@ model User {
   activityReads  ActivityRead[]
   commentReads   CommentRead[]
   comments      Comment[]
+  portalSettingsUpdated PortalSetting[]
 }
 
 model Country {
@@ -169,6 +176,8 @@ model TaskStep {
   testData       String?
   actualResult   String?
   isPassed       Boolean?
+  stepResult     StepResult?
+  conditionalReason String?
   attachments    Json?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -176,6 +185,17 @@ model TaskStep {
   task Task @relation(fields: [taskId], references: [id])
 
   @@index([taskId, order])
+}
+
+model PortalSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 }
 
 model Activity {

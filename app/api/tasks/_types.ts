@@ -6,6 +6,8 @@ export interface TaskStepDTO {
   testData?: string | null;
   actualResult?: string | null;
   isPassed?: boolean | null;
+  stepResult?: 'PASSED' | 'FAILED' | 'CONDITIONAL' | null;
+  conditionalReason?: string | null;
   attachments?: unknown;
   comments?: {
     id: string;

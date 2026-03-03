@@ -6,6 +6,7 @@ import { ActivityType, TaskHistoryAction } from '@prisma/client';
 import { validateExpectedUpdatedAt } from '../../../../../lib/taskGuards';
 import { createTaskHistory } from '../../../../../lib/taskHistory';
 import { badRequest, conflict, forbidden, notFound, unauthorized } from '../../../../../lib/apiError';
+import { logPilotEvent } from '../../../../../lib/telemetry';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,6 +17,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const session = await getAuthSession();
 
   if (!session?.user) {
+    logPilotEvent('comment.create.denied', { reason: 'unauthorized', taskId: id });
     return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   }
 
@@ -34,6 +36,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
 
   if (!task) {
+    logPilotEvent('comment.create.denied', { reason: 'task_not_found', taskId: id, userId: session.user.id });
     return notFound('Not found', 'TASK_NOT_FOUND');
   }
 
@@ -138,6 +141,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       mentionUserIds
     },
     metadata: mentionUserIds.length > 0 ? { mentionUserIds } : undefined
+  });
+
+  logPilotEvent('comment.create.success', {
+    taskId: id,
+    actorId: session.user.id,
+    stepOrder: stepOrder && stepOrder > 0 ? stepOrder : null,
+    mentions: mentionUserIds.length
   });
 
   return NextResponse.json({ ok: true, id: created.id, mentionUserIds });

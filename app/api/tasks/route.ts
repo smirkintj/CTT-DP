@@ -9,12 +9,14 @@ import { badRequest, forbidden, internalError, unauthorized } from '../../../lib
 import { isValidDueDate, isValidJiraTicket } from '../../../lib/taskValidation';
 import { taskRelationIncludeList, taskRelationIncludeSafe } from './_query';
 import { randomUUID } from 'crypto';
+import { logPilotEvent } from '../../../lib/telemetry';
 
 export async function GET() {
   const startedAt = Date.now();
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
+    logPilotEvent('tasks.list.denied', { reason: 'unauthorized' });
     return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   }
 
@@ -57,6 +59,7 @@ export async function GET() {
       }
     });
   } catch (error) {
+    logPilotEvent('tasks.list.error', { userId: session.user.id, role: session.user.role });
     try {
       // Last-resort fallback so dashboards remain usable even if relation includes fail.
       const minimalTasks = await prisma.task.findMany({
@@ -105,10 +108,12 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
+    logPilotEvent('tasks.create.denied', { reason: 'unauthorized' });
     return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   }
 
   if (session.user.role !== 'ADMIN') {
+    logPilotEvent('tasks.create.denied', { reason: 'forbidden', userId: session.user.id });
     return forbidden('Forbidden', 'ADMIN_REQUIRED');
   }
 
@@ -265,6 +270,12 @@ export async function POST(req: Request) {
       }
     });
   }
+
+  logPilotEvent('tasks.create.success', {
+    actorId: session.user.id,
+    createdCount: createdTaskIds.length,
+    countries
+  });
 
   const createdTasks = await prisma.task.findMany({
     where: {

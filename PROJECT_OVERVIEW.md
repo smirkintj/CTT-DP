@@ -260,11 +260,23 @@ Currently created events:
 - Admin task table supports bulk status updates across selected tasks (signed-off tasks skipped).
 - Admin task table supports bulk stakeholder reassignment using per-country assignee selection.
 - Admin bulk status/assignee modals include inline result summaries and in-flight action locking to avoid duplicate submissions.
+- Admin task management header now groups secondary controls in a compact `Actions` dropdown while keeping `New Task` as the main visible CTA.
+- Admin step-builder `Test Data` input is multiline (textarea) to better fit real-world test datasets.
+- Task detail metadata editor (admin) now supports:
+  - assignee reassignment after task creation (country-scoped stakeholder dropdown)
+  - module selection via dropdown (loaded from module config API)
+  - single-surface metadata save errors (inline), avoiding duplicate toast+inline failure messaging for the same save action
 - Admin task management search uses debounce for smoother typing on large lists.
 - Admin task table header is sticky and row-selection checkboxes include stronger keyboard focus styles.
 - After admin deletes a task from detail, navigation returns to task management table.
 - Due date in admin table shows date-only.
 - Priority badge styling standardized across levels.
+- Task detail admin header now includes explicit country context (`Country: <code>`).
+- Task detail step editor uses multiline input for `Test Data`.
+- Admin `Mark as READY` now shows in-button loading state while update is in progress.
+- `Sign & Complete Task` now shows in-button loading state while sign-off request is in progress.
+- Task detail screenshot evidence is resized/compressed client-side before persistence.
+- Sign-off PDF report now includes scaled evidence thumbnails per step.
 - Admin database includes a new `Users` tab:
   - searchable/filterable stakeholder/user list
   - right-side drawer for create/edit
@@ -298,6 +310,7 @@ Additional behavior:
   - blocked/failed discussions
 - Stakeholder dashboard persists filter/search state per market in local storage.
 - Mention handling now normalizes Unicode names/emails and sends structured mention IDs in comment payload for stronger mention tracking.
+- Mention tokens in rendered comments are highlighted and displayed as user names (instead of raw email tokens).
 - Stakeholder dashboard includes a lightweight onboarding helper card:
   - 3-step guidance (open task, update steps, sign off)
   - no spotlight/overlay layer
@@ -308,8 +321,20 @@ Additional behavior:
   - mention/inbox
   - sign-off email
 - Stakeholder dashboard now renders loading skeletons for KPI cards and task cards during initial fetch.
+- Stakeholder and admin dashboard task cards now surface lifecycle context:
+  - `Overdue` indicator for tasks past due and not completed
+  - signed-off line with date/by-user when signed data is present
 - Step comment UX now supports multiline drafts, keyboard submit (`Ctrl/Cmd + Enter`), and inline posting feedback.
 - Step comment drafts are persisted per user/task in local storage and restored on revisit.
+- Step execution outcomes now support explicit tri-state:
+  - `PASSED`
+  - `FAILED`
+  - `CONDITIONAL` (non-blocking caveat)
+- `TaskStep.stepResult` is stored in DB (with backwards compatibility for legacy `isPassed`) and surfaced in task detail, dashboard cards, and sign-off report export.
+- `TaskStep.conditionalReason` is stored for conditional outcomes and required by API when a step is marked `CONDITIONAL`.
+- New `PortalSetting` model stores DB-backed app settings, currently used for stakeholder dashboard helpful links.
+- Stakeholder dashboard helpful links are now admin-editable from System Database -> Email Notifications tab.
+- Key task/comment/step/sign-off API flows now emit structured `[pilot]` server logs for pilot troubleshooting.
 - Empty-state UX includes contextual actions:
   - stakeholder task grid: clear filters or open discussions
   - inbox: refresh and return-to-dashboard actions
@@ -322,6 +347,9 @@ Additional behavior:
 - Task detail discussion UX:
   - quick action to mark current task discussions/comments as read
   - inline `@mention` autocomplete suggestions in comment composer
+- Task detail signed state UX:
+  - explicit read-only lock notice after sign-off
+  - signed signature block displays `Signed by [name] on [date]` with styled identity/date emphasis
 - In-portal Knowledge Base:
   - dedicated knowledge-base page with visual horizontal workflow timeline + exception route
   - includes plain-language status definitions with distinct visual status separation
