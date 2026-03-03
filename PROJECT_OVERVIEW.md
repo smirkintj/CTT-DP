@@ -67,13 +67,18 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 ### NextAuth
 - Handler: `app/api/auth/[...nextauth]/route.ts`
 - Config: `lib/auth.ts`
-- Provider: Credentials (`email`, `password`)
+- Providers:
+  - Credentials (`email`, `password`)
+  - Admin magic-link credentials (`token`)
 - Password check: `bcryptjs.compare`
 - Session strategy: JWT
 - Login abuse protection:
   - server-side temporary lockout on repeated failed attempts (`lib/loginRateLimit.ts`)
   - client-side email validation + lock countdown UX in `App.tsx`
   - accessibility semantics on login controls/errors/loading in `App.tsx`
+  - magic-link request throttling (`lib/magicLinkRateLimit.ts`)
+  - magic-link request API returns generic success to avoid account enumeration
+  - magic-link token storage is hashed and one-time-use with TTL
 - JWT/session includes:
   - `user.id`
   - `user.role`
@@ -126,9 +131,20 @@ Defined in `prisma/schema.prisma`.
   - `notifyOnMentionInbox`
   - `notifyOnSignoffEmail`
 
+### Passwordless admin sign-in model
+- `MagicLoginToken`
+  - `tokenHash` (SHA-256 hashed token only; raw token never stored)
+  - `expiresAt` (15-minute TTL)
+  - `usedAt` (single-use enforcement)
+  - relation to `User` with cascade delete
+
 ## API Surface
 ### Auth
 - `POST/GET /api/auth/[...nextauth]`
+- `POST /api/auth/magic-link/request`
+  - accepts admin email
+  - generic success response regardless of account match
+  - if active admin exists, sends one-time magic link email
 
 ### Tasks
 - `GET /api/tasks`
@@ -282,6 +298,8 @@ Currently created events:
   - right-side drawer for create/edit
   - disable/enable and temporary password reset actions
 - Login flow enforces an undismissable password change modal when `mustChangePassword` is true.
+- Login screen includes “Email me an admin sign-in link” action for admin passwordless recovery.
+- New route `/auth/magic` consumes one-time link and signs admin in automatically.
 - Session hydration screen now uses animated loading feedback (spinner + indeterminate bar + pulse dots) while user workspace initializes.
 - Added QA debug mode for loading screen validation: `?debugLoading=1` keeps loading view visible for 5 seconds.
 - Workspace loading view is now compact-width and uses clearer spacing between subtitle, progress bar, and spinner row.

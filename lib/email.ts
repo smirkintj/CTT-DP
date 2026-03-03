@@ -32,6 +32,13 @@ type TemporaryPasswordEmailInput = {
   temporaryPassword: string;
 };
 
+type MagicLoginEmailInput = {
+  to: string;
+  recipientName?: string;
+  loginUrl: string;
+  expiresInMinutes: number;
+};
+
 function formatDate(value?: string | Date | null): string {
   if (!value) return "N/A";
   const date = new Date(value);
@@ -194,6 +201,26 @@ export async function sendTemporaryPasswordEmail(input: TemporaryPasswordEmailIn
   return sendEmail({
     to: input.to,
     subject: 'CTT UAT Portal - Temporary Password',
+    html
+  });
+}
+
+export async function sendAdminMagicLoginEmail(input: MagicLoginEmailInput): Promise<boolean> {
+  const intro = `A secure sign-in link was requested for your CTT admin account.`;
+  const html = createTemplate(
+    'Admin Sign-in Link',
+    intro,
+    [
+      `User: <strong>${input.recipientName || input.to}</strong>`,
+      `This link expires in <strong>${input.expiresInMinutes} minutes</strong>.`,
+      `If you did not request this, you can ignore this email.`
+    ],
+    { label: 'Sign in to CTT', href: input.loginUrl }
+  );
+
+  return sendEmail({
+    to: input.to,
+    subject: 'CTT UAT Portal - Admin Sign-in Link',
     html
   });
 }

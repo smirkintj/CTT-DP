@@ -167,6 +167,8 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const [lockUntil, setLockUntil] = useState<number | null>(null);
   const [remainingLockSeconds, setRemainingLockSeconds] = useState(0);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [magicLinkMessage, setMagicLinkMessage] = useState<string | null>(null);
+  const [sendingMagicLink, setSendingMagicLink] = useState(false);
   const [currentPasswordInput, setCurrentPasswordInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
@@ -498,6 +500,37 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     }
   };
 
+  const handleSendMagicLink = async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setLoginError('Enter a valid admin email first.');
+      setMagicLinkMessage(null);
+      return;
+    }
+
+    setSendingMagicLink(true);
+    setLoginError(null);
+    setMagicLinkMessage(null);
+
+    try {
+      const response = await fetch('/api/auth/magic-link/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        setLoginError(payload?.error || 'Unable to send sign-in link.');
+        return;
+      }
+      setMagicLinkMessage(payload?.message || 'If eligible, a sign-in link has been sent to your email.');
+    } catch {
+      setLoginError('Unable to send sign-in link.');
+    } finally {
+      setSendingMagicLink(false);
+    }
+  };
+
   const handleLogout = () => {
     void signOut({ redirect: false });
     setCurrentUser(null);
@@ -667,6 +700,11 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                     {loginError}
                   </div>
                 )}
+                {magicLinkMessage && (
+                  <div role="status" className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+                    {magicLinkMessage}
+                  </div>
+                )}
                 <p id="login-help" className="sr-only">
                   Enter your DKSH email and password to sign in.
                 </p>
@@ -697,6 +735,19 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                      </div>
                    )}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handleSendMagicLink}
+                  disabled={sendingMagicLink || !emailIsValid}
+                  className={`w-full rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
+                    sendingMagicLink || !emailIsValid
+                      ? 'cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50'
+                      : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {sendingMagicLink ? 'Sending admin sign-in link...' : 'Email me an admin sign-in link'}
+                </button>
              </form>
           </div>
         </div>

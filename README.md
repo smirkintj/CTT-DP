@@ -5,7 +5,7 @@ CTT is a Next.js App Router web app for UAT workflow management across countries
 ## Stack
 - Next.js 15 (App Router)
 - React 19
-- NextAuth v4 (Credentials)
+- NextAuth v4 (Credentials + Admin magic link)
 - Prisma + PostgreSQL (Neon)
 - Tailwind CSS
 
@@ -114,6 +114,11 @@ Security notes:
   - forced permanent-password setup (`mustChangePassword`) before portal access, then user stays signed in and is redirected to dashboard
   - password-change modal now uses focused centered width, stronger backdrop layering, and real-time password rule/match validation
   - accessibility improvements on login form controls and error/loading semantics
+  - admin passwordless recovery option:
+    - login page can request one-time admin sign-in link by email
+    - link is single-use, hashed in DB, and expires after 15 minutes
+    - request endpoint returns generic success response (no user enumeration)
+    - request rate limiting is applied per email+IP
 - Recent Activity is database-backed via `Activity` and `ActivityRead` tables.
 - Task mutation APIs enforce:
   - status transition rules (invalid transitions return `409`)
@@ -146,6 +151,10 @@ Security notes:
     - toggles: assignment email, reminder email, mention/inbox, sign-off email
     - users can only read/update their own preferences
   - Notification senders now respect user preferences for assignment/reminder/sign-off, and inbox/unread routes respect mention/inbox preference.
+  - Admin magic-link email:
+    - request endpoint: `/api/auth/magic-link/request`
+    - consume route: `/auth/magic?token=...`
+    - email sender: `sendAdminMagicLoginEmail` in `/Users/putra/Desktop/CTT-DKSH-main/lib/email.ts`
 - Admin user management:
   - List/create/update/disable/reset password endpoints:
     - `/api/admin/users`
