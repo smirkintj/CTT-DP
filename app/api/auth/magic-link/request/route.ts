@@ -33,13 +33,22 @@ export async function POST(req: Request) {
     );
   }
 
+  let delivered = false;
+  let debugReason: string | null = null;
+
   try {
     const user = await prisma.user.findUnique({
       where: { email },
       select: { id: true, email: true, name: true, role: true, isActive: true }
     });
 
-    if (user && user.role === UserRole.ADMIN && user.isActive) {
+    if (!user) {
+      debugReason = 'USER_NOT_FOUND';
+    } else if (user.role !== UserRole.ADMIN) {
+      debugReason = 'NOT_ADMIN_USER';
+    } else if (!user.isActive) {
+      debugReason = 'USER_INACTIVE';
+    } else {
       const rawToken = createMagicTokenValue();
       const hashed = hashMagicToken(rawToken);
       const expiresAt = getMagicTokenExpiryDate();
@@ -55,19 +64,37 @@ export async function POST(req: Request) {
       const requestOrigin = new URL(req.url).origin;
       const loginUrl = buildMagicLoginUrl(combinedToken, requestOrigin);
 
-      if (loginUrl) {
-        await sendAdminMagicLoginEmail({
+      if (!loginUrl) {
+        debugReason = 'LOGIN_URL_MISSING';
+      } else {
+        delivered = await sendAdminMagicLoginEmail({
           to: user.email,
           recipientName: user.name,
           loginUrl,
           expiresInMinutes: getMagicTokenExpiresInMinutes()
         });
+        if (!delivered) {
+          debugReason = 'EMAIL_SEND_FAILED';
+        }
       }
     }
   } catch (error) {
+    debugReason = 'REQUEST_EXCEPTION';
     if (process.env.NODE_ENV !== 'production') {
       console.error('Magic link request failed:', error);
     }
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'If the account is eligible, a sign-in link will be emailed.',
+        delivered,
+        debugReason
+      },
+      { status: 200 }
+    );
   }
 
   return NextResponse.json(

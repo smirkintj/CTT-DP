@@ -524,6 +524,10 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
         setLoginError(payload?.error || 'Unable to send sign-in link.');
         return;
       }
+      if (payload && payload.delivered === false && payload.debugReason) {
+        setLoginError(`Sign-in link not sent (${payload.debugReason}).`);
+        return;
+      }
       setMagicLinkMessage(payload?.message || 'If eligible, a sign-in link has been sent to your email.');
     } catch {
       setLoginError('Unable to send sign-in link.');
