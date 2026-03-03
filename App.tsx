@@ -167,7 +167,6 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const [lockUntil, setLockUntil] = useState<number | null>(null);
   const [remainingLockSeconds, setRemainingLockSeconds] = useState(0);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [magicLinkMessage, setMagicLinkMessage] = useState<string | null>(null);
   const [sendingMagicLink, setSendingMagicLink] = useState(false);
   const [showAdminRecovery, setShowAdminRecovery] = useState(false);
   const [currentPasswordInput, setCurrentPasswordInput] = useState('');
@@ -505,13 +504,11 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     const normalizedEmail = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       setLoginError('Enter a valid admin email first.');
-      setMagicLinkMessage(null);
       return;
     }
 
     setSendingMagicLink(true);
     setLoginError(null);
-    setMagicLinkMessage(null);
 
     try {
       const response = await fetch('/api/auth/magic-link/request', {
@@ -528,7 +525,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
         setLoginError(`Sign-in link not sent (${payload.debugReason}).`);
         return;
       }
-      setMagicLinkMessage(payload?.message || 'If eligible, a sign-in link has been sent to your email.');
+      notify(payload?.message || 'If eligible, a sign-in link has been sent to your email.', 'success');
     } catch {
       setLoginError('Unable to send sign-in link.');
     } finally {
@@ -703,11 +700,6 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                 {loginError && (
                   <div role="alert" aria-live="assertive" className="text-sm text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
                     {loginError}
-                  </div>
-                )}
-                {magicLinkMessage && (
-                  <div role="status" className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
-                    {magicLinkMessage}
                   </div>
                 )}
                 <p id="login-help" className="sr-only">

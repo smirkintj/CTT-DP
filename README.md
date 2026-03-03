@@ -116,6 +116,7 @@ Security notes:
   - accessibility improvements on login form controls and error/loading semantics
   - admin passwordless recovery option:
     - login page includes a small `Admin only: password recovery` section for one-time admin sign-in link by email
+    - success message is shown as toast (auto-dismiss), not persistent inline text
     - link is single-use, hashed in DB, and expires after 15 minutes
     - request endpoint returns generic success response (no user enumeration)
     - request rate limiting is applied per email+IP
@@ -161,6 +162,8 @@ Security notes:
     - `/api/admin/users/[id]`
     - `/api/admin/users/[id]/reset-password`
   - UI: `/admin/database` → `Users` tab (drawer-based management)
+  - Stakeholder helpful links are configured in:
+    - `/admin/database` → `Helpful Links` tab
   - Security rules:
     - ADMIN-only APIs
     - cannot create additional ADMIN users (current policy)

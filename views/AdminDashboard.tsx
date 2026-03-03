@@ -335,45 +335,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                </div>
              ) : (
                recentTasks.map(task => (
-                  <div 
-                    key={task.id} 
-                    onClick={() => onSelectTask(task)}
-                    className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:border-brand-300 transition-all cursor-pointer group"
-                  >
-                     <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                         <div className="flex items-center gap-2">
-                            <Badge type="module" value={task.featureModule} />
-                            <span className="text-xs text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">{task.countryCode}</span>
-                            {isTaskOverdue(task) && (
-                              <span className="text-xs text-rose-700 font-semibold bg-rose-100 px-2 py-0.5 rounded-full">Overdue</span>
-                            )}
-                            {hasConditionalStep(task) && (
-                              <span className="text-xs text-amber-700 font-semibold bg-amber-100 px-2 py-0.5 rounded-full">Conditional</span>
-                            )}
-                         </div>
-                         <h4 className="font-semibold text-slate-900 group-hover:text-brand-600">{task.title}</h4>
-                         <p className="text-sm text-slate-500 line-clamp-1">{task.description}</p>
-                      </div>
-                      <Badge type="status" value={task.status} />
+                 <div
+                   key={task.id}
+                   onClick={() => onSelectTask(task)}
+                   className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm hover:border-brand-300 transition-all cursor-pointer group"
+                 >
+                   <div className="flex justify-between items-start gap-3">
+                     <div className="min-w-0">
+                       <h4 className="font-semibold text-slate-900 group-hover:text-brand-600 line-clamp-1">{task.title}</h4>
+                       <p className="text-sm text-slate-500 line-clamp-1 mt-0.5">{task.description}</p>
+                     </div>
+                     <Badge type="status" value={task.status} />
                    </div>
-                   
-                   <div className="mt-4 pt-4 border-t border-slate-100">
-                      <div className="flex justify-between items-center gap-4 text-xs text-slate-500">
-                         <span>Assignee: <strong>{task.assignee?.name || task.assignee?.email || task.assigneeId || 'Unassigned'}</strong></span>
-                         <span>Due: {formatDate(task.dueDate)}</span>
-                      </div>
-                      {getSignedOffDate(task) && (
-                        <div className="mt-2 text-xs text-emerald-700 font-medium">
-                          Signed off on {getSignedOffDate(task)}
-                          {getSignedOffByLabel(task) ? ` by ${getSignedOffByLabel(task)}` : ''}
-                        </div>
-                      )}
-                      <div className="mt-2 flex justify-end">
-                        <ArrowRight size={18} className="text-slate-300 group-hover:text-brand-500" />
-                      </div>
+
+                   <div className="mt-3 flex items-center gap-2">
+                     <Badge type="module" value={task.featureModule} />
+                     {hasConditionalStep(task) && (
+                       <span className="text-xs text-amber-700 font-semibold bg-amber-100 px-2 py-0.5 rounded-full">Conditional</span>
+                     )}
                    </div>
-                </div>
+
+                   <div className="mt-3 pt-3 border-t border-slate-100">
+                     <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
+                       <span className="truncate">
+                         Assignee: <strong>{task.assignee?.name || task.assignee?.email || task.assigneeId || 'Unassigned'}</strong>
+                         <span className="mx-1.5">•</span>
+                         {task.countryCode}
+                       </span>
+                       <span className="inline-flex items-center gap-2 shrink-0">
+                         <span className={isTaskOverdue(task) ? 'text-rose-700 font-semibold' : ''}>
+                           Due: {formatDate(task.dueDate)}
+                         </span>
+                         <ArrowRight size={16} className="text-slate-300 group-hover:text-brand-500" />
+                       </span>
+                     </div>
+                     {getSignedOffDate(task) && (
+                       <div className="mt-2 text-xs text-emerald-700 font-medium">
+                         Signed off on {getSignedOffDate(task)}
+                         {getSignedOffByLabel(task) ? ` by ${getSignedOffByLabel(task)}` : ''}
+                       </div>
+                     )}
+                   </div>
+                 </div>
                ))
              )}
            </div>

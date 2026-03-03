@@ -351,7 +351,7 @@ Additional behavior:
 - `TaskStep.stepResult` is stored in DB (with backwards compatibility for legacy `isPassed`) and surfaced in task detail, dashboard cards, and sign-off report export.
 - `TaskStep.conditionalReason` is stored for conditional outcomes and required by API when a step is marked `CONDITIONAL`.
 - New `PortalSetting` model stores DB-backed app settings, currently used for stakeholder dashboard helpful links.
-- Stakeholder dashboard helpful links are now admin-editable from System Database -> Email Notifications tab.
+- Stakeholder dashboard helpful links are now admin-editable from System Database -> Helpful Links tab.
 - Key task/comment/step/sign-off API flows now emit structured `[pilot]` server logs for pilot troubleshooting.
 - Empty-state UX includes contextual actions:
   - stakeholder task grid: clear filters or open discussions

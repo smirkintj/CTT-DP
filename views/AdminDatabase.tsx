@@ -37,7 +37,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   onUpdateModules,
   currentUserId
 }) => {
-  const [activeTab, setActiveTab] = useState<'countries' | 'modules' | 'notifications' | 'users'>('countries');
+  const [activeTab, setActiveTab] = useState<'countries' | 'modules' | 'notifications' | 'helpfulLinks' | 'users'>('countries');
   const [emailSettings, setEmailSettings] = useState({
     enableReminders: false,
     cronExpression: '0 9 * * 1-5',
@@ -143,7 +143,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   }, []);
 
   useEffect(() => {
-    if (activeTab !== 'notifications') return;
+    if (activeTab !== 'helpfulLinks') return;
     void (async () => {
       const response = await fetch('/api/admin/helpful-links', { cache: 'no-store' });
       if (!response.ok) return;
@@ -487,12 +487,22 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     })();
   };
 
-  const handleTabChange = (nextTab: 'countries' | 'modules' | 'notifications' | 'users') => {
-    if (activeTab === 'notifications' && nextTab !== 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig || helpfulLinksDirty)) {
+  const handleTabChange = (nextTab: 'countries' | 'modules' | 'notifications' | 'helpfulLinks' | 'users') => {
+    if (activeTab === 'notifications' && nextTab !== 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig)) {
       setConfirmDialog({
         open: true,
         title: 'Unsaved Notification Settings',
         message: 'You have unsaved notification settings. Leave without saving?',
+        confirmLabel: 'Leave',
+        onConfirm: () => setActiveTab(nextTab)
+      });
+      return;
+    }
+    if (activeTab === 'helpfulLinks' && nextTab !== 'helpfulLinks' && helpfulLinksDirty) {
+      setConfirmDialog({
+        open: true,
+        title: 'Unsaved Helpful Links',
+        message: 'You have unsaved helpful links. Leave without saving?',
         confirmLabel: 'Leave',
         onConfirm: () => setActiveTab(nextTab)
       });
@@ -503,7 +513,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (activeTab === 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig || helpfulLinksDirty)) {
+      if ((activeTab === 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig)) || (activeTab === 'helpfulLinks' && helpfulLinksDirty)) {
         event.preventDefault();
         event.returnValue = '';
       }
@@ -537,6 +547,12 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
               className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'notifications' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
                Email Notifications
+            </button>
+            <button 
+              onClick={() => handleTabChange('helpfulLinks')}
+              className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'helpfulLinks' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            >
+               Helpful Links
             </button>
             <button 
               onClick={() => handleTabChange('users')}
@@ -825,46 +841,49 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                   </div>
                 </div>
 
-                <div className="border-t border-slate-200 pt-5 space-y-4">
-                  <h3 className="text-sm font-semibold text-slate-900">Stakeholder Helpful Links</h3>
-                  <p className="text-xs text-slate-500">
-                    These links appear in the stakeholder dashboard sidebar.
-                  </p>
-                  <div className="space-y-3">
-                    {helpfulLinks.map((link, index) => (
-                      <div key={link.id || index} className="grid grid-cols-1 md:grid-cols-2 gap-2 rounded-lg border border-slate-200 p-3 bg-slate-50">
-                        <input
-                          type="text"
-                          value={link.label}
-                          onChange={(event) => updateHelpfulLink(index, 'label', event.target.value)}
-                          className={fieldBaseClass}
-                          placeholder="Link label"
-                        />
-                        <input
-                          type="url"
-                          value={link.url}
-                          onChange={(event) => updateHelpfulLink(index, 'url', event.target.value)}
-                          className={fieldBaseClass}
-                          placeholder="https://..."
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      onClick={saveHelpfulLinks}
-                      disabled={!helpfulLinksDirty || helpfulLinksSaveState === 'saving'}
-                      className="bg-slate-900 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {helpfulLinksSaveState === 'saving'
-                        ? 'Saving...'
-                        : helpfulLinksSaveState === 'saved'
-                          ? 'Saved'
-                          : 'Save Helpful Links'}
-                    </button>
-                  </div>
-                </div>
             </div>
+        )}
+
+        {activeTab === 'helpfulLinks' && (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+            <h3 className="text-sm font-semibold text-slate-900">Stakeholder Helpful Links</h3>
+            <p className="text-xs text-slate-500">
+              Configure names and URLs shown in stakeholder dashboard sidebar.
+            </p>
+            <div className="space-y-3">
+              {helpfulLinks.map((link, index) => (
+                <div key={link.id || index} className="grid grid-cols-1 md:grid-cols-2 gap-2 rounded-lg border border-slate-200 p-3 bg-slate-50">
+                  <input
+                    type="text"
+                    value={link.label}
+                    onChange={(event) => updateHelpfulLink(index, 'label', event.target.value)}
+                    className={fieldBaseClass}
+                    placeholder="Link label"
+                  />
+                  <input
+                    type="url"
+                    value={link.url}
+                    onChange={(event) => updateHelpfulLink(index, 'url', event.target.value)}
+                    className={fieldBaseClass}
+                    placeholder="https://..."
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={saveHelpfulLinks}
+                disabled={!helpfulLinksDirty || helpfulLinksSaveState === 'saving'}
+                className="bg-slate-900 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {helpfulLinksSaveState === 'saving'
+                  ? 'Saving...'
+                  : helpfulLinksSaveState === 'saved'
+                    ? 'Saved'
+                    : 'Save Helpful Links'}
+              </button>
+            </div>
+          </div>
         )}
 
         {activeTab === 'users' && (
