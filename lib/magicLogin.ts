@@ -19,8 +19,8 @@ export function getMagicTokenExpiresInMinutes() {
   return MAGIC_LINK_TTL_MINUTES;
 }
 
-export function buildMagicLoginUrl(rawToken: string) {
-  const baseUrl = process.env.NEXTAUTH_URL?.replace(/\/$/, '');
+export function buildMagicLoginUrl(rawToken: string, baseUrlOverride?: string | null) {
+  const baseUrl = (baseUrlOverride || process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
   if (!baseUrl) return null;
   return `${baseUrl}/auth/magic?token=${encodeURIComponent(rawToken)}`;
 }

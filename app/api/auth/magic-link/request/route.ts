@@ -52,7 +52,8 @@ export async function POST(req: Request) {
         select: { id: true }
       });
       const combinedToken = `${created.id}.${rawToken}`;
-      const loginUrl = buildMagicLoginUrl(combinedToken);
+      const requestOrigin = new URL(req.url).origin;
+      const loginUrl = buildMagicLoginUrl(combinedToken, requestOrigin);
 
       if (loginUrl) {
         await sendAdminMagicLoginEmail({

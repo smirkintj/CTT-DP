@@ -169,6 +169,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const [loginError, setLoginError] = useState<string | null>(null);
   const [magicLinkMessage, setMagicLinkMessage] = useState<string | null>(null);
   const [sendingMagicLink, setSendingMagicLink] = useState(false);
+  const [showAdminRecovery, setShowAdminRecovery] = useState(false);
   const [currentPasswordInput, setCurrentPasswordInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
@@ -736,18 +737,34 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                    )}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleSendMagicLink}
-                  disabled={sendingMagicLink || !emailIsValid}
-                  className={`w-full rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
-                    sendingMagicLink || !emailIsValid
-                      ? 'cursor-not-allowed border-slate-200 text-slate-400 bg-slate-50'
-                      : 'border-slate-300 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  {sendingMagicLink ? 'Sending admin sign-in link...' : 'Email me an admin sign-in link'}
-                </button>
+                <div className="border-t border-slate-100 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminRecovery((prev) => !prev)}
+                    className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2"
+                  >
+                    Admin only: password recovery
+                  </button>
+                  {showAdminRecovery && (
+                    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                      <p className="text-xs text-slate-600">
+                        Send a one-time secure sign-in link to your admin email.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleSendMagicLink}
+                        disabled={sendingMagicLink || !emailIsValid}
+                        className={`mt-2 w-full rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                          sendingMagicLink || !emailIsValid
+                            ? 'cursor-not-allowed border-slate-200 text-slate-400 bg-white'
+                            : 'border-slate-300 text-slate-700 bg-white hover:bg-slate-100'
+                        }`}
+                      >
+                        {sendingMagicLink ? 'Sending sign-in link...' : 'Send admin sign-in link'}
+                      </button>
+                    </div>
+                  )}
+                </div>
              </form>
           </div>
         </div>

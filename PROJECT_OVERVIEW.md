@@ -298,7 +298,7 @@ Currently created events:
   - right-side drawer for create/edit
   - disable/enable and temporary password reset actions
 - Login flow enforces an undismissable password change modal when `mustChangePassword` is true.
-- Login screen includes “Email me an admin sign-in link” action for admin passwordless recovery.
+- Login screen includes a compact `Admin only: password recovery` section for admin passwordless recovery.
 - New route `/auth/magic` consumes one-time link and signs admin in automatically.
 - Session hydration screen now uses animated loading feedback (spinner + indeterminate bar + pulse dots) while user workspace initializes.
 - Added QA debug mode for loading screen validation: `?debugLoading=1` keeps loading view visible for 5 seconds.

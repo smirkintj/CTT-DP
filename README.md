@@ -115,7 +115,7 @@ Security notes:
   - password-change modal now uses focused centered width, stronger backdrop layering, and real-time password rule/match validation
   - accessibility improvements on login form controls and error/loading semantics
   - admin passwordless recovery option:
-    - login page can request one-time admin sign-in link by email
+    - login page includes a small `Admin only: password recovery` section for one-time admin sign-in link by email
     - link is single-use, hashed in DB, and expires after 15 minutes
     - request endpoint returns generic success response (no user enumeration)
     - request rate limiting is applied per email+IP
