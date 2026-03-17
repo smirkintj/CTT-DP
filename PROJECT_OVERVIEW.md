@@ -413,6 +413,7 @@ From `package.json`:
 - `npm run prisma:migrate`
 - `npm run prisma:studio`
 - `npm run prisma:seed`
+  - seeds baseline data plus ~100 mock tasks spanning all task statuses.
 
 Also:
 - `postinstall` runs `prisma generate` (important for Vercel consistency).

@@ -46,6 +46,7 @@ npm run prisma:generate
 npm run prisma:migrate
 npm run prisma:seed
 ```
+`npm run prisma:seed` also creates ~100 mock tasks across all statuses for easy testing.
 
 ## Run Locally
 ```bash
