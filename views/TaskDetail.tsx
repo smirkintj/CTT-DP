@@ -5,7 +5,7 @@ import { Task, Status, User, Role, TestStep, Priority } from '../types';
 import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer, Trash2, Loader2, ShieldCheck } from 'lucide-react';
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { ApiError } from '../lib/http';
@@ -126,6 +126,47 @@ const getStepOutcome = (step: TestStep): 'PASSED' | 'FAILED' | 'CONDITIONAL' | n
 };
 
 const isStepResolved = (step: TestStep) => getStepOutcome(step) !== null;
+
+const ISO_REQUIREMENTS = [
+  'Only authorized users should access or modify data needed for development or enhancement.',
+  'Production data should not be tampered with without proper authorization and business justification. Production data should not be improperly modified, either accidentally or maliciously.',
+  'Only authorized users should access data whenever they need to do so, with proper approvals and audit trail.',
+  'Production data copied into staging environment is only meant for testing purposes. The data should NOT be migrated back to production, and staging data should be protected with the same mechanism as production.',
+  'Data held in staging or test environment are only for testing purposes and should not be used for any other purposes.',
+  'During migration to production, any system downtime should be planned and communicated to affected users. If possible, it should not affect business use of the system.',
+];
+
+const IsoComplianceBanner: React.FC = () => {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="rounded-xl border border-blue-200 bg-blue-50 print:hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <span className="flex items-center gap-2 text-sm font-medium text-blue-800">
+          <ShieldCheck size={16} className="shrink-0 text-blue-600" />
+          ISO 27001:2013 Data Handling Requirements
+        </span>
+        {expanded
+          ? <ChevronUp size={16} className="shrink-0 text-blue-500" />
+          : <ChevronDown size={16} className="shrink-0 text-blue-500" />}
+      </button>
+      {expanded && (
+        <ul className="px-4 pb-4 space-y-2">
+          {ISO_REQUIREMENTS.map((req, i) => (
+            <li key={i} className="flex gap-2 text-sm text-blue-900">
+              <span className="mt-0.5 shrink-0 text-blue-400">•</span>
+              <span>{req}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initialStepOrder = null, initialCommentId = null, onBack, onUpdateTask, onDeleteTask }) => {
   const [localTask, setLocalTask] = useState<Task>(() => normalizeTask(task));
@@ -1074,6 +1115,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
             This task is in Draft. Stakeholders can view it, but testing actions are locked until admin marks it as READY.
           </div>
         )}
+
+        {/* ISO 27001:2013 Compliance Notice */}
+        <IsoComplianceBanner />
           
         {/* Task Header Card */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 relative overflow-hidden print:border-0 print:shadow-none">
