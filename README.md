@@ -68,6 +68,7 @@ npm run start
 - `npm run audit:check-admin` (fails if admin write route has no `createAdminAudit` call)
 - `npm run perf:sample` (samples API latency headers; supports `APP_URL`, `TASK_ID`, `COOKIE_HEADER`)
 - `scripts/playwright_admin_flow.sh` (automates admin browser smoke flow with Playwright CLI wrapper)
+- `npm run db:purge-and-seed` (DANGER: deletes all data, recreates base countries/modules/users; requires `CONFIRM_PURGE=YES`)
 
 ## Playwright Browser Automation (Admin Flow)
 Technical dependencies:

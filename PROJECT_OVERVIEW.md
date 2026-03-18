@@ -414,6 +414,8 @@ From `package.json`:
 - `npm run prisma:studio`
 - `npm run prisma:seed`
   - seeds baseline data plus ~100 mock tasks spanning all task statuses.
+- `npm run db:purge-and-seed`
+  - destructive reset: deletes all data and recreates base countries/modules/users (requires `CONFIRM_PURGE=YES`).
 
 Also:
 - `postinstall` runs `prisma generate` (important for Vercel consistency).

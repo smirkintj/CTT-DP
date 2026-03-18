@@ -4,7 +4,6 @@ import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import prisma from './prisma';
 import { clearLoginFailures, getRemainingBlockMs, recordLoginFailure } from './loginRateLimit';
-import { hashMagicToken } from './magicLogin';
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -63,65 +62,6 @@ export const authOptions: NextAuthOptions = {
             console.error('Credentials authorize failed:', error);
           }
           recordLoginFailure(email);
-          return null;
-        }
-      }
-    }),
-    Credentials({
-      id: 'magic-link',
-      name: 'Magic Link',
-      credentials: {
-        token: { label: 'Token', type: 'text' }
-      },
-      async authorize(credentials) {
-        const combinedToken = credentials?.token?.toString().trim() ?? '';
-        const [tokenId, rawToken] = combinedToken.split('.');
-        if (!tokenId || !rawToken) return null;
-
-        try {
-          const tokenHash = hashMagicToken(rawToken);
-          const token = await prisma.magicLoginToken.findUnique({
-            where: { id: tokenId },
-            include: {
-              user: true
-            }
-          });
-
-          if (!token) return null;
-          if (token.usedAt || token.expiresAt <= new Date()) return null;
-          if (token.tokenHash !== tokenHash) return null;
-          if (!token.user.isActive || token.user.role !== 'ADMIN') return null;
-
-          const consumed = await prisma.magicLoginToken.updateMany({
-            where: {
-              id: token.id,
-              usedAt: null
-            },
-            data: {
-              usedAt: new Date()
-            }
-          });
-          if (consumed.count === 0) return null;
-
-          try {
-            await prisma.user.update({
-              where: { id: token.user.id },
-              data: { lastLoginAt: new Date() }
-            });
-          } catch {}
-
-          return {
-            id: token.user.id,
-            email: token.user.email,
-            name: token.user.name,
-            role: token.user.role,
-            countryCode: token.user.countryCode,
-            mustChangePassword: token.user.mustChangePassword
-          };
-        } catch (error) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.error('Magic link authorize failed:', error);
-          }
           return null;
         }
       }

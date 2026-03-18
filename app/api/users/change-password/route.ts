@@ -12,12 +12,16 @@ export async function POST(req: Request) {
   if (!session?.user?.id) return unauthorized('Unauthorized', 'AUTH_REQUIRED');
 
   const body = await req.json().catch(() => null);
+  const isForcedChange = Boolean((session.user as { mustChangePassword?: boolean }).mustChangePassword);
   const currentPassword = typeof body?.currentPassword === 'string' ? body.currentPassword : '';
   const newPassword = typeof body?.newPassword === 'string' ? body.newPassword : '';
   const confirmPassword = typeof body?.confirmPassword === 'string' ? body.confirmPassword : '';
 
-  if (!currentPassword || !newPassword || !confirmPassword) {
-    return badRequest('All password fields are required', 'PASSWORD_FIELDS_REQUIRED');
+  if (!isForcedChange && !currentPassword) {
+    return badRequest('Current password is required', 'PASSWORD_FIELDS_REQUIRED');
+  }
+  if (!newPassword || !confirmPassword) {
+    return badRequest('New password fields are required', 'PASSWORD_FIELDS_REQUIRED');
   }
 
   if (!PASSWORD_REGEX.test(newPassword)) {
@@ -36,12 +40,14 @@ export async function POST(req: Request) {
     });
     if (!user) return unauthorized('Unauthorized', 'AUTH_USER_NOT_FOUND');
 
-    const isCurrentValid = await bcrypt.compare(currentPassword, user.passwordHash);
-    if (!isCurrentValid) {
-      return badRequest('Current password is incorrect', 'PASSWORD_CURRENT_INVALID');
-    }
-    if (currentPassword === newPassword) {
-      return badRequest('New password must be different from current password', 'PASSWORD_NO_CHANGE');
+    if (!isForcedChange) {
+      const isCurrentValid = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isCurrentValid) {
+        return badRequest('Current password is incorrect', 'PASSWORD_CURRENT_INVALID');
+      }
+      if (currentPassword === newPassword) {
+        return badRequest('New password must be different from current password', 'PASSWORD_NO_CHANGE');
+      }
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10);

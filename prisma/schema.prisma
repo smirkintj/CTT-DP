@@ -81,8 +81,8 @@ model User {
   commentReads   CommentRead[]
   comments      Comment[]
   portalSettingsUpdated PortalSetting[]
-  magicLoginTokens MagicLoginToken[]
 }
+
 
 model Country {
   code      String   @id
@@ -261,16 +261,3 @@ model TaskHistory {
   @@index([actorId, createdAt])
 }
 
-model MagicLoginToken {
-  id         String   @id @default(cuid())
-  userId     String
-  tokenHash  String
-  expiresAt  DateTime
-  usedAt     DateTime?
-  createdAt  DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-  @@index([expiresAt])
-}
