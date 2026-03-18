@@ -788,8 +788,8 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     </Layout>
 
     {mustChangePassword && (
-      <div className="fixed inset-0 z-[9999] bg-slate-900/65 backdrop-blur-md flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="password-change-title" aria-describedby="password-change-desc">
-        <div className="w-[min(92vw,420px)] rounded-2xl border border-slate-200 bg-white shadow-2xl p-7">
+      <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="password-change-title" aria-describedby="password-change-desc">
+        <div className="w-[min(92vw,360px)] rounded-2xl border border-slate-200 bg-white shadow-2xl p-7">
           <div className="mb-6">
             <h2 id="password-change-title" className="text-2xl font-semibold text-slate-900 tracking-tight">Set your password</h2>
             <p id="password-change-desc" className="mt-1.5 text-sm text-slate-500 leading-relaxed">
@@ -805,10 +805,10 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                   type={showNewPasswordModal ? 'text' : 'password'}
                   value={newPasswordInput}
                   onChange={(e) => setNewPasswordInput(e.target.value)}
-                  className={`${fieldBaseClass} pr-12 ${
+                  className={`w-full rounded-xl border bg-slate-50 px-4 py-2.5 text-sm text-slate-900 pr-12 outline-none transition-colors ${
                     newPasswordInput.length > 0 && !passwordPolicyValid
                       ? 'border-rose-400 focus:border-rose-500'
-                      : ''
+                      : 'border-slate-200 focus:border-slate-400'
                   }`}
                   autoComplete="new-password"
                   placeholder="New password"
@@ -822,18 +822,16 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                   {showNewPasswordModal ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-              {newPasswordInput.length > 0 && (
-                <div className="mt-2.5">
-                  <div className="flex gap-1">
-                    {[passwordChecks.minLength, passwordChecks.uppercase, passwordChecks.lowercase, passwordChecks.number, passwordChecks.symbol].map((met, i) => (
-                      <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${met ? 'bg-emerald-500' : 'bg-slate-200'}`} />
-                    ))}
-                  </div>
-                  <p className="mt-1.5 text-[11px] text-slate-400 leading-tight">
-                    8+ chars · uppercase · lowercase · number · symbol
-                  </p>
+              <div className="mt-2.5">
+                <div className="flex gap-1">
+                  {[passwordChecks.minLength, passwordChecks.uppercase, passwordChecks.lowercase, passwordChecks.number, passwordChecks.symbol].map((met, i) => (
+                    <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${met ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+                  ))}
                 </div>
-              )}
+                <p className="mt-1.5 text-[11px] text-slate-400 leading-tight">
+                  8+ chars · uppercase · lowercase · number · symbol
+                </p>
+              </div>
             </div>
 
             <div>
@@ -843,12 +841,12 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                   type={showConfirmPasswordModal ? 'text' : 'password'}
                   value={confirmPasswordInput}
                   onChange={(e) => setConfirmPasswordInput(e.target.value)}
-                  className={`${fieldBaseClass} pr-12 ${
+                  className={`w-full rounded-xl border bg-slate-50 px-4 py-2.5 text-sm text-slate-900 pr-12 outline-none transition-colors ${
                     confirmPasswordInput.length > 0 && !confirmMatches
                       ? 'border-rose-400 focus:border-rose-500'
                       : confirmMatches
                       ? 'border-emerald-400 focus:border-emerald-500'
-                      : ''
+                      : 'border-slate-200 focus:border-slate-400'
                   }`}
                   autoComplete="new-password"
                   placeholder="Confirm password"
