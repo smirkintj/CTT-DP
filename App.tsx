@@ -788,8 +788,8 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     </Layout>
 
     {mustChangePassword && (
-      <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="password-change-title" aria-describedby="password-change-desc">
-        <div className="w-[min(92vw,360px)] rounded-2xl border border-slate-200 bg-white shadow-2xl p-7">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6" style={{ background: 'rgba(15,23,42,0.55)' }} role="dialog" aria-modal="true" aria-labelledby="password-change-title" aria-describedby="password-change-desc">
+        <div className="w-full max-w-[360px] rounded-2xl border border-slate-200 bg-white shadow-2xl p-7 pb-7">
           <div className="mb-6">
             <h2 id="password-change-title" className="text-2xl font-semibold text-slate-900 tracking-tight">Set your password</h2>
             <p id="password-change-desc" className="mt-1.5 text-sm text-slate-500 leading-relaxed">
