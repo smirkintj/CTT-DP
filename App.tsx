@@ -182,6 +182,13 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     number: /\d/.test(newPasswordInput),
     symbol: /[^A-Za-z\d]/.test(newPasswordInput)
   };
+  const passwordStrengthChecks = [
+    passwordChecks.minLength,
+    passwordChecks.uppercase,
+    passwordChecks.lowercase,
+    passwordChecks.number,
+    passwordChecks.symbol
+  ];
   const confirmMatches = confirmPasswordInput.length > 0 && newPasswordInput === confirmPasswordInput;
   const [showNewPasswordModal, setShowNewPasswordModal] = useState(false);
   const [showConfirmPasswordModal, setShowConfirmPasswordModal] = useState(false);
@@ -788,10 +795,23 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     </Layout>
 
     {mustChangePassword && (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6" style={{ background: 'rgba(15,23,42,0.55)' }} role="dialog" aria-modal="true" aria-labelledby="password-change-title" aria-describedby="password-change-desc">
-        <div className="w-full max-w-[360px] rounded-2xl border border-slate-200 bg-white shadow-2xl p-7 pb-7">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 backdrop-blur-[10px]" style={{ background: 'rgba(255,255,255,0.22)' }} role="dialog" aria-modal="true" aria-labelledby="password-change-title" aria-describedby="password-change-desc">
+        <div
+          className="w-full border border-slate-200/90 bg-white/95 p-6 ring-1 ring-slate-100/90 sm:p-7"
+          style={{
+            maxWidth: '360px',
+            borderRadius: '28px',
+            boxShadow: '0 18px 52px rgba(15,23,42,0.16)'
+          }}
+        >
           <div className="mb-6">
-            <h2 id="password-change-title" className="text-2xl font-semibold text-slate-900 tracking-tight">Set your password</h2>
+            <h2
+              id="password-change-title"
+              className="font-semibold text-slate-900 sm:text-[32px]"
+              style={{ fontSize: '30px', lineHeight: 0.95, letterSpacing: '-0.03em' }}
+            >
+              Set your password
+            </h2>
             <p id="password-change-desc" className="mt-1.5 text-sm text-slate-500 leading-relaxed">
               Your account needs a new password before you can continue.
             </p>
@@ -799,16 +819,16 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
           <form className="space-y-5" onSubmit={handleChangePassword}>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">New password</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">New password</label>
               <div className="relative">
                 <input
                   type={showNewPasswordModal ? 'text' : 'password'}
                   value={newPasswordInput}
                   onChange={(e) => setNewPasswordInput(e.target.value)}
-                  className={`w-full rounded-xl border bg-slate-50 px-4 py-2.5 text-sm text-slate-900 pr-12 outline-none transition-colors ${
+                  className={`block w-full rounded-2xl border bg-slate-50 px-4 py-3 pr-12 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 ${
                     newPasswordInput.length > 0 && !passwordPolicyValid
-                      ? 'border-rose-400 focus:border-rose-500'
-                      : 'border-slate-200 focus:border-slate-400'
+                      ? 'border-rose-300 focus:border-rose-400'
+                      : 'border-slate-200 focus:border-slate-300'
                   }`}
                   autoComplete="new-password"
                   placeholder="New password"
@@ -816,7 +836,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                 <button
                   type="button"
                   onClick={() => setShowNewPasswordModal((prev) => !prev)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
                   aria-label={showNewPasswordModal ? 'Hide password' : 'Show password'}
                 >
                   {showNewPasswordModal ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -824,29 +844,29 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
               </div>
               <div className="mt-2.5">
                 <div className="flex gap-1">
-                  {[passwordChecks.minLength, passwordChecks.uppercase, passwordChecks.lowercase, passwordChecks.number, passwordChecks.symbol].map((met, i) => (
+                  {passwordStrengthChecks.map((met, i) => (
                     <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${met ? 'bg-emerald-500' : 'bg-slate-200'}`} />
                   ))}
                 </div>
-                <p className="mt-1.5 text-[11px] text-slate-400 leading-tight">
+                <p className="mt-1.5 text-[11px] leading-tight text-slate-400">
                   8+ chars · uppercase · lowercase · number · symbol
                 </p>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirm password</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">Confirm password</label>
               <div className="relative">
                 <input
                   type={showConfirmPasswordModal ? 'text' : 'password'}
                   value={confirmPasswordInput}
                   onChange={(e) => setConfirmPasswordInput(e.target.value)}
-                  className={`w-full rounded-xl border bg-slate-50 px-4 py-2.5 text-sm text-slate-900 pr-12 outline-none transition-colors ${
+                  className={`block w-full rounded-2xl border bg-slate-50 px-4 py-3 pr-12 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 ${
                     confirmPasswordInput.length > 0 && !confirmMatches
-                      ? 'border-rose-400 focus:border-rose-500'
+                      ? 'border-rose-300 focus:border-rose-400'
                       : confirmMatches
-                      ? 'border-emerald-400 focus:border-emerald-500'
-                      : 'border-slate-200 focus:border-slate-400'
+                      ? 'border-emerald-300 focus:border-emerald-400'
+                      : 'border-slate-200 focus:border-slate-300'
                   }`}
                   autoComplete="new-password"
                   placeholder="Confirm password"
@@ -874,11 +894,12 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
             <button
               type="submit"
               disabled={changingPassword || !passwordPolicyValid || !confirmMatches}
-              className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              className={`mt-1 w-full py-3 text-sm font-semibold transition-colors ${
                 changingPassword || !passwordPolicyValid || !confirmMatches
-                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                  ? 'cursor-not-allowed bg-slate-200 text-slate-400'
                   : 'bg-slate-900 text-white hover:bg-slate-800'
               }`}
+              style={{ borderRadius: '22px' }}
             >
               {changingPassword ? 'Updating...' : 'Set password'}
             </button>
