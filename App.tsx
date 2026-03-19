@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { signIn, getSession, useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Loader2, Check, X } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Check } from 'lucide-react';
 import { Layout } from './components/Layout';
 import { StakeholderDashboard } from './views/StakeholderDashboard';
 import { AdminDashboard } from './views/AdminDashboard';
@@ -167,7 +167,6 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const [lockUntil, setLockUntil] = useState<number | null>(null);
   const [remainingLockSeconds, setRemainingLockSeconds] = useState(0);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
@@ -176,10 +175,6 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const isLocked = !!lockUntil && Date.now() < lockUntil;
   const mustChangePassword = Boolean(session?.user?.mustChangePassword);
   const passwordPolicyValid = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(newPasswordInput);
-  const isReusingCurrentPassword =
-    currentPasswordInput.length > 0 &&
-    newPasswordInput.length > 0 &&
-    currentPasswordInput === newPasswordInput;
   const passwordChecks = {
     minLength: newPasswordInput.length >= 8,
     uppercase: /[A-Z]/.test(newPasswordInput),
@@ -187,8 +182,14 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     number: /\d/.test(newPasswordInput),
     symbol: /[^A-Za-z\d]/.test(newPasswordInput)
   };
+  const passwordStrengthChecks = [
+    passwordChecks.minLength,
+    passwordChecks.uppercase,
+    passwordChecks.lowercase,
+    passwordChecks.number,
+    passwordChecks.symbol
+  ];
   const confirmMatches = confirmPasswordInput.length > 0 && newPasswordInput === confirmPasswordInput;
-  const [showCurrentPasswordModal, setShowCurrentPasswordModal] = useState(false);
   const [showNewPasswordModal, setShowNewPasswordModal] = useState(false);
   const [showConfirmPasswordModal, setShowConfirmPasswordModal] = useState(false);
   const [debugLoadingHold, setDebugLoadingHold] = useState(false);
@@ -447,20 +448,16 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     e.preventDefault();
     if (changingPassword) return;
 
-    if (!currentPasswordInput || !newPasswordInput || !confirmPasswordInput) {
-      setPasswordChangeError('Please fill all password fields.');
+    if (!newPasswordInput || !confirmPasswordInput) {
+      setPasswordChangeError('Please fill in both password fields.');
       return;
     }
     if (!passwordPolicyValid) {
       setPasswordChangeError('Use 8+ chars with uppercase, lowercase, number, and symbol.');
       return;
     }
-    if (isReusingCurrentPassword) {
-      setPasswordChangeError('New password must be different from current password.');
-      return;
-    }
     if (newPasswordInput !== confirmPasswordInput) {
-      setPasswordChangeError('New password and confirmation do not match.');
+      setPasswordChangeError('Passwords do not match.');
       return;
     }
 
@@ -471,7 +468,6 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          currentPassword: currentPasswordInput,
           newPassword: newPasswordInput,
           confirmPassword: confirmPasswordInput
         })
@@ -485,7 +481,6 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       notify('Password updated. Redirecting to your dashboard...', 'success');
       await updateSession();
       router.refresh();
-      setCurrentPasswordInput('');
       setNewPasswordInput('');
       setConfirmPasswordInput('');
       if (session?.user?.role === 'ADMIN') {
@@ -799,128 +794,113 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     </Layout>
 
     {mustChangePassword && (
-      <div className="fixed inset-0 z-[9999] bg-slate-900/65 backdrop-blur-md flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="password-change-title" aria-describedby="password-change-desc">
-        <div className="w-[min(92vw,560px)] rounded-2xl border border-slate-200 bg-white shadow-2xl p-6">
-          <div className="mb-4">
-            <h2 id="password-change-title" className="text-3xl font-semibold text-slate-900">Create new password</h2>
-            <p id="password-change-desc" className="mt-2 text-base text-slate-500">
-              Enter your new password.
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 backdrop-blur-[10px]" style={{ background: 'rgba(255,255,255,0.22)' }} role="dialog" aria-modal="true" aria-labelledby="password-change-title" aria-describedby="password-change-desc">
+        <div
+          className="w-full border border-slate-200/90 bg-white/95 p-6 ring-1 ring-slate-100/90 sm:p-7"
+          style={{
+            maxWidth: '360px',
+            borderRadius: '28px',
+            boxShadow: '0 18px 52px rgba(15,23,42,0.16)'
+          }}
+        >
+          <div className="mb-6">
+            <h2
+              id="password-change-title"
+              className="font-semibold text-slate-900 sm:text-[32px]"
+              style={{ fontSize: '30px', lineHeight: 0.95, letterSpacing: '-0.03em' }}
+            >
+              Set your password
+            </h2>
+            <p id="password-change-desc" className="mt-1.5 text-sm text-slate-500 leading-relaxed">
+              Your account needs a new password before you can continue.
             </p>
           </div>
 
-          <form className="space-y-6" onSubmit={handleChangePassword}>
+          <form className="space-y-5" onSubmit={handleChangePassword}>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Current password</label>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">New password</label>
               <div className="relative">
                 <input
-                  type={showCurrentPasswordModal ? 'text' : 'password'}
-                  value={currentPasswordInput}
-                  onChange={(e) => setCurrentPasswordInput(e.target.value)}
-                  className={`${fieldBaseClass} pr-12`}
-                  autoComplete="current-password"
-                  placeholder="Current password"
+                  type={showNewPasswordModal ? 'text' : 'password'}
+                  value={newPasswordInput}
+                  onChange={(e) => setNewPasswordInput(e.target.value)}
+                  className={`block w-full rounded-2xl border bg-slate-50 px-4 py-3 pr-12 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 ${
+                    newPasswordInput.length > 0 && !passwordPolicyValid
+                      ? 'border-rose-300 focus:border-rose-400'
+                      : 'border-slate-200 focus:border-slate-300'
+                  }`}
+                  autoComplete="new-password"
+                  placeholder="New password"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowCurrentPasswordModal((prev) => !prev)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  aria-label={showCurrentPasswordModal ? 'Hide current password' : 'Show current password'}
+                  onClick={() => setShowNewPasswordModal((prev) => !prev)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
+                  aria-label={showNewPasswordModal ? 'Hide password' : 'Show password'}
                 >
-                  {showCurrentPasswordModal ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showNewPasswordModal ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
+              </div>
+              <div className="mt-2.5">
+                <div className="flex gap-1">
+                  {passwordStrengthChecks.map((met, i) => (
+                    <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${met ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[11px] leading-tight text-slate-400">
+                  8+ chars · uppercase · lowercase · number · symbol
+                </p>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-100 space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">New password</label>
-                <div className="relative">
-                  <input
-                    type={showNewPasswordModal ? 'text' : 'password'}
-                    value={newPasswordInput}
-                    onChange={(e) => setNewPasswordInput(e.target.value)}
-                    className={`${fieldBaseClass} pr-12 ${
-                      newPasswordInput.length > 0 && (!passwordPolicyValid || isReusingCurrentPassword)
-                        ? 'border-rose-400 focus:border-rose-500'
-                        : ''
-                    }`}
-                    autoComplete="new-password"
-                    placeholder="New password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPasswordModal((prev) => !prev)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    aria-label={showNewPasswordModal ? 'Hide new password' : 'Show new password'}
-                  >
-                    {showNewPasswordModal ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {isReusingCurrentPassword && (
-                  <p className="mt-2 rounded-md border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                    Don&apos;t reuse your current password.
-                  </p>
-                )}
-                <p className="mt-5 text-base font-medium text-slate-600">Your new password should contain:</p>
-                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-                  {[
-                    { label: '8+ characters', ok: passwordChecks.minLength },
-                    { label: 'Uppercase letter', ok: passwordChecks.uppercase },
-                    { label: 'Lowercase letter', ok: passwordChecks.lowercase },
-                    { label: 'Number', ok: passwordChecks.number },
-                    { label: 'Special character', ok: passwordChecks.symbol }
-                  ].map(({ label, ok }) => (
-                    <div key={label} className={`flex items-center gap-3 text-sm font-medium ${ok ? 'text-emerald-600' : 'text-slate-500'}`}>
-                      <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full ${ok ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                        {ok ? <Check size={14} /> : <X size={14} />}
-                      </span>
-                      <span>{label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirm new password</label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPasswordModal ? 'text' : 'password'}
-                    value={confirmPasswordInput}
-                    onChange={(e) => setConfirmPasswordInput(e.target.value)}
-                    className={`${fieldBaseClass} pr-12`}
-                    autoComplete="new-password"
-                    placeholder="Confirm new password"
-                  />
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">Confirm password</label>
+              <div className="relative">
+                <input
+                  type={showConfirmPasswordModal ? 'text' : 'password'}
+                  value={confirmPasswordInput}
+                  onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                  className={`block w-full rounded-2xl border bg-slate-50 px-4 py-3 pr-12 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 ${
+                    confirmPasswordInput.length > 0 && !confirmMatches
+                      ? 'border-rose-300 focus:border-rose-400'
+                      : confirmMatches
+                      ? 'border-emerald-300 focus:border-emerald-400'
+                      : 'border-slate-200 focus:border-slate-300'
+                  }`}
+                  autoComplete="new-password"
+                  placeholder="Confirm password"
+                />
+                {confirmMatches ? (
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none">
+                    <Check size={16} />
+                  </span>
+                ) : (
                   <button
                     type="button"
                     onClick={() => setShowConfirmPasswordModal((prev) => !prev)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    aria-label={showConfirmPasswordModal ? 'Hide confirm password' : 'Show confirm password'}
+                    aria-label={showConfirmPasswordModal ? 'Hide password' : 'Show password'}
                   >
                     {showConfirmPasswordModal ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
-                </div>
-                {confirmPasswordInput.length > 0 && (
-                  <p className={`mt-2 text-sm ${confirmMatches ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {confirmMatches ? 'Passwords match.' : 'Passwords do not match.'}
-                  </p>
                 )}
               </div>
             </div>
+
             {passwordChangeError && (
-              <div className="text-sm text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
-                {passwordChangeError}
-              </div>
+              <p className="text-sm text-rose-600">{passwordChangeError}</p>
             )}
             <button
               type="submit"
-              disabled={changingPassword || !currentPasswordInput || !passwordPolicyValid || !confirmMatches || isReusingCurrentPassword}
-              className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                changingPassword || !currentPasswordInput || !passwordPolicyValid || !confirmMatches || isReusingCurrentPassword
-                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+              disabled={changingPassword || !passwordPolicyValid || !confirmMatches}
+              className={`mt-1 w-full py-3 text-sm font-semibold transition-colors ${
+                changingPassword || !passwordPolicyValid || !confirmMatches
+                  ? 'cursor-not-allowed bg-slate-200 text-slate-400'
                   : 'bg-slate-900 text-white hover:bg-slate-800'
               }`}
+              style={{ borderRadius: '22px' }}
             >
-              {changingPassword ? 'Updating...' : 'Set Password'}
+              {changingPassword ? 'Updating...' : 'Set password'}
             </button>
           </form>
         </div>
