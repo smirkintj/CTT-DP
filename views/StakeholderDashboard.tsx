@@ -68,6 +68,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
     if (!query) return true;
     return (
       task.title.toLowerCase().includes(query) ||
+      (task.productName || '').toLowerCase().includes(query) ||
       task.featureModule.toLowerCase().includes(query) ||
       (task.description || '').toLowerCase().includes(query)
     );
@@ -334,7 +335,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
               <p className="text-amber-800 text-sm mt-1 mb-2">The following tasks are currently blocked. Please focus on other scenarios.</p>
               <ul className="list-disc list-inside text-xs text-amber-700 space-y-1">
                  {blockedTasks.map(t => (
-                   <li key={t.id}><span className="font-semibold">{t.featureModule}:</span> {t.title} {t.blockReason ? `(${t.blockReason})` : ''}</li>
+                   <li key={t.id}><span className="font-semibold">{t.productName || 'EasyOrder'} / {t.featureModule}:</span> {t.title} {t.blockReason ? `(${t.blockReason})` : ''}</li>
                  ))}
               </ul>
            </div>
@@ -567,6 +568,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
 
                     <div className="flex justify-between items-start mb-3 pt-2">
                        <div className="flex items-center gap-2">
+                         <Badge type="product" value={task.productName || 'EasyOrder'} />
                          <Badge type="module" value={task.featureModule} />
                          {isTaskOverdue(task) && (
                            <span className="inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
@@ -586,6 +588,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                       {task.title}
                     </h3>
                     <p className="text-slate-500 text-sm line-clamp-2 mb-4 flex-1">{task.description}</p>
+                    <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400 mb-4">{task.productName || 'EasyOrder'} product</p>
 
                     <div className="border-t border-slate-100 pt-3 mt-auto">
                        <div className="flex items-center justify-between gap-3">

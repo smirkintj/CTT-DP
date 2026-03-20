@@ -1,5 +1,7 @@
 export const taskRelationIncludeFull = {
   country: true,
+  product: true,
+  targetSystem: true,
   assignee: {
     select: {
       id: true,
@@ -44,6 +46,8 @@ export const taskRelationIncludeFull = {
 } as const;
 
 export const taskRelationIncludeList = {
+  product: true,
+  targetSystem: true,
   assignee: {
     select: {
       id: true,
@@ -86,6 +90,8 @@ export const taskRelationIncludeList = {
 
 export const taskRelationIncludeSafe = {
   country: true,
+  product: true,
+  targetSystem: true,
   assignee: {
     select: {
       id: true,

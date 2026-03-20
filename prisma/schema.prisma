@@ -81,8 +81,22 @@ model User {
   commentReads   CommentRead[]
   comments      Comment[]
   portalSettingsUpdated PortalSetting[]
+  productAccesses UserProductAccess[]
 }
 
+model Product {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  modules       Module[]
+  targetSystems TargetSystem[]
+  tasks         Task[]
+  userAccesses  UserProductAccess[]
+}
 
 model Country {
   code      String   @id
@@ -97,10 +111,43 @@ model Country {
 
 model Module {
   id        String   @id @default(cuid())
-  name      String   @unique
+  productId String
+  name      String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, name])
+}
+
+model TargetSystem {
+  id        String   @id @default(cuid())
+  productId String
+  name      String
+  baseUrl   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@unique([productId, name])
+}
+
+model UserProductAccess {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([productId, createdAt])
 }
 
 model Task {
@@ -114,7 +161,9 @@ model Task {
   status      TaskStatus
   priority    TaskPriority
   countryCode String
+  productId   String
   module      String
+  targetSystemId String?
   assigneeId  String?
   dueDate     DateTime?
   createdAt   DateTime     @default(now())
@@ -123,13 +172,15 @@ model Task {
   signedOffAt DateTime?
   signedOffById String?
 
-  country    Country @relation(fields: [countryCode], references: [code])
-  assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  updatedBy  User?   @relation("TaskUpdatedBy", fields: [updatedById], references: [id])
-  signedOffBy User?  @relation("TaskSignedOffBy", fields: [signedOffById], references: [id])
-  comments   Comment[]
-  steps      TaskStep[]
-  activities Activity[]
+  country      Country       @relation(fields: [countryCode], references: [code])
+  product      Product       @relation(fields: [productId], references: [id])
+  targetSystem TargetSystem? @relation(fields: [targetSystemId], references: [id])
+  assignee     User?         @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  updatedBy    User?         @relation("TaskUpdatedBy", fields: [updatedById], references: [id])
+  signedOffBy  User?         @relation("TaskSignedOffBy", fields: [signedOffById], references: [id])
+  comments     Comment[]
+  steps        TaskStep[]
+  activities   Activity[]
 
   @@index([assigneeId, updatedAt])
   @@index([countryCode, updatedAt])
@@ -137,6 +188,8 @@ model Task {
   @@index([countryCode, status, updatedAt])
   @@index([dueDate])
   @@index([taskGroupId, updatedAt])
+  @@index([productId, updatedAt])
+  @@index([productId, status, updatedAt])
 }
 
 model Comment {
@@ -260,4 +313,3 @@ model TaskHistory {
   @@index([taskId, createdAt])
   @@index([actorId, createdAt])
 }
-

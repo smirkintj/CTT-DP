@@ -11,6 +11,7 @@ type UpdateUserBody = {
   countryCode?: string | null;
   isActive?: boolean;
   role?: string;
+  productIds?: string[];
 };
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -30,6 +31,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const countryCode = body.countryCode?.trim().toUpperCase();
   const requestedRole = body.role?.trim().toUpperCase();
   const isActive = typeof body.isActive === 'boolean' ? body.isActive : undefined;
+  const productIds = Array.isArray(body.productIds) ? body.productIds.map((id) => id.toString()) : undefined;
 
   if (!userId) return badRequest('User id is required', 'USER_ID_REQUIRED');
 
@@ -72,9 +74,37 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (isActive !== undefined) updates.isActive = isActive;
     if (requestedRole !== undefined) updates.role = nextRole;
 
+    if (productIds !== undefined) {
+      if (nextRole === UserRole.STAKEHOLDER && productIds.length === 0) {
+        return badRequest('At least one product is required', 'PRODUCT_ACCESS_REQUIRED');
+      }
+      const products = await prisma.product.findMany({
+        where: { id: { in: productIds }, isActive: true },
+        select: { id: true }
+      });
+      if (products.length !== new Set(productIds).size) {
+        return badRequest('One or more selected products are invalid', 'PRODUCT_INVALID');
+      }
+    }
+
     const updated = await prisma.user.update({
       where: { id: userId },
-      data: updates
+      data: {
+        ...updates,
+        ...(productIds !== undefined
+          ? {
+              productAccesses: {
+                deleteMany: {},
+                create: productIds.map((productId) => ({ productId }))
+              }
+            }
+          : {})
+      },
+      include: {
+        productAccesses: {
+          include: { product: true }
+        }
+      }
     });
 
     await createAdminAudit({
@@ -94,6 +124,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       lastLoginAt: updated.lastLoginAt,
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt
+      ,
+      productAccesses: updated.productAccesses.map((access) => ({
+        id: access.product.id,
+        name: access.product.name,
+        slug: access.product.slug
+      }))
     });
   } catch (error) {
     return internalError('Failed to update user', 'USER_UPDATE_FAILED', String(error));

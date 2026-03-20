@@ -140,6 +140,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const existingTask = await prisma.task.findUnique({
     where: { id },
     include: {
+      product: true,
+      targetSystem: true,
       assignee: {
         select: {
           id: true,
@@ -188,6 +190,53 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return badRequest('Invalid due date', 'TASK_DUE_DATE_INVALID');
   }
 
+  const nextProductId =
+    typeof body?.productId === 'string' && body.productId.trim().length > 0
+      ? body.productId.trim()
+      : existingTask.productId;
+  const nextModuleName =
+    typeof body?.module === 'string' || typeof body?.featureModule === 'string'
+      ? (body?.module ?? body?.featureModule ?? '').toString().trim()
+      : existingTask.module;
+  const nextTargetSystemId =
+    Object.prototype.hasOwnProperty.call(body ?? {}, 'targetSystemId')
+      ? body?.targetSystemId?.toString().trim() || null
+      : existingTask.targetSystemId;
+
+  const product = await prisma.product.findUnique({
+    where: { id: nextProductId },
+    select: { id: true }
+  });
+  if (!product) {
+    return badRequest('Product does not exist', 'TASK_PRODUCT_INVALID');
+  }
+
+  const moduleRecord = await prisma.module.findFirst({
+    where: {
+      productId: nextProductId,
+      name: nextModuleName,
+      isActive: true
+    },
+    select: { id: true }
+  });
+  if (!moduleRecord) {
+    return badRequest('Module is invalid for the selected product', 'TASK_MODULE_INVALID');
+  }
+
+  if (nextTargetSystemId) {
+    const targetSystem = await prisma.targetSystem.findFirst({
+      where: {
+        id: nextTargetSystemId,
+        productId: nextProductId,
+        isActive: true
+      },
+      select: { id: true }
+    });
+    if (!targetSystem) {
+      return badRequest('Target system is invalid for the selected product', 'TASK_TARGET_SYSTEM_INVALID');
+    }
+  }
+
   const hasGlobalFieldInput =
     Object.prototype.hasOwnProperty.call(body ?? {}, 'title') ||
     Object.prototype.hasOwnProperty.call(body ?? {}, 'description') ||
@@ -212,7 +261,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           id: body.assigneeId,
           role: UserRole.STAKEHOLDER,
           isActive: true,
-          countryCode: existingTask.countryCode
+          countryCode: existingTask.countryCode,
+          productAccesses: {
+            some: {
+              productId: nextProductId
+            }
+          }
         },
         select: { id: true }
       });
@@ -231,7 +285,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     crNumber: body?.crNumber ?? undefined,
     dueDate: hasValidDueDate ? nextDueDate : undefined,
     priority: body?.priority ?? undefined,
-    module: body?.module ?? body?.featureModule ?? undefined,
+    productId: Object.prototype.hasOwnProperty.call(body ?? {}, 'productId') ? nextProductId : undefined,
+    module: Object.prototype.hasOwnProperty.call(body ?? {}, 'module') || Object.prototype.hasOwnProperty.call(body ?? {}, 'featureModule') ? nextModuleName : undefined,
+    targetSystemId: Object.prototype.hasOwnProperty.call(body ?? {}, 'targetSystemId') ? nextTargetSystemId : undefined,
     assigneeId: nextAssigneeId,
     updatedById: session.user.id
   };
@@ -278,7 +334,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       crNumber: body?.crNumber ?? undefined,
       dueDate: hasValidDueDate ? nextDueDate : undefined,
       priority: body?.priority ?? undefined,
-      module: body?.module ?? body?.featureModule ?? undefined,
+      productId: Object.prototype.hasOwnProperty.call(body ?? {}, 'productId') ? nextProductId : undefined,
+      module: Object.prototype.hasOwnProperty.call(body ?? {}, 'module') || Object.prototype.hasOwnProperty.call(body ?? {}, 'featureModule') ? nextModuleName : undefined,
+      targetSystemId: Object.prototype.hasOwnProperty.call(body ?? {}, 'targetSystemId') ? nextTargetSystemId : undefined,
       assigneeId: nextAssigneeId
     };
 
@@ -321,7 +379,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     (existingTask.jiraTicket ?? '') !== (task.jiraTicket ?? '') ||
     (existingTask.crNumber ?? '') !== (task.crNumber ?? '') ||
     (existingTask.developer ?? '') !== (task.developer ?? '') ||
+    (existingTask.productId ?? '') !== (task.productId ?? '') ||
     (existingTask.module ?? '') !== (task.module ?? '') ||
+    (existingTask.targetSystemId ?? '') !== (task.targetSystemId ?? '') ||
     (existingTask.priority ?? '') !== (task.priority ?? '') ||
     (existingTask.dueDate?.toISOString() ?? '') !== (task.dueDate?.toISOString() ?? '');
 
@@ -347,7 +407,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         jiraTicket: existingTask.jiraTicket,
         crNumber: existingTask.crNumber,
         developer: existingTask.developer,
+        productId: existingTask.productId,
         module: existingTask.module,
+        targetSystemId: existingTask.targetSystemId,
         priority: existingTask.priority,
         dueDate: existingTask.dueDate?.toISOString() ?? null,
         assigneeId: existingTask.assigneeId ?? null
@@ -358,7 +420,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         jiraTicket: task.jiraTicket,
         crNumber: task.crNumber,
         developer: task.developer,
+        productId: task.productId,
         module: task.module,
+        targetSystemId: task.targetSystemId,
         priority: task.priority,
         dueDate: task.dueDate?.toISOString() ?? null,
         assigneeId: task.assigneeId ?? null

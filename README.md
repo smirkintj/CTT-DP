@@ -46,7 +46,11 @@ npm run prisma:generate
 npm run prisma:migrate
 npm run prisma:seed
 ```
-`npm run prisma:seed` also creates ~100 mock tasks across all statuses for easy testing.
+`npm run prisma:seed` also creates:
+- 3 sample products (`EasyOrder`, `SalesHub`, `ServicePro`)
+- product-scoped modules and target systems
+- product access for seeded stakeholder users
+- ~100 mock tasks across all statuses for easy testing
 
 ## Run Locally
 ```bash
@@ -68,7 +72,7 @@ npm run start
 - `npm run audit:check-admin` (fails if admin write route has no `createAdminAudit` call)
 - `npm run perf:sample` (samples API latency headers; supports `APP_URL`, `TASK_ID`, `COOKIE_HEADER`)
 - `scripts/playwright_admin_flow.sh` (automates admin browser smoke flow with Playwright CLI wrapper)
-- `npm run db:purge-and-seed` (DANGER: deletes all data, recreates base countries/modules/users; requires `CONFIRM_PURGE=YES`)
+- `npm run db:purge-and-seed` (DANGER: deletes all data, recreates base countries/products/modules/target systems/users; requires `CONFIRM_PURGE=YES`)
 
 ## Playwright Browser Automation (Admin Flow)
 Technical dependencies:
@@ -104,6 +108,10 @@ Security notes:
 - use environment variables and avoid committing secrets
 
 ## Notes
+- Environment model for rollout:
+  - production URL: `https://ctt-dksh.vercel.app/`
+  - staging / UAT URL: `https://ctt-dksh-git-staging-ptrmhrdn-4569s-projects.vercel.app`
+  - production is for real users; staging is for testers only
 - Build script runs `prisma generate && next build` to avoid stale Prisma client issues in CI/Vercel.
 - Vercel Speed Insights is enabled in `/Users/putra/Desktop/CTT-DKSH-main/app/layout.tsx` for runtime frontend performance telemetry.
 - Middleware enforces:
@@ -126,8 +134,9 @@ Security notes:
 - Task mutation APIs enforce:
   - status transition rules (invalid transitions return `409`)
   - optimistic concurrency using `expectedUpdatedAt` (stale updates return `409`)
-  - assignee integrity checks on create/edit (active stakeholder in matching country)
+  - assignee integrity checks on create/edit (active stakeholder in matching country with matching product access)
   - non-draft tasks cannot be unassigned
+  - selected module and target system must belong to the selected product
 - Task APIs are being standardized to a shared error response shape via `lib/apiError.ts` (`error`, `code`, optional `detail` in dev).
 - Shared Prisma include maps are centralized at `app/api/tasks/_query.ts` to reduce query-shape drift.
 - Performance baseline work (Phase 1):
@@ -164,6 +173,11 @@ Security notes:
     - `/api/admin/users/[id]`
     - `/api/admin/users/[id]/reset-password`
   - UI: `/admin/database` → `Users` tab (drawer-based management)
+  - Stakeholder accounts now require at least one product access assignment.
+  - `/admin/database` → `Products` tab manages:
+    - products
+    - product-scoped modules
+    - product-scoped target systems / launch URLs
   - Stakeholder helpful links are configured in:
     - `/admin/database` → `Helpful Links` tab
   - Security rules:
@@ -191,6 +205,11 @@ Security notes:
 - Operational docs:
   - Production checklist: `/Users/putra/Desktop/CTT-DKSH-main/PRODUCTION_READINESS.md`
   - Incident runbook: `/Users/putra/Desktop/CTT-DKSH-main/OPS_RUNBOOK.md`
+  - UAT / prod readiness pack: `/Users/putra/Desktop/Code/CTT-DKSH-main/UAT_PROD_READINESS.md`
+  - tester UAT pack: `/Users/putra/Desktop/Code/CTT-DKSH-main/TESTER_UAT_PACK.md`
+  - security and compliance checklist: `/Users/putra/Desktop/Code/CTT-DKSH-main/SECURITY_COMPLIANCE_CHECKLIST.md`
+  - Azure / Bitbucket migration plan: `/Users/putra/Desktop/Code/CTT-DKSH-main/AZURE_BITBUCKET_MIGRATION_PLAN.md`
+  - ISO 27001:2013 aligned UAT checklist: `/Users/putra/Desktop/Code/CTT-DKSH-main/ISO27001_UAT_CHECKLIST.md`
 - Import wizard:
   - `/import` supports CSV files exported from Excel (header row required).
   - Admin maps columns (description/expected result/actual result/test data), manually fixes missing preview fields inline, and then either:
@@ -221,6 +240,11 @@ Security notes:
 - CSV exports now include UTF-8 BOM for better compatibility with multilingual text in Excel (VN/TH/HK/TW names and comments).
 - Sign-off report uses a dedicated portrait printable template via `/api/tasks/[id]/signoff-report`, includes recent task history plus step-grouped comments, and supports auto print prompt (`?autoprint=1`).
   - If a task has no comments, the comments section is omitted from the PDF output.
+- Multi-product support:
+  - every task now belongs to a product
+  - modules and target systems are scoped to that product
+  - admins can assign the same tester to multiple products
+  - dashboards and task detail now show a clear product badge so users know which product each task belongs to
 
 ## Task Workflow
 - New tasks are created as `DRAFT`.

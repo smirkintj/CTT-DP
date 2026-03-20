@@ -13,6 +13,7 @@ type CreateUserBody = {
   countryCode?: string;
   role?: string;
   temporaryPassword?: string;
+  productIds?: string[];
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -30,6 +31,11 @@ export async function GET() {
   try {
     const users = await prisma.user.findMany({
       include: {
+        productAccesses: {
+          include: {
+            product: true
+          }
+        },
         _count: {
           select: { assignedTasks: true }
         }
@@ -48,7 +54,12 @@ export async function GET() {
         lastLoginAt: user.lastLoginAt,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
-        assignedTaskCount: user._count.assignedTasks
+        assignedTaskCount: user._count.assignedTasks,
+        productAccesses: user.productAccesses.map((access) => ({
+          id: access.product.id,
+          name: access.product.name,
+          slug: access.product.slug
+        }))
       }))
     );
   } catch (error) {
@@ -73,12 +84,14 @@ export async function POST(req: Request) {
   const countryCode = body.countryCode?.trim().toUpperCase() || '';
   const role = normalizeRole(body.role);
   const temporaryPassword = body.temporaryPassword?.trim() || '';
+  const productIds = Array.isArray(body.productIds) ? body.productIds.map((id) => id.toString()) : [];
 
   if (!name) return badRequest('Name is required', 'NAME_REQUIRED');
   if (!EMAIL_REGEX.test(email)) return badRequest('Valid email is required', 'EMAIL_INVALID');
   if (role === UserRole.ADMIN) return forbidden('Creating admin users is disabled', 'ADMIN_CREATE_DISABLED');
   if (!countryCode) return badRequest('Country is required for stakeholders', 'COUNTRY_REQUIRED');
   if (temporaryPassword.length < 8) return badRequest('Temporary password must be at least 8 characters', 'PASSWORD_TOO_SHORT');
+  if (productIds.length === 0) return badRequest('At least one product is required', 'PRODUCT_ACCESS_REQUIRED');
 
   try {
     const countryExists = await prisma.country.findUnique({
@@ -93,6 +106,14 @@ export async function POST(req: Request) {
     });
     if (existing) return conflict('Email already exists', 'EMAIL_EXISTS');
 
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds }, isActive: true },
+      select: { id: true, name: true, slug: true }
+    });
+    if (products.length !== new Set(productIds).size) {
+      return badRequest('One or more selected products are invalid', 'PRODUCT_INVALID');
+    }
+
     const passwordHash = await bcrypt.hash(temporaryPassword, 10);
     const created = await prisma.user.create({
       data: {
@@ -102,7 +123,17 @@ export async function POST(req: Request) {
         countryCode,
         isActive: true,
         mustChangePassword: true,
-        passwordHash
+        passwordHash,
+        productAccesses: {
+          create: products.map((product) => ({
+            productId: product.id
+          }))
+        }
+      },
+      include: {
+        productAccesses: {
+          include: { product: true }
+        }
       }
     });
 
@@ -123,7 +154,12 @@ export async function POST(req: Request) {
       lastLoginAt: created.lastLoginAt,
       createdAt: created.createdAt,
       updatedAt: created.updatedAt,
-      assignedTaskCount: 0
+      assignedTaskCount: 0,
+      productAccesses: created.productAccesses.map((access) => ({
+        id: access.product.id,
+        name: access.product.name,
+        slug: access.product.slug
+      }))
     });
   } catch (error) {
     return internalError('Failed to create user', 'USER_CREATE_FAILED', String(error));

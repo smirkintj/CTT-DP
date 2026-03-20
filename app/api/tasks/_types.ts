@@ -27,8 +27,14 @@ export interface TaskDTO {
   status: string;
   priority: string;
   countryCode: string;
+  productId: string;
+  productName: string;
+  productSlug?: string;
   module: string;
   featureModule: string;
+  targetSystemId?: string | null;
+  targetSystem?: string | null;
+  targetSystemUrl?: string | null;
   jiraTicket?: string | null;
   crNumber?: string | null;
   developer?: string | null;

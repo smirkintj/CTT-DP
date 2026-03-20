@@ -349,6 +349,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                    </div>
 
                    <div className="mt-3 flex items-center gap-2">
+                     <Badge type="product" value={task.productName || 'EasyOrder'} />
                      <Badge type="module" value={task.featureModule} />
                      {hasConditionalStep(task) && (
                        <span className="text-xs text-amber-700 font-semibold bg-amber-100 px-2 py-0.5 rounded-full">Conditional</span>
@@ -410,7 +411,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                         <XCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0"/>
                         <div>
                            <p className="text-xs font-bold text-red-800 line-clamp-1">{t.title}</p>
-                           <p className="text-[10px] text-red-600 mt-0.5">{t.countryCode} • {getStatusLabel(t.status as unknown as string)}</p>
+                           <p className="text-[10px] text-red-600 mt-0.5">{t.productName || 'EasyOrder'} • {t.countryCode} • {getStatusLabel(t.status as unknown as string)}</p>
                         </div>
                      </div>
                    ))

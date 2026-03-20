@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
 import { forbidden, unauthorized } from '../../../../lib/apiError';
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
@@ -15,17 +15,33 @@ export async function GET() {
     return forbidden('Forbidden', 'ADMIN_REQUIRED');
   }
 
+  const { searchParams } = new URL(req.url);
+  const productId = searchParams.get('productId');
   const users = await prisma.user.findMany({
     where: {
       role: 'STAKEHOLDER',
       isActive: true,
-      countryCode: { not: null }
+      countryCode: { not: null },
+      ...(productId
+        ? {
+            productAccesses: {
+              some: {
+                productId
+              }
+            }
+          }
+        : {})
     },
     select: {
       id: true,
       name: true,
       email: true,
-      countryCode: true
+      countryCode: true,
+      productAccesses: {
+        include: {
+          product: true
+        }
+      }
     },
     orderBy: [{ countryCode: 'asc' }, { name: 'asc' }]
   });

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Task, Status, User, Role, TestStep, Priority } from '../types';
+import { Task, Status, User, Role, TestStep, Priority, AdminProductConfig } from '../types';
 import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -182,7 +182,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     developer: task.developer ?? '',
     dueDate: toDateInputValue(task.dueDate),
     priority: task.priority ?? Priority.MEDIUM,
+    productId: task.productId ?? '',
     featureModule: task.featureModule ?? '',
+    targetSystemId: task.targetSystemId ?? '',
     assigneeId: task.assignee?.id ?? ''
   });
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
@@ -209,7 +211,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   const [uploadStepId, setUploadStepId] = useState<string | null>(null);
   const [mentionUsers, setMentionUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const [availableModules, setAvailableModules] = useState<string[]>([]);
-  const [stakeholderOptions, setStakeholderOptions] = useState<Array<{ id: string; name: string; email: string; countryCode: string }>>([]);
+  const [products, setProducts] = useState<AdminProductConfig[]>([]);
+  const [stakeholderOptions, setStakeholderOptions] = useState<Array<{ id: string; name: string; email: string; countryCode: string; productAccesses?: Array<{ id: string; name: string; slug: string }> }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentElementRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const commentDraftStorageKey = useMemo(
@@ -249,14 +252,19 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     'Stakeholder';
   const signedOnValue = localTask.signedOffAt || localTask.signedOff?.signedAt;
   const signedOnLabel = formatDateTimeLocal(signedOnValue ?? undefined);
-  const countryStakeholders = stakeholderOptions.filter((user) => user.countryCode === localTask.countryCode);
-  const moduleOptions = Array.from(new Set([...(availableModules || []), localTask.featureModule || ''])).filter(Boolean);
+  const currentProduct = products.find((product) => product.id === taskEdits.productId || product.id === localTask.productId) ?? null;
+  const countryStakeholders = stakeholderOptions.filter(
+    (user) =>
+      user.countryCode === localTask.countryCode &&
+      ((user.productAccesses ?? []).length === 0 ||
+        (taskEdits.productId ? (user.productAccesses ?? []).some((access) => access.id === taskEdits.productId) : true))
+  );
+  const moduleOptions = Array.from(new Set([...(currentProduct?.modules.map((module) => module.name) || availableModules || []), localTask.featureModule || ''])).filter(Boolean);
+  const targetSystemOptions = currentProduct?.targetSystems ?? [];
   const canUnassign = isDraft;
 
   // Portal URL Logic
-  const portalUrl = localTask.targetSystem === 'Admin Portal' 
-    ? 'https://www.easyorderadminstg.dksh.com' 
-    : 'https://www.easyorderstg.dksh.com';
+  const portalUrl = localTask.targetSystemUrl || '#';
 
   const normalizeMentionSearch = (value: string) =>
     value
@@ -740,7 +748,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
           developer: taskEdits.developer,
           dueDate: fromDateInputValue(taskEdits.dueDate),
           priority: taskEdits.priority,
+          productId: taskEdits.productId,
           module: taskEdits.featureModule,
+          targetSystemId: taskEdits.targetSystemId || null,
           ...(includeAssigneePatch ? { assigneeId: requestedAssigneeId || null } : {}),
           expectedUpdatedAt: localTask.updatedAt,
           applyToGroup: applyGlobalMetaUpdate
@@ -767,7 +777,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
         developer: safeUpdated.developer ?? '',
         dueDate: toDateInputValue(safeUpdated.dueDate),
         priority: safeUpdated.priority ?? Priority.MEDIUM,
+        productId: safeUpdated.productId ?? '',
         featureModule: safeUpdated.featureModule ?? '',
+        targetSystemId: safeUpdated.targetSystemId ?? '',
         assigneeId: safeUpdated.assignee?.id ?? ''
       });
       const summary = (updated as any)?.globalUpdateSummary;
@@ -926,7 +938,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       developer: safe.developer ?? '',
       dueDate: toDateInputValue(safe.dueDate),
       priority: safe.priority ?? Priority.MEDIUM,
+      productId: safe.productId ?? '',
       featureModule: safe.featureModule ?? '',
+      targetSystemId: safe.targetSystemId ?? '',
       assigneeId: safe.assignee?.id ?? ''
     });
     setTaskMetaError(null);
@@ -1044,10 +1058,15 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   useEffect(() => {
     if (!isAdmin) return;
     const loadAdminOptions = async () => {
-      const [modulesRes, stakeholdersRes] = await Promise.all([
+      const [configRes, modulesRes, stakeholdersRes] = await Promise.all([
+        fetch('/api/admin/task-config', { cache: 'no-store' }),
         fetch('/api/admin/modules', { cache: 'no-store' }),
         fetch('/api/admin/stakeholders', { cache: 'no-store' })
       ]);
+      if (configRes.ok) {
+        const config = await configRes.json();
+        if (Array.isArray(config)) setProducts(config);
+      }
       if (modulesRes.ok) {
         const modules = await modulesRes.json();
         if (Array.isArray(modules)) setAvailableModules(modules);
@@ -1129,6 +1148,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
           
           <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex flex-wrap gap-2">
+                <Badge type="product" value={localTask.productName || 'EasyOrder'} />
                 <Badge type="module" value={localTask.featureModule} />
                 {isAdmin && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-sky-50 text-sky-700 border border-sky-100">
@@ -1170,15 +1190,17 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                  )}
             </div>
             {/* Launch UAT Button - Hidden in Print */}
-            <a 
-                href={portalUrl} 
-                target="_blank" 
-                rel="noreferrer"
-                className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-3 bg-brand-600 text-white rounded-lg shadow-sm hover:bg-brand-700 transition-colors font-medium text-sm print:hidden"
-            >
-                <Monitor size={18} /> Launch {localTask.targetSystem}
-                <ExternalLink size={14} className="opacity-70" />
-            </a>
+            {localTask.targetSystem && portalUrl !== '#' && (
+              <a 
+                  href={portalUrl} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-3 bg-brand-600 text-white rounded-lg shadow-sm hover:bg-brand-700 transition-colors font-medium text-sm print:hidden"
+              >
+                  <Monitor size={18} /> Launch {localTask.targetSystem}
+                  <ExternalLink size={14} className="opacity-70" />
+              </a>
+            )}
           </div>
 
           {/* Meta Data Grid */}
@@ -1277,6 +1299,30 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                 )}
               </div>
               <div>
+                <span className="text-xs text-slate-400 block mb-1">Product</span>
+                {canEditTaskMeta ? (
+                  <select
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                    value={taskEdits.productId}
+                    onChange={(e) => {
+                      const nextProduct = products.find((product) => product.id === e.target.value);
+                      setTaskEdits({
+                        ...taskEdits,
+                        productId: e.target.value,
+                        featureModule: nextProduct?.modules[0]?.name ?? '',
+                        targetSystemId: nextProduct?.targetSystems[0]?.id ?? ''
+                      });
+                    }}
+                  >
+                    {products.map((product) => (
+                      <option key={product.id} value={product.id}>{product.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-sm text-slate-700">{localTask.productName || 'EasyOrder'}</span>
+                )}
+              </div>
+              <div>
                 <span className="text-xs text-slate-400 block mb-1">Module</span>
                 {canEditTaskMeta ? (
                   <select
@@ -1292,6 +1338,23 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                   </select>
                 ) : (
                   <span className="text-sm text-slate-700">{localTask.featureModule}</span>
+                )}
+              </div>
+              <div>
+                <span className="text-xs text-slate-400 block mb-1">Target System</span>
+                {canEditTaskMeta ? (
+                  <select
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                    value={taskEdits.targetSystemId}
+                    onChange={(e) => setTaskEdits({ ...taskEdits, targetSystemId: e.target.value })}
+                  >
+                    <option value="">None</option>
+                    {targetSystemOptions.map((targetSystem) => (
+                      <option key={targetSystem.id} value={targetSystem.id}>{targetSystem.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-sm text-slate-700">{localTask.targetSystem || 'N/A'}</span>
                 )}
               </div>
               <div>

@@ -98,7 +98,11 @@ Defined in `prisma/schema.prisma`.
 
 ### Core models
 - `User`
+- `Product`
 - `Country`
+- `Module` (product-scoped)
+- `TargetSystem` (product-scoped)
+- `UserProductAccess`
 - `Task`
 - `TaskStep`
 - `Comment`
@@ -175,7 +179,12 @@ Task mutation guarantees:
 - Signed-off task lock enforcement across metadata, status, steps, and comments
 - Assignee integrity enforcement:
   - task assignee must be an active stakeholder in the same task country
+  - stakeholder must also have access to the selected product
   - non-draft tasks cannot be unassigned
+- Product integrity enforcement:
+  - every task must belong to a product
+  - modules are validated against the selected product
+  - target systems are validated against the selected product
 - Draft workflow enforcement:
   - new tasks are created in `DRAFT`
   - `DRAFT` tasks are visible but stakeholder actions are blocked (status updates, step execution, comments, sign-off)
@@ -207,8 +216,15 @@ Task mutation guarantees:
   - Admin-only test email endpoint for Resend setup verification.
 - `GET/POST /api/admin/users`
   - Admin-only user list/create (current policy: stakeholder creation only).
+  - stakeholder create now requires one or more product assignments.
 - `PATCH /api/admin/users/[id]`
-  - Admin-only user update (name/country/status).
+  - Admin-only user update (name/country/status/product access).
+- `GET/POST/DELETE /api/admin/products`
+  - Admin-only product management.
+- `GET/POST/DELETE /api/admin/target-systems`
+  - Admin-only target-system management scoped by product.
+- `GET /api/admin/task-config`
+  - Admin-only aggregated product/module/target-system config for task forms.
 - `POST /api/admin/users/[id]/reset-password`
   - Admin-only temp-password reset (rate-limited).
 - `POST /api/users/change-password`
@@ -280,7 +296,9 @@ Currently created events:
 - Admin step-builder `Test Data` input is multiline (textarea) to better fit real-world test datasets.
 - Task detail metadata editor (admin) now supports:
   - assignee reassignment after task creation (country-scoped stakeholder dropdown)
-  - module selection via dropdown (loaded from module config API)
+  - product selection
+  - product-scoped module selection via dropdown
+  - product-scoped target system selection via dropdown
   - single-surface metadata save errors (inline), avoiding duplicate toast+inline failure messaging for the same save action
 - Admin task management search uses debounce for smoother typing on large lists.
 - Admin task table header is sticky and row-selection checkboxes include stronger keyboard focus styles.
@@ -297,6 +315,11 @@ Currently created events:
   - searchable/filterable stakeholder/user list
   - right-side drawer for create/edit
   - disable/enable and temporary password reset actions
+  - product access assignment per stakeholder
+- Admin database includes a `Products` tab:
+  - product creation/deletion
+  - module management per product
+  - target-system management per product, including launch URL
 - Login flow enforces an undismissable password change modal when `mustChangePassword` is true.
 - Login screen includes a compact `Admin only: password recovery` section for admin passwordless recovery.
 - New route `/auth/magic` consumes one-time link and signs admin in automatically.
@@ -342,6 +365,8 @@ Additional behavior:
 - Stakeholder and admin dashboard task cards now surface lifecycle context:
   - `Overdue` indicator for tasks past due and not completed
   - signed-off line with date/by-user when signed data is present
+- Stakeholder and admin dashboards now show a product badge on task cards so users can immediately see which product each task belongs to.
+- Stakeholder blocked-task callout and search now include product context.
 - Step comment UX now supports multiline drafts, keyboard submit (`Ctrl/Cmd + Enter`), and inline posting feedback.
 - Step comment drafts are persisted per user/task in local storage and restored on revisit.
 - Step execution outcomes now support explicit tri-state:
@@ -451,9 +476,17 @@ Also:
 - Ensure production env vars are set in Vercel.
 - Build uses Prisma client generation before Next build.
 - If schema changes are deployed, run migrations against production DB before/with deploy process.
+- Current rollout target URLs:
+  - production: `https://ctt-dksh.vercel.app/`
+  - staging / UAT: `https://cttstg-dksh.vercel.app/`
 - Operational reference docs:
   - `PRODUCTION_READINESS.md`
   - `OPS_RUNBOOK.md`
+  - `UAT_PROD_READINESS.md`
+  - `TESTER_UAT_PACK.md`
+  - `SECURITY_COMPLIANCE_CHECKLIST.md`
+  - `AZURE_BITBUCKET_MIGRATION_PLAN.md`
+  - `ISO27001_UAT_CHECKLIST.md`
 
 ## Known Technical Debt / Next Candidates
 - Move Tailwind usage from CDN-style setup into full config-based pipeline if desired.
