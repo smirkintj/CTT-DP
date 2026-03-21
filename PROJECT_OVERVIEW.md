@@ -324,6 +324,7 @@ Currently created events:
 - Session display name now refreshes from the database so top-right profile text reflects the saved user/admin name.
 - Admin database includes a new `Users` tab:
   - searchable/filterable stakeholder/user list
+  - table rows are clickable to open user management
   - right-side drawer for create/edit
   - disable/enable and temporary password reset actions
   - product access assignment per stakeholder/admin

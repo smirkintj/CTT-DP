@@ -175,6 +175,7 @@ Security notes:
     - `/api/admin/users/[id]`
     - `/api/admin/users/[id]/reset-password`
   - UI: `/admin/database` → `Users` tab (drawer-based management)
+  - user rows are directly clickable to open management drawer; no separate action column
   - Stakeholder accounts now require at least one product access assignment.
   - Admin accounts can also be scoped by product access.
   - Admin scope rule:

@@ -1169,31 +1169,34 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
               <table className="min-w-full divide-y divide-slate-200 text-sm table-fixed">
                 <thead className="bg-slate-50">
                   <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-3 w-[18%]">Name</th>
-                    <th className="px-3 py-3 w-[24%]">Email</th>
+                    <th className="px-3 py-3 w-[20%]">Name</th>
+                    <th className="px-3 py-3 w-[26%]">Email</th>
                     <th className="px-3 py-3 w-[10%]">Country</th>
-                    <th className="px-3 py-3 w-[18%]">Products</th>
+                    <th className="px-3 py-3 w-[20%]">Products</th>
                     <th className="px-3 py-3 w-[10%]">Status</th>
                     <th className="px-3 py-3 w-[14%]">Last Login</th>
-                    <th className="px-3 py-3 w-[6%] text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
                   {usersLoading ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                      <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
                         Loading users...
                       </td>
                     </tr>
                   ) : filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                      <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
                         No users found.
                       </td>
                     </tr>
                   ) : (
                     filteredUsers.map((user) => (
-                      <tr key={user.id}>
+                      <tr
+                        key={user.id}
+                        onClick={() => openEditUserDrawer(user)}
+                        className="cursor-pointer transition-colors hover:bg-slate-50 focus-within:bg-slate-50"
+                      >
                         <td className="px-3 py-3 font-medium text-slate-900 truncate">{user.name}</td>
                         <td className="px-3 py-3 truncate">{user.email}</td>
                         <td className="px-3 py-3">{user.countryCode || '—'}</td>
@@ -1220,14 +1223,6 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                           </span>
                         </td>
                         <td className="px-3 py-3">{formatDateTime(user.lastLoginAt)}</td>
-                        <td className="px-3 py-3 text-right">
-                          <button
-                            onClick={() => openEditUserDrawer(user)}
-                            className="text-sm font-medium text-slate-700 hover:text-slate-900"
-                          >
-                            Manage
-                          </button>
-                        </td>
                       </tr>
                     ))
                   )}
