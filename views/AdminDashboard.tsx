@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Task, User, Role } from '../types';
 import { Badge } from '../components/Badge';
 import { AlertTriangle, TrendingUp, Clock, MessageSquare, ArrowRight, XCircle } from 'lucide-react';
-import { notify } from '../lib/notify';
 
 interface AdminDashboardProps {
   tasks: Task[];
@@ -75,28 +74,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState<'dueDate' | 'priority' | 'status'>('dueDate');
-  const [sendingTest, setSendingTest] = useState(false);
   const [unreadComments, setUnreadComments] = useState(0);
-  
-  const handleSendTestNotification = async () => {
-    try {
-      setSendingTest(true);
-      const res = await fetch('/api/admin/test-notification', { method: 'POST' });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        if (data?.error) {
-          throw new Error(data.error);
-        }
-        const raw = await res.text().catch(() => '');
-        throw new Error(`Failed (${res.status})${raw ? `: ${raw}` : ''}`);
-      }
-      notify('Test email sent successfully', 'success');
-    } catch (err) {
-      notify(err instanceof Error ? err.message : 'Failed to send test email', 'error');
-    } finally {
-      setSendingTest(false);
-    }
-  };
 
   // KPI Calculations
   const totalSteps = tasks.reduce((acc, task) => acc + (task.steps?.length ?? 0), 0);
@@ -214,15 +192,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
            <p className="text-slate-500">Monitor overall progress and address blockers.</p>
         </div>
         <div className="flex gap-2">
-           {currentUser?.role === Role.ADMIN && (
-             <button
-               onClick={handleSendTestNotification}
-               disabled={sendingTest}
-               className="ml-3 px-4 py-2 rounded-lg bg-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-300 disabled:opacity-60 disabled:cursor-not-allowed"
-             >
-               {sendingTest ? 'Sending...' : 'Send Test Notification'}
-             </button>
-           )}
            <button 
              onClick={onManageTasks} // Redirect to manage for now to open create modal there
              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 shadow-sm flex items-center gap-2"

@@ -19,7 +19,7 @@ import { notify } from './lib/notify';
 import { fieldBaseClass } from './components/ui/formClasses';
 
 const TASK_CACHE_TTL_MS = 30_000;
-const TASK_CACHE_KEY_PREFIX = 'ctt_tasks_cache_v1';
+const TASK_CACHE_KEY_PREFIX = 'ctt_tasks_cache_v2';
 const ADMIN_META_CACHE_TTL_MS = 10 * 60 * 1000;
 const ADMIN_META_CACHE_KEY_PREFIX = 'ctt_admin_meta_cache_v1';
 const LOGIN_LOCK_MS = 30_000;

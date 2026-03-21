@@ -20,7 +20,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   const [activities, setActivities] = useState<Array<{ id: string; type: string; message: string; createdAt: string; taskId?: string | null; isRead: boolean }>>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
   const notifRef = useRef<HTMLDivElement>(null);
-  const displayName = isAdmin ? 'Admin User' : (currentUser.name || 'User');
+  const displayName = currentUser.name || currentUser.email || 'User';
   const roleLabel = isAdmin ? 'Administrator' : `${currentUser.countryCode} • ${currentUser.role}`;
   const initials = currentUser.name ? currentUser.name.trim().charAt(0).toUpperCase() : '?';
 
