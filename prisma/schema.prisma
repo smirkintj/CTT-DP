@@ -171,6 +171,7 @@ model Task {
   updatedById String?
   signedOffAt DateTime?
   signedOffById String?
+  signatureData String?
 
   country      Country       @relation(fields: [countryCode], references: [code])
   product      Product       @relation(fields: [productId], references: [id])

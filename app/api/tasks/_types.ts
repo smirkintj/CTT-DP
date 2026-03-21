@@ -42,6 +42,11 @@ export interface TaskDTO {
   createdAt: string;
   updatedAt: string;
   signedOffAt?: string | null;
+  signedOff?: {
+    signedBy: string;
+    signedAt: string;
+    signatureData?: string;
+  };
 
   updatedBy?: {
     id: string;

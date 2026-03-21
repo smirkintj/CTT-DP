@@ -32,6 +32,15 @@ type TemporaryPasswordEmailInput = {
   temporaryPassword: string;
 };
 
+type TaskReportEmailInput = {
+  to: string;
+  recipientName?: string;
+  taskTitle: string;
+  taskId?: string;
+  productName?: string;
+  signedOffAt?: string | Date | null;
+};
+
 
 function formatDate(value?: string | Date | null): string {
   if (!value) return "N/A";
@@ -199,3 +208,26 @@ export async function sendTemporaryPasswordEmail(input: TemporaryPasswordEmailIn
   });
 }
 
+export async function sendTaskReportEmail(input: TaskReportEmailInput): Promise<boolean> {
+  const reportUrl = getTaskUrl(input.taskId)
+    ? `${getTaskUrl(input.taskId)!.replace(/\/tasks\/[^/]+$/, '')}/api/tasks/${input.taskId}/signoff-report`
+    : undefined;
+
+  const html = createTemplate(
+    'Signed-off Report Ready',
+    `Your signed-off report is ready for review and download.`,
+    [
+      `Task: <strong>${input.taskTitle}</strong>`,
+      `Product: <strong>${input.productName || 'N/A'}</strong>`,
+      `Signed Off At: <strong>${formatDate(input.signedOffAt)}</strong>`,
+      'Open the report link below to review it and save it as PDF.'
+    ],
+    reportUrl ? { label: 'Open Report', href: reportUrl } : undefined
+  );
+
+  return sendEmail({
+    to: input.to,
+    subject: `Signed-off Report: ${input.taskTitle}`,
+    html
+  });
+}

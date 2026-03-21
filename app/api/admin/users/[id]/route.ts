@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { badRequest, forbidden, internalError, notFound, unauthorized } from '@/lib/apiError';
 import { createAdminAudit } from '@/lib/adminAudit';
+import { getAdminProductScope } from '@/lib/adminAccess';
 
 type UpdateUserBody = {
   name?: string;
@@ -18,6 +19,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const session = await getServerSession(authOptions);
   if (!session?.user) return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   if (session.user.role !== 'ADMIN') return forbidden('Forbidden', 'ADMIN_REQUIRED');
+  const scope = await getAdminProductScope(session.user.id);
 
   let body: UpdateUserBody;
   try {
@@ -37,9 +39,21 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   try {
     const targetUser = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
+      include: {
+        productAccesses: {
+          select: { productId: true }
+        }
+      }
     });
     if (!targetUser) return notFound('User not found', 'USER_NOT_FOUND');
+    if (
+      scope.restricted &&
+      targetUser.id !== session.user.id &&
+      !targetUser.productAccesses.some((access) => scope.productIds.includes(access.productId))
+    ) {
+      return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
+    }
 
     if (targetUser.id === session.user.id && isActive === false) {
       return badRequest('You cannot disable your own account', 'SELF_DISABLE_BLOCKED');
@@ -77,6 +91,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (productIds !== undefined) {
       if (nextRole === UserRole.STAKEHOLDER && productIds.length === 0) {
         return badRequest('At least one product is required', 'PRODUCT_ACCESS_REQUIRED');
+      }
+      if (scope.restricted && productIds.some((productId) => !scope.productIds.includes(productId))) {
+        return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
       }
       const products = await prisma.product.findMany({
         where: { id: { in: productIds }, isActive: true },

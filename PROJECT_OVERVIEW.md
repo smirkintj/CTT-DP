@@ -75,6 +75,7 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 - Login abuse protection:
   - server-side temporary lockout on repeated failed attempts (`lib/loginRateLimit.ts`)
   - client-side email validation + lock countdown UX in `App.tsx`
+  - current lockout duration is 30 seconds with live retry countdown messaging
   - accessibility semantics on login controls/errors/loading in `App.tsx`
   - magic-link request throttling (`lib/magicLinkRateLimit.ts`)
   - magic-link request API returns generic success to avoid account enumeration
@@ -172,6 +173,8 @@ Defined in `prisma/schema.prisma`.
 - `GET /api/tasks/[id]/signoff-report`
   - Printable portrait sign-off report template with latest task history and step-grouped comment section.
   - Comments section is hidden automatically when no comments exist.
+- `POST /api/tasks/[id]/signoff-report/email`
+  - Emails the signed-in user a secure report link for the signed-off task.
 
 Task mutation guarantees:
 - Server-enforced status transition rules (`lib/taskGuards.ts` + `/api/tasks/[id]/status`)
@@ -185,6 +188,10 @@ Task mutation guarantees:
   - every task must belong to a product
   - modules are validated against the selected product
   - target systems are validated against the selected product
+- Admin product-scope enforcement:
+  - admins with one or more product assignments are restricted to those products
+  - admins with no product assignments remain unrestricted (legacy/super-admin behavior)
+  - task list/detail/write routes and admin configuration routes enforce this server-side
 - Draft workflow enforcement:
   - new tasks are created in `DRAFT`
   - `DRAFT` tasks are visible but stakeholder actions are blocked (status updates, step execution, comments, sign-off)
@@ -219,6 +226,7 @@ Task mutation guarantees:
   - stakeholder create now requires one or more product assignments.
 - `PATCH /api/admin/users/[id]`
   - Admin-only user update (name/country/status/product access).
+- admin user list/update/reset is filtered by the acting admin's product scope when restricted.
 - `GET/POST/DELETE /api/admin/products`
   - Admin-only product management.
 - `GET/POST/DELETE /api/admin/target-systems`
@@ -311,11 +319,14 @@ Currently created events:
 - `Sign & Complete Task` now shows in-button loading state while sign-off request is in progress.
 - Task detail screenshot evidence is resized/compressed client-side before persistence.
 - Sign-off PDF report now includes scaled evidence thumbnails per step.
+- Sign-off report now includes product name, DKSH branding in the header, and the captured user signature in the printable footer.
+- Signed-off task detail now includes an `Email Report to Me` action for users/admins.
+- Session display name now refreshes from the database so top-right profile text reflects the saved user/admin name.
 - Admin database includes a new `Users` tab:
   - searchable/filterable stakeholder/user list
   - right-side drawer for create/edit
   - disable/enable and temporary password reset actions
-  - product access assignment per stakeholder
+  - product access assignment per stakeholder/admin
 - Admin database includes a `Products` tab:
   - product creation/deletion
   - module management per product

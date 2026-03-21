@@ -120,9 +120,11 @@ Security notes:
 - Login hardening is enabled:
   - client-side email validation + submit throttling UX
   - server-side temporary lockout after repeated failed attempts
+  - lockout now lasts 30 seconds and the login error message shows a live countdown
   - disabled users (`User.isActive = false`) cannot log in
   - forced permanent-password setup (`mustChangePassword`) before portal access, then user stays signed in and is redirected to dashboard
   - password-change modal now uses focused centered width, stronger backdrop layering, and real-time password rule/match validation
+  - session display name is refreshed from the database so the top-right profile label reflects the saved user/admin name
   - accessibility improvements on login form controls and error/loading semantics
   - admin passwordless recovery option:
     - login page includes a small `Admin only: password recovery` section for one-time admin sign-in link by email
@@ -174,6 +176,10 @@ Security notes:
     - `/api/admin/users/[id]/reset-password`
   - UI: `/admin/database` → `Users` tab (drawer-based management)
   - Stakeholder accounts now require at least one product access assignment.
+  - Admin accounts can also be scoped by product access.
+  - Admin scope rule:
+    - admins with one or more product assignments are restricted to those products
+    - admins with no product assignments remain unrestricted (legacy super-admin behavior)
   - `/admin/database` → `Products` tab manages:
     - products
     - product-scoped modules
@@ -240,6 +246,11 @@ Security notes:
 - CSV exports now include UTF-8 BOM for better compatibility with multilingual text in Excel (VN/TH/HK/TW names and comments).
 - Sign-off report uses a dedicated portrait printable template via `/api/tasks/[id]/signoff-report`, includes recent task history plus step-grouped comments, and supports auto print prompt (`?autoprint=1`).
   - If a task has no comments, the comments section is omitted from the PDF output.
+  - Report now includes:
+    - DKSH brand mark in the header
+    - product name in task summary
+    - persisted user signature in the footer for printed pages
+    - `Email Report to Me` action from signed-off task detail (emails a secure printable report link)
 - Multi-product support:
   - every task now belongs to a product
   - modules and target systems are scoped to that product

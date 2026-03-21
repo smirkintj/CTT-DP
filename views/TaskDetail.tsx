@@ -200,6 +200,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   const [markingCommentsRead, setMarkingCommentsRead] = useState(false);
   const [markingReady, setMarkingReady] = useState(false);
   const [signingOff, setSigningOff] = useState(false);
+  const [emailingReport, setEmailingReport] = useState(false);
   const [taskMetaSaveState, setTaskMetaSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [taskMetaError, setTaskMetaError] = useState<string | null>(null);
   const [applyGlobalMetaUpdate, setApplyGlobalMetaUpdate] = useState(false);
@@ -582,7 +583,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       }
       const response = await fetch(`/api/tasks/${localTask.id}/signoff`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          signatureData,
+          expectedUpdatedAt: localTask.updatedAt
+        })
       });
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -640,6 +645,25 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
         return;
       }
       reportWindow.focus();
+  };
+
+  const handleEmailReport = () => {
+    void (async () => {
+      setEmailingReport(true);
+      try {
+        const response = await fetch(`/api/tasks/${localTask.id}/signoff-report/email`, {
+          method: 'POST'
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          notify(data?.error || 'Failed to email report', 'error');
+          return;
+        }
+        notify('Report email sent to your inbox.', 'success');
+      } finally {
+        setEmailingReport(false);
+      }
+    })();
   };
 
   const handleDeleteTask = async () => {
@@ -1923,12 +1947,25 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                 )}
                 
                 {/* PDF Download Button */}
-                <button 
-                  onClick={handlePrint}
-                  className="mt-6 flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 shadow-sm transition-colors print:hidden"
-                >
-                    <Printer size={16} /> Download PDF Report
-                </button>
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-3 print:hidden">
+                  <button 
+                    onClick={handlePrint}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 shadow-sm transition-colors"
+                  >
+                      <Printer size={16} /> Download PDF Report
+                  </button>
+                  <button
+                    onClick={handleEmailReport}
+                    disabled={emailingReport}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {emailingReport ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                    {emailingReport ? 'Emailing...' : 'Email Report to Me'}
+                  </button>
+                </div>
+                <p className="mt-3 text-xs text-slate-500 print:hidden">
+                  Emails include a secure printable report link for your signed-off task.
+                </p>
              </div>
            ) : isDraft ? (
              <div className="w-full max-w-md print:hidden">

@@ -68,6 +68,14 @@ export function mapTaskToUi(task: any): TaskDTO {
     createdAt: toIso(task.createdAt),
     updatedAt: toIso(task.updatedAt),
     signedOffAt: toIso(task.signedOffAt) || null,
+    signedOff:
+      task.signedOffAt && task.signedOffBy
+        ? {
+            signedBy: task.signedOffBy.name ?? task.signedOffBy.email ?? 'User',
+            signedAt: toIso(task.signedOffAt),
+            signatureData: task.signatureData ?? undefined
+          }
+        : undefined,
 
     assignee: task.assignee
       ? {

@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { forbidden, notFound, unauthorized } from '@/lib/apiError';
+import { adminCanAccessProduct } from '@/lib/adminAccess';
 
 function escapeHtml(value: string) {
   return value
@@ -26,6 +27,24 @@ function extractAttachmentImages(raw: unknown): string[] {
   return raw.filter((item): item is string => typeof item === 'string' && item.startsWith('data:image/')).slice(0, 8);
 }
 
+function buildSignatureFooter(task: {
+  signatureData?: string | null;
+  signedOffAt?: Date | null;
+  signedOffBy?: { name: string | null; email: string | null } | null;
+}) {
+  if (!task.signatureData) return '';
+  const signer = escapeHtml(task.signedOffBy?.name || task.signedOffBy?.email || 'User');
+  return `
+    <div class="signature-footer">
+      <div class="signature-footer__meta">
+        <div class="signature-footer__label">Signed electronically by ${signer}</div>
+        <div class="signature-footer__date">${escapeHtml(formatDateTime(task.signedOffAt))}</div>
+      </div>
+      <img src="${task.signatureData}" alt="User signature" class="signature-footer__image" />
+    </div>
+  `;
+}
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const autoPrint = new URL(_req.url).searchParams.get('autoprint') === '1';
   const session = await getServerSession(authOptions);
@@ -38,6 +57,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       assignee: { select: { name: true, email: true } },
       signedOffBy: { select: { name: true, email: true } },
       country: { select: { code: true, name: true } },
+      product: { select: { name: true } },
       steps: { orderBy: { order: 'asc' } },
       comments: {
         include: {
@@ -61,6 +81,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     if (task.assigneeId !== session.user.id || task.countryCode !== session.user.countryCode) {
       return forbidden('Forbidden', 'TASK_FORBIDDEN');
     }
+  } else if (!(await adminCanAccessProduct(session.user.id, task.productId))) {
+    return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
   }
 
   const history = await prisma.taskHistory.findMany({
@@ -181,16 +203,28 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       </tbody>
     </table>`;
 
+  const signatureFooter = buildSignatureFooter(task);
+  const dkshLogo = `
+    <svg viewBox="0 0 172 38" xmlns="http://www.w3.org/2000/svg" aria-label="DKSH">
+      <rect width="172" height="38" rx="10" fill="#C8102E"/>
+      <text x="86" y="24" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18" font-weight="700" fill="#FFFFFF" letter-spacing="2">DKSH</text>
+    </svg>
+  `;
+
   const html = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
   <title>CTT Sign-off Report</title>
   <style>
-    @page { size: A4 portrait; margin: 14mm; }
+    @page { size: A4 portrait; margin: 16mm 14mm 28mm; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #0f172a; margin: 0; background: #f8fafc; }
-    .page { max-width: 760px; margin: 0 auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; }
-    .header { border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
+    .page { max-width: 760px; margin: 0 auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 20px 96px; }
+    .header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
+    .header-copy { max-width: 70%; }
+    .brand-lockup { width: 132px; display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+    .brand-mark { width: 132px; height: auto; display:block; }
+    .brand-caption { color:#64748b; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; }
     h1 { margin: 0; font-size: 20px; }
     .subtitle { margin-top: 4px; color: #64748b; font-size: 12px; }
     .section-title { margin: 18px 0 8px; font-size: 13px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -205,19 +239,30 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .evidence-image { width: 100%; max-height: 120px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; }
     .section-row td { background: #f8fafc; font-weight: 600; color: #334155; }
     .footer { margin-top: 14px; color: #64748b; font-size: 11px; }
+    .signature-footer { position: fixed; left: 14mm; right: 14mm; bottom: 8mm; display:flex; justify-content:space-between; align-items:flex-end; gap:16px; border-top:1px solid #e2e8f0; padding-top:8px; background:#fff; }
+    .signature-footer__meta { font-size: 11px; color: #64748b; }
+    .signature-footer__label { font-weight: 600; color: #334155; margin-bottom: 2px; }
+    .signature-footer__image { max-height: 48px; max-width: 180px; object-fit: contain; }
   </style>
   ${autoPrint ? '<script>window.addEventListener("load",()=>window.print());</script>' : ''}
 </head>
 <body>
   <div class="page">
     <div class="header">
-      <h1>CTT UAT Sign-off Report</h1>
-      <div class="subtitle">Generated on ${formatDateTime(new Date())}</div>
+      <div class="header-copy">
+        <h1>CTT UAT Sign-off Report</h1>
+        <div class="subtitle">Generated on ${formatDateTime(new Date())}</div>
+      </div>
+      <div class="brand-lockup">
+        <div class="brand-mark">${dkshLogo}</div>
+        <div class="brand-caption">Digital QA Record</div>
+      </div>
     </div>
     <div class="section-title">Task Summary</div>
     <div class="meta">
       <div><span class="label">Task:</span> ${escapeHtml(task.title)}</div>
       <div><span class="label">Country:</span> ${escapeHtml(task.country.code)} - ${escapeHtml(task.country.name)}</div>
+      <div><span class="label">Product:</span> ${escapeHtml(task.product.name)}</div>
       <div><span class="label">Module:</span> ${escapeHtml(task.module)}</div>
       <div><span class="label">Priority:</span> ${escapeHtml(task.priority)}</div>
       <div><span class="label">Assignee:</span> ${escapeHtml(task.assignee?.name || task.assignee?.email || '—')}</div>
@@ -257,6 +302,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     </table>
     ${commentsSection}
     <div class="footer">This report is generated from CTT UAT Portal task data.</div>
+    ${signatureFooter}
   </div>
 </body>
 </html>`;

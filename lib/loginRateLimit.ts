@@ -4,7 +4,7 @@ type RateLimitEntry = {
 };
 
 const MAX_ATTEMPTS = 3;
-const BLOCK_MS = 60_000;
+export const LOGIN_LOCK_MS = 30_000;
 const store = new Map<string, RateLimitEntry>();
 
 function getEntry(key: string): RateLimitEntry {
@@ -33,7 +33,7 @@ export function recordLoginFailure(key: string) {
   if (remaining > 0) return;
   entry.attempts += 1;
   if (entry.attempts >= MAX_ATTEMPTS) {
-    entry.blockedUntil = Date.now() + BLOCK_MS;
+    entry.blockedUntil = Date.now() + LOGIN_LOCK_MS;
     entry.attempts = 0;
   }
 }

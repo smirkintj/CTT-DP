@@ -10,6 +10,7 @@ import { isValidDueDate, isValidJiraTicket } from '../../../lib/taskValidation';
 import { taskRelationIncludeList, taskRelationIncludeSafe } from './_query';
 import { randomUUID } from 'crypto';
 import { logPilotEvent } from '../../../lib/telemetry';
+import { adminCanAccessProduct, getAdminProductScope } from '../../../lib/adminAccess';
 
 export async function GET() {
   const startedAt = Date.now();
@@ -25,7 +26,12 @@ export async function GET() {
     return unauthorized('Unauthorized', 'AUTH_INVALID_SESSION');
   }
 
-  const where = isAdmin ? undefined : { assigneeId: session.user.id };
+  const adminScope = isAdmin ? await getAdminProductScope(session.user.id) : null;
+  const where = isAdmin
+    ? adminScope?.restricted
+      ? { productId: { in: adminScope.productIds } }
+      : undefined
+    : { assigneeId: session.user.id };
   try {
     let tasks: any[] = [];
     try {
@@ -171,6 +177,9 @@ export async function POST(req: Request) {
   });
   if (!product) {
     return badRequest('Product does not exist', 'TASK_PRODUCT_INVALID');
+  }
+  if (!(await adminCanAccessProduct(session.user.id, productId))) {
+    return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
   }
 
   const moduleRecord = await prisma.module.findFirst({

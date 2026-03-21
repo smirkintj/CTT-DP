@@ -12,6 +12,7 @@ import { isValidDueDate, isValidJiraTicket } from '../../../../lib/taskValidatio
 import { taskRelationIncludeFull, taskRelationIncludeSafe } from '../_query';
 import { randomUUID } from 'crypto';
 import { logPilotEvent } from '../../../../lib/telemetry';
+import { adminCanAccessProduct } from '../../../../lib/adminAccess';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const startedAt = Date.now();
@@ -103,6 +104,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     if (task.assigneeId !== session.user.id) {
       return forbidden('Forbidden', 'TASK_FORBIDDEN');
     }
+  } else if (!(await adminCanAccessProduct(session.user.id, task.productId))) {
+    return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
   }
 
   const durationMs = Date.now() - startedAt;
@@ -162,6 +165,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!existingTask) {
     return notFound('Not found', 'TASK_NOT_FOUND');
   }
+  if (!(await adminCanAccessProduct(session.user.id, existingTask.productId))) {
+    return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
+  }
 
   if (existingTask.signedOffAt) {
     return conflict('Task is signed off and locked', 'TASK_LOCKED');
@@ -209,6 +215,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   });
   if (!product) {
     return badRequest('Product does not exist', 'TASK_PRODUCT_INVALID');
+  }
+  if (!(await adminCanAccessProduct(session.user.id, nextProductId))) {
+    return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
   }
 
   const moduleRecord = await prisma.module.findFirst({
@@ -585,11 +594,14 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
   const task = await prisma.task.findUnique({
     where: { id },
-    select: { id: true, title: true, countryCode: true }
+    select: { id: true, title: true, countryCode: true, productId: true }
   });
 
   if (!task) {
     return notFound('Not found', 'TASK_NOT_FOUND');
+  }
+  if (!(await adminCanAccessProduct(session.user.id, task.productId))) {
+    return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
   }
 
   await createTaskHistory({

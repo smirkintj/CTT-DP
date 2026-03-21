@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
 import { badRequest, forbidden, unauthorized } from '../../../../lib/apiError';
 import { createAdminAudit } from '../../../../lib/adminAudit';
+import { adminCanAccessProduct, getAdminProductScope } from '../../../../lib/adminAccess';
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -22,9 +23,14 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const productId = searchParams.get('productId');
+  const scope = await getAdminProductScope(auth.session.user.id);
+  if (productId && !(await adminCanAccessProduct(auth.session.user.id, productId))) {
+    return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
+  }
   const modules = await prisma.module.findMany({
     where: {
       isActive: true,
+      ...(scope.restricted ? { productId: { in: scope.productIds } } : {}),
       ...(productId ? { productId } : {})
     },
     orderBy: [{ productId: 'asc' }, { name: 'asc' }]
@@ -58,6 +64,9 @@ export async function POST(req: Request) {
   }
   if (!productId) {
     return badRequest('Product is required', 'PRODUCT_REQUIRED');
+  }
+  if (!(await adminCanAccessProduct(auth.session.user.id, productId))) {
+    return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
   }
 
   const product = await prisma.product.findUnique({
@@ -94,6 +103,9 @@ export async function DELETE(req: Request) {
   }
   if (!productId) {
     return badRequest('Product is required', 'PRODUCT_REQUIRED');
+  }
+  if (!(await adminCanAccessProduct(auth.session.user.id, productId))) {
+    return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
   }
 
   const tasksCount = await prisma.task.count({ where: { module: name, productId } });
