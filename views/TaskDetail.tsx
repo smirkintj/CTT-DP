@@ -1541,9 +1541,25 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                              <p className={`text-sm font-medium ${stepOutcome === 'PASSED' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                                {step.description}
-                              </p>
+                              {isAdmin && editingStepId === step.id ? (
+                                <textarea
+                                  className="min-h-[72px] w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm focus:border-brand-500 focus:ring-brand-500"
+                                  rows={3}
+                                  value={stepEdits[step.id]?.description ?? ''}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                  onChange={(e) =>
+                                    setStepEdits((prev) => ({
+                                      ...prev,
+                                      [step.id]: { ...prev[step.id], description: e.target.value }
+                                    }))
+                                  }
+                                />
+                              ) : (
+                                <p className={`text-sm font-medium ${stepOutcome === 'PASSED' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                                  {step.description}
+                                </p>
+                              )}
                               {stepOutcome === 'CONDITIONAL' && (
                                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">
                                   Conditional
@@ -1567,13 +1583,13 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                              <div className="flex items-center gap-2">
                                <button
                                  onClick={(e) => { e.stopPropagation(); startEditStep(step); }}
-                                 className="text-[10px] font-medium text-slate-500 hover:text-slate-800"
+                                 className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900"
                                >
                                  Edit
                                </button>
                                <button
                                  onClick={(e) => { e.stopPropagation(); handleDeleteStep(step.id); }}
-                                 className="text-[10px] font-medium text-rose-600 hover:text-rose-700"
+                                 className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 shadow-sm transition hover:border-rose-300 hover:bg-rose-100 hover:text-rose-700"
                                >
                                  Delete
                                </button>
@@ -1587,82 +1603,51 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                     {(isOpen || isSignedOff) && (
                       <div className="px-4 pb-6 pt-0 animate-in slide-in-from-top-2">
                           <div className="ml-12 space-y-4">
-                              {isAdmin && editingStepId === step.id && (
-                                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
-                                  <div>
-                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Description</label>
-                                    <textarea
-                                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
-                                      value={stepEdits[step.id]?.description ?? ''}
-                                      onChange={(e) =>
-                                        setStepEdits((prev) => ({
-                                          ...prev,
-                                          [step.id]: { ...prev[step.id], description: e.target.value }
-                                        }))
-                                      }
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Expected Result</label>
-                                    <textarea
-                                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
-                                      value={stepEdits[step.id]?.expectedResult ?? ''}
-                                      onChange={(e) =>
-                                        setStepEdits((prev) => ({
-                                          ...prev,
-                                          [step.id]: { ...prev[step.id], expectedResult: e.target.value }
-                                        }))
-                                      }
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Test Data</label>
-                                    <textarea
-                                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
-                                      rows={3}
-                                      value={stepEdits[step.id]?.testData ?? ''}
-                                      onChange={(e) =>
-                                        setStepEdits((prev) => ({
-                                          ...prev,
-                                          [step.id]: { ...prev[step.id], testData: e.target.value }
-                                        }))
-                                      }
-                                    />
-                                  </div>
-                                  <div className="flex justify-end gap-2">
-                                    <button
-                                      onClick={() => setEditingStepId(null)}
-                                      className="text-xs font-medium text-slate-500 hover:text-slate-700"
-                                    >
-                                      Cancel
-                                    </button>
-                                    <button
-                                      onClick={() => handleSaveStep(step.id)}
-                                      className="text-xs font-medium text-white bg-slate-900 px-3 py-1.5 rounded-md hover:bg-slate-800"
-                                    >
-                                      Save
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                              
                               {/* Expected vs Actual Grid */}
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   {/* Left Col: Requirements */}
                                   <div className="space-y-4">
                                       <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 print:bg-white print:border-slate-300">
                                           <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">Expected Result</span>
-                                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{renderTextWithLinks(step.expectedResult)}</p>
+                                          {isAdmin && editingStepId === step.id ? (
+                                            <textarea
+                                              className="w-full rounded-xl border-slate-300 bg-white text-sm text-slate-700 focus:border-brand-500 focus:ring-brand-500"
+                                              rows={4}
+                                              value={stepEdits[step.id]?.expectedResult ?? ''}
+                                              onChange={(e) =>
+                                                setStepEdits((prev) => ({
+                                                  ...prev,
+                                                  [step.id]: { ...prev[step.id], expectedResult: e.target.value }
+                                                }))
+                                              }
+                                            />
+                                          ) : (
+                                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{renderTextWithLinks(step.expectedResult)}</p>
+                                          )}
                                       </div>
                                       
-                                      {step.testData && (
+                                      {(step.testData || (isAdmin && editingStepId === step.id)) && (
                                           <div>
                                               <span className="text-[10px] uppercase font-bold text-brand-600 tracking-wider mb-1 block flex items-center gap-1">
                                                   <Database size={10}/> Test Data
                                               </span>
-                                              <code className="text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-200 text-slate-700 block font-mono whitespace-pre-wrap">
-                                                  {renderTextWithLinks(step.testData)}
-                                              </code>
+                                              {isAdmin && editingStepId === step.id ? (
+                                                <textarea
+                                                  className="w-full rounded-xl border-slate-300 bg-white text-sm text-slate-700 focus:border-brand-500 focus:ring-brand-500"
+                                                  rows={3}
+                                                  value={stepEdits[step.id]?.testData ?? ''}
+                                                  onChange={(e) =>
+                                                    setStepEdits((prev) => ({
+                                                      ...prev,
+                                                      [step.id]: { ...prev[step.id], testData: e.target.value }
+                                                    }))
+                                                  }
+                                                />
+                                              ) : (
+                                                <code className="text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-200 text-slate-700 block font-mono whitespace-pre-wrap">
+                                                    {renderTextWithLinks(step.testData)}
+                                                </code>
+                                              )}
                                           </div>
                                       )}
                                   </div>
@@ -1681,8 +1666,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                                         </div>
                                       ) : (
                                          step.actualResult && (
-                                           <div className="bg-white p-3 rounded border border-slate-200 text-sm text-slate-700 italic">
-                                             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1 block">Actual Result</span>
+                                          <div className="bg-white p-3 rounded border border-slate-200 text-sm text-slate-700 italic">
+                                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1 block">Actual Result</span>
                                              "{step.actualResult}"
                                            </div>
                                          )
@@ -1738,6 +1723,22 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                                       )}
                                   </div>
                               </div>
+                              {isAdmin && editingStepId === step.id && (
+                                <div className="flex justify-end gap-2 border-t border-slate-100 pt-3 print:hidden">
+                                  <button
+                                    onClick={() => setEditingStepId(null)}
+                                    className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => handleSaveStep(step.id)}
+                                    className="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                                  >
+                                    Save Changes
+                                  </button>
+                                </div>
+                              )}
 
                               {/* Action Bar */}
                               {canRunTestActions && (

@@ -234,11 +234,13 @@ Security notes:
   - security: global update is ADMIN-only and still enforces signed-off locks.
 - task detail preview now shows affected market list and disables global apply when no editable tasks remain.
 - task detail admin step edit now uses multiline input for `Test Data` (newline-friendly).
+- task detail step editing now happens inline on the same visible step surface for `Description`, `Expected Result`, and `Test Data`, instead of opening a second edit block below.
 - task detail header now shows current task country for admin context.
 - `Mark as READY` now shows in-button loading state while status update is in progress.
 - comment mentions now render highlighted (bold + colored) and display user name in comment body.
 - `Sign & Complete Task` now shows in-button loading state while sign-off request is processing.
 - Task detail image evidence upload/paste now auto-optimizes (resize + compression) before save to reduce storage payload.
+- Task detail step `Edit` / `Delete` controls now use larger pill buttons for easier targeting.
 - Sign-off PDF report now includes step evidence images (auto-scaled thumbnail layout).
   - admin task table now supports selected-group global edit modal (same supported fields as task detail global update).
 - Reporting:

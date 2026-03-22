@@ -315,6 +315,8 @@ Currently created events:
 - Priority badge styling standardized across levels.
 - Task detail admin header now includes explicit country context (`Country: <code>`).
 - Task detail step editor uses multiline input for `Test Data`.
+- Task detail step editing now reuses the same visible step surface for `Description`, `Expected Result`, and `Test Data` instead of opening a separate secondary editor block.
+- Step-level `Edit` / `Delete` actions now use larger pill controls for easier targeting.
 - Admin `Mark as READY` now shows in-button loading state while update is in progress.
 - `Sign & Complete Task` now shows in-button loading state while sign-off request is in progress.
 - Task detail screenshot evidence is resized/compressed client-side before persistence.
