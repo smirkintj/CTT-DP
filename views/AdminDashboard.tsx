@@ -329,10 +329,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                      <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
                        <span className="truncate">
                          Assignee: <strong>{task.assignee?.name || task.assignee?.email || task.assigneeId || 'Unassigned'}</strong>
-                         <span className="mx-1.5">•</span>
-                         {task.countryCode}
                        </span>
                        <span className="inline-flex items-center gap-2 shrink-0">
+                         <span className="inline-flex items-center rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold tracking-[0.12em] text-white">
+                           {task.countryCode}
+                         </span>
                          <span className={isTaskOverdue(task) ? 'text-rose-700 font-semibold' : ''}>
                            Due: {formatDate(task.dueDate)}
                          </span>
