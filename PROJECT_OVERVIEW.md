@@ -379,7 +379,7 @@ Additional behavior:
   - signed-off line with date/by-user when signed data is present
 - Stakeholder and admin dashboards now show a product badge on task cards so users can immediately see which product each task belongs to.
 - Stakeholder blocked-task callout and search now include product context.
-- Admin dashboard task cards now render country as a separate badge for clearer market visibility.
+- Admin dashboard task cards now render country as a color-coded badge alongside product/module pills for clearer market visibility.
 - Step comment UX now supports multiline drafts, keyboard submit (`Ctrl/Cmd + Enter`), and inline posting feedback.
 - Step comment drafts are persisted per user/task in local storage and restored on revisit.
 - Step execution outcomes now support explicit tri-state:

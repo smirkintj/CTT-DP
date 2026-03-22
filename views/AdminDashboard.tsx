@@ -70,6 +70,22 @@ const hasConditionalStep = (task: Task) => {
   return (task.steps ?? []).some((step) => step.stepResult === 'CONDITIONAL');
 };
 
+const countryBadgeClassMap: Record<string, string> = {
+  SG: 'bg-cyan-100 text-cyan-800',
+  MY: 'bg-blue-100 text-blue-800',
+  TH: 'bg-pink-100 text-pink-800',
+  VN: 'bg-amber-100 text-amber-800',
+  HK: 'bg-rose-100 text-rose-800',
+  TW: 'bg-emerald-100 text-emerald-800',
+  ID: 'bg-orange-100 text-orange-800',
+  PH: 'bg-violet-100 text-violet-800',
+  AU: 'bg-indigo-100 text-indigo-800',
+  NZ: 'bg-lime-100 text-lime-800'
+};
+
+const getCountryBadgeClass = (countryCode?: string) =>
+  countryBadgeClassMap[countryCode || ''] ?? 'bg-slate-100 text-slate-700';
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, onSelectTask, onManageTasks, currentUser }) => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
@@ -317,7 +333,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                      <Badge type="status" value={task.status} />
                    </div>
 
-                   <div className="mt-3 flex items-center gap-2">
+                   <div className="mt-3 flex items-center gap-2 flex-wrap">
+                     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-[0.12em] ${getCountryBadgeClass(task.countryCode)}`}>
+                       {task.countryCode}
+                     </span>
                      <Badge type="product" value={task.productName || 'EasyOrder'} />
                      <Badge type="module" value={task.featureModule} />
                      {hasConditionalStep(task) && (
@@ -331,9 +350,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                          Assignee: <strong>{task.assignee?.name || task.assignee?.email || task.assigneeId || 'Unassigned'}</strong>
                        </span>
                        <span className="inline-flex items-center gap-2 shrink-0">
-                         <span className="inline-flex items-center rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold tracking-[0.12em] text-white">
-                           {task.countryCode}
-                         </span>
                          <span className={isTaskOverdue(task) ? 'text-rose-700 font-semibold' : ''}>
                            Due: {formatDate(task.dueDate)}
                          </span>

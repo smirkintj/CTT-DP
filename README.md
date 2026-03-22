@@ -257,7 +257,7 @@ Security notes:
   - modules and target systems are scoped to that product
   - admins can assign the same tester to multiple products
   - dashboards and task detail now show a clear product badge so users know which product each task belongs to
-  - admin dashboard task cards now show country as a distinct badge instead of muted inline text
+  - admin dashboard task cards now show country as a color-coded badge alongside product/module metadata
 
 ## Task Workflow
 - New tasks are created as `DRAFT`.
