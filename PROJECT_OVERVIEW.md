@@ -67,13 +67,19 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 ### NextAuth
 - Handler: `app/api/auth/[...nextauth]/route.ts`
 - Config: `lib/auth.ts`
-- Provider: Credentials (`email`, `password`)
+- Providers:
+  - Credentials (`email`, `password`)
+  - Admin magic-link credentials (`token`)
 - Password check: `bcryptjs.compare`
 - Session strategy: JWT
 - Login abuse protection:
   - server-side temporary lockout on repeated failed attempts (`lib/loginRateLimit.ts`)
   - client-side email validation + lock countdown UX in `App.tsx`
+  - current lockout duration is 30 seconds with live retry countdown messaging
   - accessibility semantics on login controls/errors/loading in `App.tsx`
+  - magic-link request throttling (`lib/magicLinkRateLimit.ts`)
+  - magic-link request API returns generic success to avoid account enumeration
+  - magic-link token storage is hashed and one-time-use with TTL
 - JWT/session includes:
   - `user.id`
   - `user.role`
@@ -93,7 +99,11 @@ Defined in `prisma/schema.prisma`.
 
 ### Core models
 - `User`
+- `Product`
 - `Country`
+- `Module` (product-scoped)
+- `TargetSystem` (product-scoped)
+- `UserProductAccess`
 - `Task`
 - `TaskStep`
 - `Comment`
@@ -126,9 +136,20 @@ Defined in `prisma/schema.prisma`.
   - `notifyOnMentionInbox`
   - `notifyOnSignoffEmail`
 
+### Passwordless admin sign-in model
+- `MagicLoginToken`
+  - `tokenHash` (SHA-256 hashed token only; raw token never stored)
+  - `expiresAt` (15-minute TTL)
+  - `usedAt` (single-use enforcement)
+  - relation to `User` with cascade delete
+
 ## API Surface
 ### Auth
 - `POST/GET /api/auth/[...nextauth]`
+- `POST /api/auth/magic-link/request`
+  - accepts admin email
+  - generic success response regardless of account match
+  - if active admin exists, sends one-time magic link email
 
 ### Tasks
 - `GET /api/tasks`
@@ -152,6 +173,8 @@ Defined in `prisma/schema.prisma`.
 - `GET /api/tasks/[id]/signoff-report`
   - Printable portrait sign-off report template with latest task history and step-grouped comment section.
   - Comments section is hidden automatically when no comments exist.
+- `POST /api/tasks/[id]/signoff-report/email`
+  - Emails the signed-in user a secure report link for the signed-off task.
 
 Task mutation guarantees:
 - Server-enforced status transition rules (`lib/taskGuards.ts` + `/api/tasks/[id]/status`)
@@ -159,7 +182,16 @@ Task mutation guarantees:
 - Signed-off task lock enforcement across metadata, status, steps, and comments
 - Assignee integrity enforcement:
   - task assignee must be an active stakeholder in the same task country
+  - stakeholder must also have access to the selected product
   - non-draft tasks cannot be unassigned
+- Product integrity enforcement:
+  - every task must belong to a product
+  - modules are validated against the selected product
+  - target systems are validated against the selected product
+- Admin product-scope enforcement:
+  - admins with one or more product assignments are restricted to those products
+  - admins with no product assignments remain unrestricted (legacy/super-admin behavior)
+  - task list/detail/write routes and admin configuration routes enforce this server-side
 - Draft workflow enforcement:
   - new tasks are created in `DRAFT`
   - `DRAFT` tasks are visible but stakeholder actions are blocked (status updates, step execution, comments, sign-off)
@@ -191,8 +223,16 @@ Task mutation guarantees:
   - Admin-only test email endpoint for Resend setup verification.
 - `GET/POST /api/admin/users`
   - Admin-only user list/create (current policy: stakeholder creation only).
+  - stakeholder create now requires one or more product assignments.
 - `PATCH /api/admin/users/[id]`
-  - Admin-only user update (name/country/status).
+  - Admin-only user update (name/country/status/product access).
+- admin user list/update/reset is filtered by the acting admin's product scope when restricted.
+- `GET/POST/DELETE /api/admin/products`
+  - Admin-only product management.
+- `GET/POST/DELETE /api/admin/target-systems`
+  - Admin-only target-system management scoped by product.
+- `GET /api/admin/task-config`
+  - Admin-only aggregated product/module/target-system config for task forms.
 - `POST /api/admin/users/[id]/reset-password`
   - Admin-only temp-password reset (rate-limited).
 - `POST /api/users/change-password`
@@ -264,7 +304,9 @@ Currently created events:
 - Admin step-builder `Test Data` input is multiline (textarea) to better fit real-world test datasets.
 - Task detail metadata editor (admin) now supports:
   - assignee reassignment after task creation (country-scoped stakeholder dropdown)
-  - module selection via dropdown (loaded from module config API)
+  - product selection
+  - product-scoped module selection via dropdown
+  - product-scoped target system selection via dropdown
   - single-surface metadata save errors (inline), avoiding duplicate toast+inline failure messaging for the same save action
 - Admin task management search uses debounce for smoother typing on large lists.
 - Admin task table header is sticky and row-selection checkboxes include stronger keyboard focus styles.
@@ -273,15 +315,28 @@ Currently created events:
 - Priority badge styling standardized across levels.
 - Task detail admin header now includes explicit country context (`Country: <code>`).
 - Task detail step editor uses multiline input for `Test Data`.
+- Task detail step editing now reuses the same visible step surface for `Description`, `Expected Result`, and `Test Data` instead of opening a separate secondary editor block.
+- Step-level `Edit` / `Delete` actions now use larger pill controls for easier targeting.
 - Admin `Mark as READY` now shows in-button loading state while update is in progress.
 - `Sign & Complete Task` now shows in-button loading state while sign-off request is in progress.
 - Task detail screenshot evidence is resized/compressed client-side before persistence.
 - Sign-off PDF report now includes scaled evidence thumbnails per step.
+- Sign-off report now includes product name, DKSH branding in the header, and the captured user signature in the printable footer.
+- Signed-off task detail now includes an `Email Report to Me` action for users/admins.
+- Session display name now refreshes from the database so top-right profile text reflects the saved user/admin name.
 - Admin database includes a new `Users` tab:
   - searchable/filterable stakeholder/user list
+  - table rows are clickable to open user management
   - right-side drawer for create/edit
   - disable/enable and temporary password reset actions
+  - product access assignment per stakeholder/admin
+- Admin database includes a `Products` tab:
+  - product creation/deletion
+  - module management per product
+  - target-system management per product, including launch URL
 - Login flow enforces an undismissable password change modal when `mustChangePassword` is true.
+- Login screen includes a compact `Admin only: password recovery` section for admin passwordless recovery.
+- New route `/auth/magic` consumes one-time link and signs admin in automatically.
 - Session hydration screen now uses animated loading feedback (spinner + indeterminate bar + pulse dots) while user workspace initializes.
 - Added QA debug mode for loading screen validation: `?debugLoading=1` keeps loading view visible for 5 seconds.
 - Workspace loading view is now compact-width and uses clearer spacing between subtitle, progress bar, and spinner row.
@@ -324,6 +379,9 @@ Additional behavior:
 - Stakeholder and admin dashboard task cards now surface lifecycle context:
   - `Overdue` indicator for tasks past due and not completed
   - signed-off line with date/by-user when signed data is present
+- Stakeholder and admin dashboards now show a product badge on task cards so users can immediately see which product each task belongs to.
+- Stakeholder blocked-task callout and search now include product context.
+- Admin dashboard task cards now render country as a color-coded badge alongside product/module pills for clearer market visibility.
 - Step comment UX now supports multiline drafts, keyboard submit (`Ctrl/Cmd + Enter`), and inline posting feedback.
 - Step comment drafts are persisted per user/task in local storage and restored on revisit.
 - Step execution outcomes now support explicit tri-state:
@@ -333,7 +391,7 @@ Additional behavior:
 - `TaskStep.stepResult` is stored in DB (with backwards compatibility for legacy `isPassed`) and surfaced in task detail, dashboard cards, and sign-off report export.
 - `TaskStep.conditionalReason` is stored for conditional outcomes and required by API when a step is marked `CONDITIONAL`.
 - New `PortalSetting` model stores DB-backed app settings, currently used for stakeholder dashboard helpful links.
-- Stakeholder dashboard helpful links are now admin-editable from System Database -> Email Notifications tab.
+- Stakeholder dashboard helpful links are now admin-editable from System Database -> Helpful Links tab.
 - Key task/comment/step/sign-off API flows now emit structured `[pilot]` server logs for pilot troubleshooting.
 - Empty-state UX includes contextual actions:
   - stakeholder task grid: clear filters or open discussions
@@ -395,6 +453,9 @@ From `package.json`:
 - `npm run prisma:migrate`
 - `npm run prisma:studio`
 - `npm run prisma:seed`
+  - seeds baseline data plus ~100 mock tasks spanning all task statuses.
+- `npm run db:purge-and-seed`
+  - destructive reset: deletes all data and recreates base countries/modules/users (requires `CONFIRM_PURGE=YES`).
 
 Also:
 - `postinstall` runs `prisma generate` (important for Vercel consistency).
@@ -430,9 +491,17 @@ Also:
 - Ensure production env vars are set in Vercel.
 - Build uses Prisma client generation before Next build.
 - If schema changes are deployed, run migrations against production DB before/with deploy process.
+- Current rollout target URLs:
+  - production: `https://ctt-dksh.vercel.app/`
+  - staging / UAT: `https://cttstg-dksh.vercel.app/`
 - Operational reference docs:
   - `PRODUCTION_READINESS.md`
   - `OPS_RUNBOOK.md`
+  - `UAT_PROD_READINESS.md`
+  - `TESTER_UAT_PACK.md`
+  - `SECURITY_COMPLIANCE_CHECKLIST.md`
+  - `AZURE_BITBUCKET_MIGRATION_PLAN.md`
+  - `ISO27001_UAT_CHECKLIST.md`
 
 ## Known Technical Debt / Next Candidates
 - Move Tailwind usage from CDN-style setup into full config-based pipeline if desired.

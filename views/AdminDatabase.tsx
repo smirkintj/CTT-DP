@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { CountryConfig } from '../types';
+import { AdminProductConfig, CountryConfig } from '../types';
 import { Trash2, Plus, Package, Bell, Users, Search, X, RotateCcw, UserPlus } from 'lucide-react';
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass } from '../components/ui/formClasses';
@@ -26,6 +26,7 @@ type AdminUserRow = {
   createdAt: string;
   updatedAt: string;
   assignedTaskCount: number;
+  productAccesses: Array<{ id: string; name: string; slug: string }>;
 };
 
 type UserDrawerMode = 'create' | 'edit';
@@ -37,7 +38,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   onUpdateModules,
   currentUserId
 }) => {
-  const [activeTab, setActiveTab] = useState<'countries' | 'modules' | 'notifications' | 'users'>('countries');
+  const [activeTab, setActiveTab] = useState<'countries' | 'products' | 'notifications' | 'helpfulLinks' | 'users'>('countries');
   const [emailSettings, setEmailSettings] = useState({
     enableReminders: false,
     cronExpression: '0 9 * * 1-5',
@@ -58,6 +59,11 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
 
   // Module Input State
   const [newModule, setNewModule] = useState('');
+  const [newProductName, setNewProductName] = useState('');
+  const [newTargetSystemName, setNewTargetSystemName] = useState('');
+  const [newTargetSystemUrl, setNewTargetSystemUrl] = useState('');
+  const [products, setProducts] = useState<AdminProductConfig[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState('');
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -85,7 +91,8 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     name: '',
     email: '',
     countryCode: '',
-    isActive: true
+    isActive: true,
+    productIds: [] as string[]
   });
   const [tempPassword, setTempPassword] = useState('');
   const [teamsConfigs, setTeamsConfigs] = useState<Record<string, {
@@ -143,7 +150,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   }, []);
 
   useEffect(() => {
-    if (activeTab !== 'notifications') return;
+    if (activeTab !== 'helpfulLinks') return;
     void (async () => {
       const response = await fetch('/api/admin/helpful-links', { cache: 'no-store' });
       if (!response.ok) return;
@@ -153,6 +160,26 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
         setSavedHelpfulLinks(data);
       }
     })();
+  }, [activeTab]);
+
+  const loadProductConfig = async () => {
+    const response = await fetch('/api/admin/task-config', { cache: 'no-store' });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      notify(data?.error || 'Failed to load product settings', 'error');
+      return;
+    }
+    if (!Array.isArray(data)) return;
+    setProducts(data as AdminProductConfig[]);
+    if ((data as AdminProductConfig[]).length > 0) {
+      setSelectedProductId((prev) => prev || (data as AdminProductConfig[])[0].id);
+      onUpdateModules((data as AdminProductConfig[])[0].modules.map((module) => module.name));
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'products' && activeTab !== 'users') return;
+    void loadProductConfig();
   }, [activeTab]);
 
   const loadUsers = async () => {
@@ -177,6 +204,8 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     void loadUsers();
   }, [activeTab]);
 
+  const selectedProduct = products.find((product) => product.id === selectedProductId) ?? null;
+
   const openCreateUserDrawer = () => {
     setUserDrawerMode('create');
     setSelectedUser(null);
@@ -184,7 +213,8 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
       name: '',
       email: '',
       countryCode: countries[0]?.code || '',
-      isActive: true
+      isActive: true,
+      productIds: products.length > 0 ? [products[0].id] : []
     });
     setTempPassword('');
     setIsUserDrawerOpen(true);
@@ -197,7 +227,8 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
       name: user.name,
       email: user.email,
       countryCode: user.countryCode || '',
-      isActive: user.isActive
+      isActive: user.isActive,
+      productIds: user.productAccesses.map((access) => access.id)
     });
     setTempPassword('');
     setIsUserDrawerOpen(true);
@@ -212,6 +243,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     const name = userForm.name.trim();
     const email = userForm.email.trim().toLowerCase();
     const countryCode = userForm.countryCode.trim().toUpperCase();
+    const productIds = userForm.productIds;
     const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
     if (!name) {
@@ -224,6 +256,10 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     }
     if (!countryCode) {
       notify('Country is required', 'error');
+      return;
+    }
+    if (productIds.length === 0) {
+      notify('Select at least one product', 'error');
       return;
     }
 
@@ -244,7 +280,8 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
             email,
             role: 'STAKEHOLDER',
             countryCode,
-            temporaryPassword: password
+            temporaryPassword: password,
+            productIds
           })
         });
         const data = await response.json().catch(() => null);
@@ -261,7 +298,8 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
             name,
             countryCode,
             isActive: userForm.isActive,
-            role: selectedUser.role
+            role: selectedUser.role,
+            productIds
           })
         });
         const data = await response.json().catch(() => null);
@@ -384,19 +422,19 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   };
 
   const handleAddModule = () => {
-      if (!newModule || modules.includes(newModule)) return;
+      if (!selectedProductId || !newModule.trim()) return;
       void (async () => {
         const response = await fetch('/api/admin/modules', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: newModule })
+          body: JSON.stringify({ productId: selectedProductId, name: newModule.trim() })
         });
         const data = await response.json().catch(() => null);
         if (!response.ok) {
           notify(data?.error || 'Failed to add module', 'error');
           return;
         }
-        onUpdateModules([...modules, data.name].sort((a, b) => a.localeCompare(b)));
+        await loadProductConfig();
         setNewModule('');
       })();
   };
@@ -406,15 +444,90 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
         const response = await fetch('/api/admin/modules', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: mod })
+          body: JSON.stringify({ productId: selectedProductId, name: mod })
         });
         const data = await response.json().catch(() => null);
         if (!response.ok) {
           notify(data?.error || 'Failed to delete module', 'error');
           return;
         }
-        onUpdateModules(modules.filter((module) => module !== mod));
+        await loadProductConfig();
       })();
+  };
+
+  const handleAddProduct = () => {
+    const name = newProductName.trim();
+    if (!name) return;
+    void (async () => {
+      const response = await fetch('/api/admin/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        notify(data?.error || 'Failed to add product', 'error');
+        return;
+      }
+      setNewProductName('');
+      await loadProductConfig();
+      setSelectedProductId(data.id);
+    })();
+  };
+
+  const handleDeleteProduct = (productId: string) => {
+    void (async () => {
+      const response = await fetch('/api/admin/products', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId })
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        notify(data?.error || 'Failed to delete product', 'error');
+        return;
+      }
+      await loadProductConfig();
+    })();
+  };
+
+  const handleAddTargetSystem = () => {
+    if (!selectedProductId || !newTargetSystemName.trim()) return;
+    void (async () => {
+      const response = await fetch('/api/admin/target-systems', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: selectedProductId,
+          name: newTargetSystemName.trim(),
+          baseUrl: newTargetSystemUrl.trim() || null
+        })
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        notify(data?.error || 'Failed to add target system', 'error');
+        return;
+      }
+      setNewTargetSystemName('');
+      setNewTargetSystemUrl('');
+      await loadProductConfig();
+    })();
+  };
+
+  const handleDeleteTargetSystem = (name: string) => {
+    void (async () => {
+      const response = await fetch('/api/admin/target-systems', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: selectedProductId, name })
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        notify(data?.error || 'Failed to delete target system', 'error');
+        return;
+      }
+      await loadProductConfig();
+    })();
   };
 
   const handleSaveEmailSettings = () => {
@@ -487,12 +600,22 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     })();
   };
 
-  const handleTabChange = (nextTab: 'countries' | 'modules' | 'notifications' | 'users') => {
-    if (activeTab === 'notifications' && nextTab !== 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig || helpfulLinksDirty)) {
+  const handleTabChange = (nextTab: 'countries' | 'products' | 'notifications' | 'helpfulLinks' | 'users') => {
+    if (activeTab === 'notifications' && nextTab !== 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig)) {
       setConfirmDialog({
         open: true,
         title: 'Unsaved Notification Settings',
         message: 'You have unsaved notification settings. Leave without saving?',
+        confirmLabel: 'Leave',
+        onConfirm: () => setActiveTab(nextTab)
+      });
+      return;
+    }
+    if (activeTab === 'helpfulLinks' && nextTab !== 'helpfulLinks' && helpfulLinksDirty) {
+      setConfirmDialog({
+        open: true,
+        title: 'Unsaved Helpful Links',
+        message: 'You have unsaved helpful links. Leave without saving?',
         confirmLabel: 'Leave',
         onConfirm: () => setActiveTab(nextTab)
       });
@@ -503,7 +626,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (activeTab === 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig || helpfulLinksDirty)) {
+      if ((activeTab === 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig)) || (activeTab === 'helpfulLinks' && helpfulLinksDirty)) {
         event.preventDefault();
         event.returnValue = '';
       }
@@ -527,16 +650,22 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                Countries
             </button>
             <button 
-              onClick={() => handleTabChange('modules')}
-              className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'modules' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+              onClick={() => handleTabChange('products')}
+              className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'products' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
-               Modules
+               Products
             </button>
             <button 
               onClick={() => handleTabChange('notifications')}
               className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'notifications' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
                Email Notifications
+            </button>
+            <button 
+              onClick={() => handleTabChange('helpfulLinks')}
+              className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'helpfulLinks' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            >
+               Helpful Links
             </button>
             <button 
               onClick={() => handleTabChange('users')}
@@ -596,39 +725,156 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
             </div>
         )}
 
-        {activeTab === 'modules' && (
+        {activeTab === 'products' && (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-                <div className="flex gap-3 mb-6 items-end bg-slate-50 p-4 rounded-lg">
-                    <div className="flex-1">
-                        <label className="text-xs font-semibold text-slate-500 uppercase">Module Name</label>
-                        <input 
-                           type="text" 
-                           className="w-full mt-1 border-slate-300 rounded-md text-sm" 
-                           placeholder="e.g. Logistics"
-                           value={newModule}
-                           onChange={(e) => setNewModule(e.target.value)}
-                        />
+                <div className="grid gap-6 lg:grid-cols-[280px,1fr]">
+                  <div className="space-y-4">
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                      <label className="text-xs font-semibold text-slate-500 uppercase">New Product</label>
+                      <input
+                        type="text"
+                        className="w-full mt-2 border-slate-300 rounded-md text-sm"
+                        placeholder="e.g. EasyOrder"
+                        value={newProductName}
+                        onChange={(e) => setNewProductName(e.target.value)}
+                      />
+                      <button
+                        onClick={handleAddProduct}
+                        className="mt-3 bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-800 flex items-center gap-2"
+                      >
+                        <Plus size={16} /> Add Product
+                      </button>
                     </div>
-                    <button 
-                        onClick={handleAddModule}
-                        className="bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-800 flex items-center gap-2 h-[38px]"
-                    >
-                        <Plus size={16} /> Add
-                    </button>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {modules.map(m => (
-                        <div key={m} className="flex justify-between items-center p-3 border border-slate-200 rounded-lg">
-                            <div className="flex items-center gap-3">
-                                <Package size={18} className="text-slate-400" />
-                                <span className="text-sm font-medium text-slate-900">{m}</span>
+                    <div className="space-y-2">
+                      {products.map((product) => (
+                        <button
+                          key={product.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedProductId(product.id);
+                            onUpdateModules(product.modules.map((module) => module.name));
+                          }}
+                          className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
+                            selectedProductId === product.id
+                              ? 'border-slate-900 bg-slate-900 text-white'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-semibold">{product.name}</p>
+                              <p className={`text-xs mt-1 ${selectedProductId === product.id ? 'text-slate-300' : 'text-slate-500'}`}>
+                                {product.modules.length} modules • {product.targetSystems.length} systems
+                              </p>
                             </div>
-                            <button onClick={() => handleDeleteModule(m)} className="text-slate-400 hover:text-red-500 p-1">
-                                <Trash2 size={16} />
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleDeleteProduct(product.id);
+                              }}
+                              className={`${selectedProductId === product.id ? 'text-slate-300 hover:text-white' : 'text-slate-400 hover:text-red-500'}`}
+                            >
+                              <Trash2 size={16} />
                             </button>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    {selectedProduct ? (
+                      <>
+                        <div className="rounded-xl border border-slate-200 p-5">
+                          <h3 className="text-sm font-semibold text-slate-900">Modules for {selectedProduct.name}</h3>
+                          <div className="flex gap-3 mb-5 items-end bg-slate-50 p-4 rounded-lg mt-4">
+                            <div className="flex-1">
+                              <label className="text-xs font-semibold text-slate-500 uppercase">Module Name</label>
+                              <input
+                                type="text"
+                                className="w-full mt-1 border-slate-300 rounded-md text-sm"
+                                placeholder="e.g. Logistics"
+                                value={newModule}
+                                onChange={(e) => setNewModule(e.target.value)}
+                              />
+                            </div>
+                            <button
+                              onClick={handleAddModule}
+                              className="bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-800 flex items-center gap-2 h-[38px]"
+                            >
+                              <Plus size={16} /> Add
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {selectedProduct.modules.map((module) => (
+                              <div key={module.id} className="flex justify-between items-center p-3 border border-slate-200 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                  <Package size={18} className="text-slate-400" />
+                                  <span className="text-sm font-medium text-slate-900">{module.name}</span>
+                                </div>
+                                <button onClick={() => handleDeleteModule(module.name)} className="text-slate-400 hover:text-red-500 p-1">
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                    ))}
+
+                        <div className="rounded-xl border border-slate-200 p-5">
+                          <h3 className="text-sm font-semibold text-slate-900">Target Systems for {selectedProduct.name}</h3>
+                          <div className="grid gap-3 bg-slate-50 p-4 rounded-lg mt-4 md:grid-cols-[1fr,1.2fr,auto] md:items-end">
+                            <div>
+                              <label className="text-xs font-semibold text-slate-500 uppercase">System Name</label>
+                              <input
+                                type="text"
+                                className="w-full mt-1 border-slate-300 rounded-md text-sm"
+                                placeholder="e.g. Customer Portal"
+                                value={newTargetSystemName}
+                                onChange={(e) => setNewTargetSystemName(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs font-semibold text-slate-500 uppercase">Base URL</label>
+                              <input
+                                type="url"
+                                className="w-full mt-1 border-slate-300 rounded-md text-sm"
+                                placeholder="https://..."
+                                value={newTargetSystemUrl}
+                                onChange={(e) => setNewTargetSystemUrl(e.target.value)}
+                              />
+                            </div>
+                            <button
+                              onClick={handleAddTargetSystem}
+                              className="bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-800 flex items-center gap-2 h-[38px]"
+                            >
+                              <Plus size={16} /> Add
+                            </button>
+                          </div>
+
+                          <div className="space-y-3 mt-5">
+                            {selectedProduct.targetSystems.map((targetSystem) => (
+                              <div key={targetSystem.id} className="flex justify-between items-center gap-3 p-3 border border-slate-200 rounded-lg">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-slate-900">{targetSystem.name}</p>
+                                  <p className="text-xs text-slate-500 truncate">{targetSystem.baseUrl || 'No launch URL configured yet'}</p>
+                                </div>
+                                <button onClick={() => handleDeleteTargetSystem(targetSystem.name)} className="text-slate-400 hover:text-red-500 p-1">
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-slate-200 p-10 text-sm text-slate-500 text-center">
+                        Add your first product to start configuring modules, systems, and user access.
+                      </div>
+                    )}
+                  </div>
                 </div>
             </div>
         )}
@@ -825,46 +1071,49 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                   </div>
                 </div>
 
-                <div className="border-t border-slate-200 pt-5 space-y-4">
-                  <h3 className="text-sm font-semibold text-slate-900">Stakeholder Helpful Links</h3>
-                  <p className="text-xs text-slate-500">
-                    These links appear in the stakeholder dashboard sidebar.
-                  </p>
-                  <div className="space-y-3">
-                    {helpfulLinks.map((link, index) => (
-                      <div key={link.id || index} className="grid grid-cols-1 md:grid-cols-2 gap-2 rounded-lg border border-slate-200 p-3 bg-slate-50">
-                        <input
-                          type="text"
-                          value={link.label}
-                          onChange={(event) => updateHelpfulLink(index, 'label', event.target.value)}
-                          className={fieldBaseClass}
-                          placeholder="Link label"
-                        />
-                        <input
-                          type="url"
-                          value={link.url}
-                          onChange={(event) => updateHelpfulLink(index, 'url', event.target.value)}
-                          className={fieldBaseClass}
-                          placeholder="https://..."
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      onClick={saveHelpfulLinks}
-                      disabled={!helpfulLinksDirty || helpfulLinksSaveState === 'saving'}
-                      className="bg-slate-900 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {helpfulLinksSaveState === 'saving'
-                        ? 'Saving...'
-                        : helpfulLinksSaveState === 'saved'
-                          ? 'Saved'
-                          : 'Save Helpful Links'}
-                    </button>
-                  </div>
-                </div>
             </div>
+        )}
+
+        {activeTab === 'helpfulLinks' && (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+            <h3 className="text-sm font-semibold text-slate-900">Stakeholder Helpful Links</h3>
+            <p className="text-xs text-slate-500">
+              Configure names and URLs shown in stakeholder dashboard sidebar.
+            </p>
+            <div className="space-y-3">
+              {helpfulLinks.map((link, index) => (
+                <div key={link.id || index} className="grid grid-cols-1 md:grid-cols-2 gap-2 rounded-lg border border-slate-200 p-3 bg-slate-50">
+                  <input
+                    type="text"
+                    value={link.label}
+                    onChange={(event) => updateHelpfulLink(index, 'label', event.target.value)}
+                    className={fieldBaseClass}
+                    placeholder="Link label"
+                  />
+                  <input
+                    type="url"
+                    value={link.url}
+                    onChange={(event) => updateHelpfulLink(index, 'url', event.target.value)}
+                    className={fieldBaseClass}
+                    placeholder="https://..."
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={saveHelpfulLinks}
+                disabled={!helpfulLinksDirty || helpfulLinksSaveState === 'saving'}
+                className="bg-slate-900 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {helpfulLinksSaveState === 'saving'
+                  ? 'Saving...'
+                  : helpfulLinksSaveState === 'saved'
+                    ? 'Saved'
+                    : 'Save Helpful Links'}
+              </button>
+            </div>
+          </div>
         )}
 
         {activeTab === 'users' && (
@@ -920,12 +1169,12 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
               <table className="min-w-full divide-y divide-slate-200 text-sm table-fixed">
                 <thead className="bg-slate-50">
                   <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-3 w-[22%]">Name</th>
-                    <th className="px-3 py-3 w-[30%]">Email</th>
+                    <th className="px-3 py-3 w-[20%]">Name</th>
+                    <th className="px-3 py-3 w-[26%]">Email</th>
                     <th className="px-3 py-3 w-[10%]">Country</th>
-                    <th className="px-3 py-3 w-[12%]">Status</th>
-                    <th className="px-3 py-3 w-[18%]">Last Login</th>
-                    <th className="px-3 py-3 w-[8%] text-right">Action</th>
+                    <th className="px-3 py-3 w-[20%]">Products</th>
+                    <th className="px-3 py-3 w-[10%]">Status</th>
+                    <th className="px-3 py-3 w-[14%]">Last Login</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
@@ -943,10 +1192,27 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                     </tr>
                   ) : (
                     filteredUsers.map((user) => (
-                      <tr key={user.id}>
+                      <tr
+                        key={user.id}
+                        onClick={() => openEditUserDrawer(user)}
+                        className="cursor-pointer transition-colors hover:bg-slate-50 focus-within:bg-slate-50"
+                      >
                         <td className="px-3 py-3 font-medium text-slate-900 truncate">{user.name}</td>
                         <td className="px-3 py-3 truncate">{user.email}</td>
                         <td className="px-3 py-3">{user.countryCode || '—'}</td>
+                        <td className="px-3 py-3">
+                          <div className="flex flex-wrap gap-1">
+                            {user.productAccesses.length === 0 ? (
+                              <span className="text-xs text-slate-400">—</span>
+                            ) : (
+                              user.productAccesses.map((product) => (
+                                <span key={product.id} className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                                  {product.name}
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        </td>
                         <td className="px-3 py-3">
                           <span
                             className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -957,14 +1223,6 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                           </span>
                         </td>
                         <td className="px-3 py-3">{formatDateTime(user.lastLoginAt)}</td>
-                        <td className="px-3 py-3 text-right">
-                          <button
-                            onClick={() => openEditUserDrawer(user)}
-                            className="text-sm font-medium text-slate-700 hover:text-slate-900"
-                          >
-                            Manage
-                          </button>
-                        </td>
                       </tr>
                     ))
                   )}
@@ -1029,6 +1287,42 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold uppercase text-slate-500">Product Access</label>
+                  <div className="mt-2 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    {products.length === 0 ? (
+                      <p className="text-sm text-slate-500">Create at least one product first.</p>
+                    ) : (
+                      products.map((product) => {
+                        const checked = userForm.productIds.includes(product.id);
+                        return (
+                          <label key={product.id} className="flex items-start gap-3 text-sm text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(event) => {
+                                setUserForm((prev) => ({
+                                  ...prev,
+                                  productIds: event.target.checked
+                                    ? [...prev.productIds, product.id]
+                                    : prev.productIds.filter((id) => id !== product.id)
+                                }));
+                              }}
+                              className="mt-0.5"
+                            />
+                            <span>
+                              <span className="font-medium text-slate-900">{product.name}</span>
+                              <span className="block text-xs text-slate-500">
+                                {product.modules.length} modules • {product.targetSystems.length} target systems
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
 
                 {userDrawerMode === 'create' ? (

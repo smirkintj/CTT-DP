@@ -19,9 +19,10 @@ import { notify } from './lib/notify';
 import { fieldBaseClass } from './components/ui/formClasses';
 
 const TASK_CACHE_TTL_MS = 30_000;
-const TASK_CACHE_KEY_PREFIX = 'ctt_tasks_cache_v1';
+const TASK_CACHE_KEY_PREFIX = 'ctt_tasks_cache_v2';
 const ADMIN_META_CACHE_TTL_MS = 10 * 60 * 1000;
 const ADMIN_META_CACHE_KEY_PREFIX = 'ctt_admin_meta_cache_v1';
+const LOGIN_LOCK_MS = 30_000;
 
 type CachedTasksPayload = {
   fetchedAt: number;
@@ -253,6 +254,11 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   }, [lockUntil]);
 
   useEffect(() => {
+    if (!lockUntil || remainingLockSeconds <= 0) return;
+    setLoginError(`Too many failed attempts. Please retry in ${remainingLockSeconds}s.`);
+  }, [lockUntil, remainingLockSeconds]);
+
+  useEffect(() => {
     if (status === 'loading') return;
 
     if (!session?.user) {
@@ -306,7 +312,9 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
         const mappedTasks = Array.isArray(data)
           ? data.map((task: any) => ({
               ...task,
-              featureModule: task.featureModule ?? task.module ?? 'General'
+              featureModule: task.featureModule ?? task.module ?? 'General',
+              productName: task.productName ?? 'EasyOrder',
+              productId: task.productId ?? 'prod_easyorder'
             }))
           : [];
         if (!active) return;
@@ -405,11 +413,11 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       const lockKey = `ctt_login_lock_${keyBase}`;
       const nextAttempts = Number(window.localStorage.getItem(attemptsKey) || '0') + 1;
       if (nextAttempts >= 3) {
-        const until = Date.now() + 60_000;
+        const until = Date.now() + LOGIN_LOCK_MS;
         window.localStorage.setItem(lockKey, String(until));
         window.localStorage.removeItem(attemptsKey);
         setLockUntil(until);
-        setLoginError('Too many failed attempts. Please retry in 60 seconds.');
+        setLoginError(`Too many failed attempts. Please retry in ${Math.ceil(LOGIN_LOCK_MS / 1000)}s.`);
       } else {
         window.localStorage.setItem(attemptsKey, String(nextAttempts));
         setLoginError('Invalid email or password. Please try again.');
@@ -692,6 +700,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                      </div>
                    )}
                 </div>
+
              </form>
           </div>
         </div>

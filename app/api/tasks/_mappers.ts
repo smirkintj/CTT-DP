@@ -53,8 +53,14 @@ export function mapTaskToUi(task: any): TaskDTO {
     status: task.status,
     priority: task.priority,
     countryCode: task.countryCode,
+    productId: task.productId,
+    productName: task.product?.name ?? 'EasyOrder',
+    productSlug: task.product?.slug ?? 'easyorder',
     module: task.module,
     featureModule: task.module,
+    targetSystemId: task.targetSystemId ?? null,
+    targetSystem: task.targetSystem?.name ?? null,
+    targetSystemUrl: task.targetSystem?.baseUrl ?? null,
     jiraTicket: task.jiraTicket ?? null,
     crNumber: task.crNumber ?? null,
     developer: task.developer ?? null,
@@ -62,6 +68,14 @@ export function mapTaskToUi(task: any): TaskDTO {
     createdAt: toIso(task.createdAt),
     updatedAt: toIso(task.updatedAt),
     signedOffAt: toIso(task.signedOffAt) || null,
+    signedOff:
+      task.signedOffAt && task.signedOffBy
+        ? {
+            signedBy: task.signedOffBy.name ?? task.signedOffBy.email ?? 'User',
+            signedAt: toIso(task.signedOffAt),
+            signatureData: task.signatureData ?? undefined
+          }
+        : undefined,
 
     assignee: task.assignee
       ? {

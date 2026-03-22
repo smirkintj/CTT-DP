@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Task, User, Role } from '../types';
 import { Badge } from '../components/Badge';
 import { AlertTriangle, TrendingUp, Clock, MessageSquare, ArrowRight, XCircle } from 'lucide-react';
-import { notify } from '../lib/notify';
 
 interface AdminDashboardProps {
   tasks: Task[];
@@ -71,32 +70,27 @@ const hasConditionalStep = (task: Task) => {
   return (task.steps ?? []).some((step) => step.stepResult === 'CONDITIONAL');
 };
 
+const countryBadgeClassMap: Record<string, string> = {
+  SG: 'bg-cyan-100 text-cyan-800',
+  MY: 'bg-blue-100 text-blue-800',
+  TH: 'bg-pink-100 text-pink-800',
+  VN: 'bg-amber-100 text-amber-800',
+  HK: 'bg-rose-100 text-rose-800',
+  TW: 'bg-emerald-100 text-emerald-800',
+  ID: 'bg-orange-100 text-orange-800',
+  PH: 'bg-violet-100 text-violet-800',
+  AU: 'bg-indigo-100 text-indigo-800',
+  NZ: 'bg-lime-100 text-lime-800'
+};
+
+const getCountryBadgeClass = (countryCode?: string) =>
+  countryBadgeClassMap[countryCode || ''] ?? 'bg-slate-100 text-slate-700';
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, onSelectTask, onManageTasks, currentUser }) => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState<'dueDate' | 'priority' | 'status'>('dueDate');
-  const [sendingTest, setSendingTest] = useState(false);
   const [unreadComments, setUnreadComments] = useState(0);
-  
-  const handleSendTestNotification = async () => {
-    try {
-      setSendingTest(true);
-      const res = await fetch('/api/admin/test-notification', { method: 'POST' });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        if (data?.error) {
-          throw new Error(data.error);
-        }
-        const raw = await res.text().catch(() => '');
-        throw new Error(`Failed (${res.status})${raw ? `: ${raw}` : ''}`);
-      }
-      notify('Test email sent successfully', 'success');
-    } catch (err) {
-      notify(err instanceof Error ? err.message : 'Failed to send test email', 'error');
-    } finally {
-      setSendingTest(false);
-    }
-  };
 
   // KPI Calculations
   const totalSteps = tasks.reduce((acc, task) => acc + (task.steps?.length ?? 0), 0);
@@ -214,15 +208,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
            <p className="text-slate-500">Monitor overall progress and address blockers.</p>
         </div>
         <div className="flex gap-2">
-           {currentUser?.role === Role.ADMIN && (
-             <button
-               onClick={handleSendTestNotification}
-               disabled={sendingTest}
-               className="ml-3 px-4 py-2 rounded-lg bg-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-300 disabled:opacity-60 disabled:cursor-not-allowed"
-             >
-               {sendingTest ? 'Sending...' : 'Send Test Notification'}
-             </button>
-           )}
            <button 
              onClick={onManageTasks} // Redirect to manage for now to open create modal there
              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 shadow-sm flex items-center gap-2"
@@ -335,45 +320,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                </div>
              ) : (
                recentTasks.map(task => (
-                  <div 
-                    key={task.id} 
-                    onClick={() => onSelectTask(task)}
-                    className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:border-brand-300 transition-all cursor-pointer group"
-                  >
-                     <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                         <div className="flex items-center gap-2">
-                            <Badge type="module" value={task.featureModule} />
-                            <span className="text-xs text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">{task.countryCode}</span>
-                            {isTaskOverdue(task) && (
-                              <span className="text-xs text-rose-700 font-semibold bg-rose-100 px-2 py-0.5 rounded-full">Overdue</span>
-                            )}
-                            {hasConditionalStep(task) && (
-                              <span className="text-xs text-amber-700 font-semibold bg-amber-100 px-2 py-0.5 rounded-full">Conditional</span>
-                            )}
-                         </div>
-                         <h4 className="font-semibold text-slate-900 group-hover:text-brand-600">{task.title}</h4>
-                         <p className="text-sm text-slate-500 line-clamp-1">{task.description}</p>
-                      </div>
-                      <Badge type="status" value={task.status} />
+                 <div
+                   key={task.id}
+                   onClick={() => onSelectTask(task)}
+                   className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm hover:border-brand-300 transition-all cursor-pointer group"
+                 >
+                   <div className="flex justify-between items-start gap-3">
+                     <div className="min-w-0">
+                       <h4 className="font-semibold text-slate-900 group-hover:text-brand-600 line-clamp-1">{task.title}</h4>
+                       <p className="text-sm text-slate-500 line-clamp-1 mt-0.5">{task.description}</p>
+                     </div>
+                     <Badge type="status" value={task.status} />
                    </div>
-                   
-                   <div className="mt-4 pt-4 border-t border-slate-100">
-                      <div className="flex justify-between items-center gap-4 text-xs text-slate-500">
-                         <span>Assignee: <strong>{task.assignee?.name || task.assignee?.email || task.assigneeId || 'Unassigned'}</strong></span>
-                         <span>Due: {formatDate(task.dueDate)}</span>
-                      </div>
-                      {getSignedOffDate(task) && (
-                        <div className="mt-2 text-xs text-emerald-700 font-medium">
-                          Signed off on {getSignedOffDate(task)}
-                          {getSignedOffByLabel(task) ? ` by ${getSignedOffByLabel(task)}` : ''}
-                        </div>
-                      )}
-                      <div className="mt-2 flex justify-end">
-                        <ArrowRight size={18} className="text-slate-300 group-hover:text-brand-500" />
-                      </div>
+
+                   <div className="mt-3 flex items-center gap-2 flex-wrap">
+                     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-[0.12em] ${getCountryBadgeClass(task.countryCode)}`}>
+                       {task.countryCode}
+                     </span>
+                     <Badge type="product" value={task.productName || 'EasyOrder'} />
+                     <Badge type="module" value={task.featureModule} />
+                     {hasConditionalStep(task) && (
+                       <span className="text-xs text-amber-700 font-semibold bg-amber-100 px-2 py-0.5 rounded-full">Conditional</span>
+                     )}
                    </div>
-                </div>
+
+                   <div className="mt-3 pt-3 border-t border-slate-100">
+                     <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
+                       <span className="truncate">
+                         Assignee: <strong>{task.assignee?.name || task.assignee?.email || task.assigneeId || 'Unassigned'}</strong>
+                       </span>
+                       <span className="inline-flex items-center gap-2 shrink-0">
+                         <span className={isTaskOverdue(task) ? 'text-rose-700 font-semibold' : ''}>
+                           Due: {formatDate(task.dueDate)}
+                         </span>
+                         <ArrowRight size={16} className="text-slate-300 group-hover:text-brand-500" />
+                       </span>
+                     </div>
+                     {getSignedOffDate(task) && (
+                       <div className="mt-2 text-xs text-emerald-700 font-medium">
+                         Signed off on {getSignedOffDate(task)}
+                         {getSignedOffByLabel(task) ? ` by ${getSignedOffByLabel(task)}` : ''}
+                       </div>
+                     )}
+                   </div>
+                 </div>
                ))
              )}
            </div>
@@ -407,7 +397,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                         <XCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0"/>
                         <div>
                            <p className="text-xs font-bold text-red-800 line-clamp-1">{t.title}</p>
-                           <p className="text-[10px] text-red-600 mt-0.5">{t.countryCode} • {getStatusLabel(t.status as unknown as string)}</p>
+                           <p className="text-[10px] text-red-600 mt-0.5">{t.productName || 'EasyOrder'} • {t.countryCode} • {getStatusLabel(t.status as unknown as string)}</p>
                         </div>
                      </div>
                    ))

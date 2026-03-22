@@ -71,6 +71,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.name = user.name;
         token.role = (user as { role?: string }).role;
         token.countryCode = (user as { countryCode?: string | null }).countryCode ?? null;
         token.mustChangePassword = (user as { mustChangePassword?: boolean }).mustChangePassword ?? false;
@@ -88,9 +89,11 @@ export const authOptions: NextAuthOptions = {
           try {
             const dbUser = await prisma.user.findUnique({
               where: { id: token.id as string },
-              select: { mustChangePassword: true }
+              select: { name: true, mustChangePassword: true }
             });
             if (dbUser) {
+              session.user.name = dbUser.name;
+              token.name = dbUser.name;
               session.user.mustChangePassword = dbUser.mustChangePassword;
               token.mustChangePassword = dbUser.mustChangePassword;
             }

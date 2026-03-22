@@ -1,4 +1,6 @@
 export enum Status {
+  DRAFT = 'Draft',
+  READY = 'Ready',
   PENDING = 'Pending',
   IN_PROGRESS = 'In Progress',
   PASSED = 'Passed',
@@ -24,24 +26,39 @@ export interface User {
   name: string;
   email: string;
   role: Role;
-  countryCode: string;
+  countryCode: string | null;
   avatarUrl?: string;
+  productAccesses?: ProductSummary[];
 }
 
 export type ScopeType = 'Global' | 'Regional' | 'Local';
-export type TargetSystem = 'Ordering Portal' | 'Admin Portal';
+
+export interface ProductSummary {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface TargetSystemSummary {
+  id: string;
+  name: string;
+  baseUrl?: string | null;
+}
 
 export interface Task {
   id: string;
   taskGroupId?: string | null;
   title: string;
   description: string;
+  productId: string;
+  productName: string;
+  productSlug?: string;
   featureModule: string; 
   status: Status;
   priority: Priority;
   countryCode: string;
-  assigneeId: string;
-  dueDate: string;
+  assigneeId: string | null;
+  dueDate: string | null;
   createdAt?: string;
   steps: TestStep[];
   commentCount?: number;
@@ -63,7 +80,9 @@ export interface Task {
   crNumber?: string; // Change Request Number (SAP)
   developer?: string;
   scope: ScopeType;
-  targetSystem: TargetSystem; // Determines the UAT URL
+  targetSystem?: string;
+  targetSystemId?: string | null;
+  targetSystemUrl?: string | null;
   referenceVideoUrl?: string; // URL for GIF/Video guide
   
   // Blocking
@@ -140,6 +159,12 @@ export interface CountryConfig {
   name: string;
   color: string;
   flag?: string; 
+}
+
+export interface AdminProductConfig extends ProductSummary {
+  isActive: boolean;
+  modules: Array<{ id: string; name: string; isActive: boolean }>;
+  targetSystems: Array<TargetSystemSummary & { isActive: boolean }>;
 }
 
 export type ViewState = 'LOGIN' | 'DASHBOARD_STAKEHOLDER' | 'DASHBOARD_ADMIN' | 'TASK_DETAIL' | 'IMPORT_WIZARD' | 'ADMIN_TASK_MANAGEMENT' | 'ADMIN_DATABASE' | 'INBOX' | 'KNOWLEDGE_BASE';

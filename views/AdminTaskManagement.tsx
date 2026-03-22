@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Task, Priority, TestStep, TargetSystem, CountryConfig } from '../types';
+import { Task, Priority, TestStep, CountryConfig, AdminProductConfig } from '../types';
 import { Badge } from '../components/Badge';
 import { Trash2, Plus, Search, Filter, X, Save, Globe } from 'lucide-react';
 import { apiFetch } from '../lib/http';
@@ -30,7 +30,14 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     availableCountries,
     availableModules 
 }) => {
-  const [stakeholders, setStakeholders] = useState<Array<{ id: string; name: string; email: string; countryCode: string }>>([]);
+  const [stakeholders, setStakeholders] = useState<Array<{
+    id: string;
+    name: string;
+    email: string;
+    countryCode: string;
+    productAccesses?: Array<{ id: string; name: string; slug: string }>;
+  }>>([]);
+  const [products, setProducts] = useState<AdminProductConfig[]>([]);
   const [assigneeByCountry, setAssigneeByCountry] = useState<Record<string, string>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -46,12 +53,15 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const [newTask, setNewTask] = useState<Partial<Task>>({
      title: '',
      description: '',
+     productId: '',
+     productName: '',
      jiraTicket: '',
-     featureModule: 'Ordering',
+     featureModule: '',
      priority: Priority.MEDIUM,
      dueDate: '',
      scope: 'Local',
-     targetSystem: 'Ordering Portal',
+     targetSystem: '',
+     targetSystemId: '',
      crNumber: '',
   });
   const [creating, setCreating] = useState(false);
@@ -104,21 +114,37 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const defaultNewTask: Partial<Task> = {
     title: '',
     description: '',
+    productId: '',
+    productName: '',
     jiraTicket: '',
-    featureModule: 'Ordering',
+    featureModule: '',
     priority: Priority.MEDIUM,
     dueDate: '',
     scope: 'Local',
-    targetSystem: 'Ordering Portal',
+    targetSystem: '',
+    targetSystemId: '',
     crNumber: '',
     developer: ''
   };
+
+  const getDefaultTaskValues = (): Partial<Task> => {
+    const firstProduct = products[0];
+    return {
+      ...defaultNewTask,
+      productId: firstProduct?.id ?? '',
+      productName: firstProduct?.name ?? '',
+      featureModule: firstProduct?.modules[0]?.name ?? '',
+      targetSystem: firstProduct?.targetSystems[0]?.name ?? '',
+      targetSystemId: firstProduct?.targetSystems[0]?.id ?? ''
+    };
+  };
+  const initialTaskDefaults = getDefaultTaskValues();
   const defaultSteps: Partial<TestStep>[] = [
     { id: '1', description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }
   ];
 
   const resetCreateForm = () => {
-    setNewTask(defaultNewTask);
+    setNewTask(getDefaultTaskValues());
     setSelectedCountries(['SG']);
     setAssigneeByCountry({});
     setSteps(defaultSteps);
@@ -127,15 +153,16 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   };
 
   const isCreateDirty =
-    (newTask.title ?? '') !== (defaultNewTask.title ?? '') ||
-    (newTask.description ?? '') !== (defaultNewTask.description ?? '') ||
-    (newTask.jiraTicket ?? '') !== (defaultNewTask.jiraTicket ?? '') ||
-    (newTask.featureModule ?? '') !== (defaultNewTask.featureModule ?? '') ||
-    (newTask.priority ?? Priority.MEDIUM) !== (defaultNewTask.priority ?? Priority.MEDIUM) ||
-    (newTask.dueDate ?? '') !== (defaultNewTask.dueDate ?? '') ||
-    (newTask.targetSystem ?? 'Ordering Portal') !== (defaultNewTask.targetSystem ?? 'Ordering Portal') ||
-    (newTask.crNumber ?? '') !== (defaultNewTask.crNumber ?? '') ||
-    (newTask.developer ?? '') !== (defaultNewTask.developer ?? '') ||
+    (newTask.title ?? '') !== (initialTaskDefaults.title ?? '') ||
+    (newTask.description ?? '') !== (initialTaskDefaults.description ?? '') ||
+    (newTask.productId ?? '') !== (initialTaskDefaults.productId ?? '') ||
+    (newTask.jiraTicket ?? '') !== (initialTaskDefaults.jiraTicket ?? '') ||
+    (newTask.featureModule ?? '') !== (initialTaskDefaults.featureModule ?? '') ||
+    (newTask.priority ?? Priority.MEDIUM) !== (initialTaskDefaults.priority ?? Priority.MEDIUM) ||
+    (newTask.dueDate ?? '') !== (initialTaskDefaults.dueDate ?? '') ||
+    (newTask.targetSystemId ?? '') !== (initialTaskDefaults.targetSystemId ?? '') ||
+    (newTask.crNumber ?? '') !== (initialTaskDefaults.crNumber ?? '') ||
+    (newTask.developer ?? '') !== (initialTaskDefaults.developer ?? '') ||
     selectedCountries.length !== 1 ||
     selectedCountries[0] !== 'SG' ||
     Object.keys(assigneeByCountry).length > 0 ||
@@ -167,19 +194,42 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   };
 
   useEffect(() => {
-    const loadStakeholders = async () => {
+    const loadMetadata = async () => {
       try {
-        const data = await apiFetch<Array<{ id: string; name: string; email: string; countryCode: string }>>(
+        const [data, config] = await Promise.all([
+          apiFetch<Array<{ id: string; name: string; email: string; countryCode: string; productAccesses?: Array<{ id: string; name: string; slug: string }> }>>(
           '/api/admin/stakeholders',
           { cache: 'no-store' }
-        );
+          ),
+          apiFetch<AdminProductConfig[]>('/api/admin/task-config', { cache: 'no-store' })
+        ]);
         if (Array.isArray(data)) setStakeholders(data);
+        if (Array.isArray(config)) {
+          setProducts(config);
+          setNewTask((prev) => {
+            if (prev.productId) return prev;
+            const firstProduct = config[0];
+            if (!firstProduct) return prev;
+            return {
+              ...prev,
+              productId: firstProduct.id,
+              productName: firstProduct.name,
+              featureModule: firstProduct.modules[0]?.name ?? '',
+              targetSystem: firstProduct.targetSystems[0]?.name ?? '',
+              targetSystemId: firstProduct.targetSystems[0]?.id ?? ''
+            };
+          });
+        }
       } catch {
-        notify('Failed to load stakeholders', 'error');
+        notify('Failed to load task configuration', 'error');
       }
     };
-    void loadStakeholders();
+    void loadMetadata();
   }, []);
+
+  const currentProduct = products.find((product) => product.id === newTask.productId) ?? null;
+  const productModules = currentProduct?.modules ?? [];
+  const productTargetSystems = currentProduct?.targetSystems ?? [];
 
   useEffect(() => {
     if (stakeholders.length === 0) return;
@@ -187,13 +237,19 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       const next = { ...prev };
       for (const countryCode of selectedCountries) {
         if (!next[countryCode]) {
-          const match = stakeholders.find((u) => u.countryCode === countryCode);
+          const match = stakeholders.find(
+            (u) =>
+              u.countryCode === countryCode &&
+              (newTask.productId
+                ? (u.productAccesses ?? []).some((access) => access.id === newTask.productId)
+                : true)
+          );
           if (match) next[countryCode] = match.id;
         }
       }
       return next;
     });
-  }, [stakeholders, selectedCountries]);
+  }, [stakeholders, selectedCountries, newTask.productId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -238,7 +294,9 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       const mappedTasks = Array.isArray(refreshed)
         ? refreshed.map((task) => ({
             ...task,
-            featureModule: task.featureModule ?? (task as any).module ?? 'General'
+            featureModule: task.featureModule ?? (task as any).module ?? 'General',
+            productName: task.productName ?? 'EasyOrder',
+            productId: task.productId ?? 'prod_easyorder'
           }))
         : [];
       onAddTask(mappedTasks);
@@ -785,17 +843,19 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
        setCreating(true);
        setCreateSaveState('saving');
        setCreateError(null);
-       const data = await apiFetch<Task[]>('/api/tasks', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({
-           title: newTask.title,
-           description: newTask.description,
-           jiraTicket: normalizedJira || undefined,
-           featureModule: newTask.featureModule,
-           module: newTask.featureModule,
-           crNumber: newTask.crNumber,
-           developer: newTask.developer,
+      const data = await apiFetch<Task[]>('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newTask.title,
+          description: newTask.description,
+          productId: newTask.productId,
+          jiraTicket: normalizedJira || undefined,
+          featureModule: newTask.featureModule,
+          module: newTask.featureModule,
+          targetSystemId: newTask.targetSystemId,
+          crNumber: newTask.crNumber,
+          developer: newTask.developer,
            priority: newTask.priority,
            dueDate: newTask.dueDate ? new Date(newTask.dueDate).toISOString() : undefined,
            countries: selectedCountries,
@@ -1085,6 +1145,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                        />
                      </th>
                      <th className="px-4 py-4 w-[22%]">Task</th>
+                     <th className="px-3 py-4 w-[12%]">Product</th>
                      <th className="px-3 py-4 w-[14%]">Module</th>
                      <th className="px-3 py-4 w-[8%]">Country</th>
                      <th className="px-3 py-4 w-[11%]">Status</th>
@@ -1097,13 +1158,13 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                <tbody className="divide-y divide-slate-100">
                   {loading && filteredTasks.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-10 text-center text-slate-500">
+                      <td colSpan={10} className="px-6 py-10 text-center text-slate-500">
                         Loading tasks for task management...
                       </td>
                     </tr>
                   ) : filteredTasks.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-10 text-center text-slate-400">
+                      <td colSpan={10} className="px-6 py-10 text-center text-slate-400">
                         No tasks found. Adjust filters or search to continue.
                       </td>
                     </tr>
@@ -1132,6 +1193,9 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                            />
                          </td>
                          <td className="px-4 py-4 font-medium text-slate-900 truncate" title={task.title}>{task.title}</td>
+                         <td className="px-3 py-4">
+                            <Badge type="product" value={task.productName || 'EasyOrder'} />
+                         </td>
                          <td className="px-3 py-4">
                             <Badge type="module" value={task.featureModule} />
                          </td>
@@ -1174,7 +1238,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                 <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
                    
                    {/* Main Info */}
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                        <div>
                           <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
                           <input 
@@ -1186,14 +1250,43 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                           />
                        </div>
                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Product</label>
+                          <select
+                             className={selectBaseClass}
+                             value={newTask.productId}
+                             onChange={(e) => {
+                               const nextProduct = products.find((product) => product.id === e.target.value);
+                               setNewTask({
+                                 ...newTask,
+                                 productId: e.target.value,
+                                 productName: nextProduct?.name ?? '',
+                                 featureModule: nextProduct?.modules[0]?.name ?? '',
+                                 targetSystem: nextProduct?.targetSystems[0]?.name ?? '',
+                                 targetSystemId: nextProduct?.targetSystems[0]?.id ?? ''
+                               });
+                               setAssigneeByCountry({});
+                             }}
+                          >
+                             {products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+                          </select>
+                       </div>
+                       <div>
                           <label className="block text-sm font-medium text-slate-700 mb-1">Target System</label>
                           <select 
                              className={selectBaseClass}
-                             value={newTask.targetSystem}
-                             onChange={(e) => setNewTask({...newTask, targetSystem: e.target.value as TargetSystem})}
+                             value={newTask.targetSystemId}
+                             onChange={(e) => {
+                               const nextTargetSystem = productTargetSystems.find((item) => item.id === e.target.value);
+                               setNewTask({
+                                 ...newTask,
+                                 targetSystemId: e.target.value,
+                                 targetSystem: nextTargetSystem?.name ?? ''
+                               });
+                             }}
                           >
-                             <option value="Ordering Portal">Ordering Portal</option>
-                             <option value="Admin Portal">Admin Portal</option>
+                             {productTargetSystems.map((targetSystem) => (
+                               <option key={targetSystem.id} value={targetSystem.id}>{targetSystem.name}</option>
+                             ))}
                           </select>
                        </div>
                    </div>
@@ -1217,7 +1310,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                             value={newTask.featureModule}
                             onChange={(e) => setNewTask({...newTask, featureModule: e.target.value})}
                          >
-                            {availableModules.map(m => <option key={m}>{m}</option>)}
+                            {productModules.map((moduleItem) => <option key={moduleItem.id} value={moduleItem.name}>{moduleItem.name}</option>)}
                          </select>
                       </div>
                       <div>
@@ -1281,7 +1374,13 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                       <label className="block text-sm font-medium text-slate-700 mb-2">Assign Stakeholder By Country</label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {selectedCountries.map((countryCode) => {
-                          const options = stakeholders.filter((u) => u.countryCode === countryCode);
+                          const options = stakeholders.filter(
+                            (u) =>
+                              u.countryCode === countryCode &&
+                              (newTask.productId
+                                ? (u.productAccesses ?? []).some((access) => access.id === newTask.productId)
+                                : true)
+                          );
                           return (
                             <div key={countryCode} className="bg-white border border-slate-200 rounded-md p-3">
                               <div className="text-xs text-slate-500 mb-1">{countryCode}</div>
@@ -1297,6 +1396,11 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                                   </option>
                                 ))}
                               </select>
+                              {options.length === 0 && (
+                                <p className="mt-2 text-[11px] text-amber-600">
+                                  No stakeholder in {countryCode} currently has access to this product.
+                                </p>
+                              )}
                             </div>
                           );
                         })}

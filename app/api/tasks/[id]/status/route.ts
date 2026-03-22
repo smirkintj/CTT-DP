@@ -9,6 +9,7 @@ import { sendTeamsMessage } from '../../../../../lib/teams';
 import { validateExpectedUpdatedAt, validateTaskTransition } from '../../../../../lib/taskGuards';
 import { createTaskHistory } from '../../../../../lib/taskHistory';
 import { badRequest, conflict, forbidden, notFound, unauthorized } from '../../../../../lib/apiError';
+import { adminCanAccessProduct } from '../../../../../lib/adminAccess';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -65,6 +66,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (task.status === 'DRAFT') {
       return conflict('Task is not ready for stakeholder actions', 'TASK_NOT_READY');
     }
+  } else if (!(await adminCanAccessProduct(session.user.id, task.productId))) {
+    return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
   }
 
   const dbStatus = mapUiStatusToDb(status);

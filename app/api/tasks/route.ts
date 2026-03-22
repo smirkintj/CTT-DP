@@ -10,6 +10,7 @@ import { isValidDueDate, isValidJiraTicket } from '../../../lib/taskValidation';
 import { taskRelationIncludeList, taskRelationIncludeSafe } from './_query';
 import { randomUUID } from 'crypto';
 import { logPilotEvent } from '../../../lib/telemetry';
+import { adminCanAccessProduct, getAdminProductScope } from '../../../lib/adminAccess';
 
 export async function GET() {
   const startedAt = Date.now();
@@ -25,7 +26,12 @@ export async function GET() {
     return unauthorized('Unauthorized', 'AUTH_INVALID_SESSION');
   }
 
-  const where = isAdmin ? undefined : { assigneeId: session.user.id };
+  const adminScope = isAdmin ? await getAdminProductScope(session.user.id) : null;
+  const where = isAdmin
+    ? adminScope?.restricted
+      ? { productId: { in: adminScope.productIds } }
+      : undefined
+    : { assigneeId: session.user.id };
   try {
     let tasks: any[] = [];
     try {
@@ -120,7 +126,9 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const title = body?.title?.toString().trim();
   const description = body?.description?.toString() ?? '';
+  const productId = body?.productId?.toString().trim();
   const moduleName = body?.module?.toString().trim() || body?.featureModule?.toString().trim() || 'General';
+  const targetSystemId = body?.targetSystemId?.toString().trim() || null;
   const jiraTicket = body?.jiraTicket?.toString().trim() || null;
   const crNumber = body?.crNumber?.toString().trim() || null;
   const developer = body?.developer?.toString().trim() || null;
@@ -142,6 +150,9 @@ export async function POST(req: Request) {
   if (countries.length === 0) {
     return badRequest('At least one country is required', 'TASK_COUNTRY_REQUIRED');
   }
+  if (!productId) {
+    return badRequest('Product is required', 'TASK_PRODUCT_REQUIRED');
+  }
   if (!isValidJiraTicket(body?.jiraTicket)) {
     return badRequest('Invalid Jira ticket format', 'TASK_JIRA_INVALID');
   }
@@ -160,6 +171,43 @@ export async function POST(req: Request) {
     priorityRaw && Object.values(TaskPriority).includes(priorityRaw) ? priorityRaw : TaskPriority.MEDIUM;
   const dueDate = dueDateRaw ? new Date(dueDateRaw) : null;
 
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { id: true, name: true }
+  });
+  if (!product) {
+    return badRequest('Product does not exist', 'TASK_PRODUCT_INVALID');
+  }
+  if (!(await adminCanAccessProduct(session.user.id, productId))) {
+    return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
+  }
+
+  const moduleRecord = await prisma.module.findFirst({
+    where: {
+      productId,
+      name: moduleName,
+      isActive: true
+    },
+    select: { id: true }
+  });
+  if (!moduleRecord) {
+    return badRequest('Module is invalid for the selected product', 'TASK_MODULE_INVALID');
+  }
+
+  const targetSystem = targetSystemId
+    ? await prisma.targetSystem.findFirst({
+        where: {
+          id: targetSystemId,
+          productId,
+          isActive: true
+        },
+        select: { id: true }
+      })
+    : null;
+  if (targetSystemId && !targetSystem) {
+    return badRequest('Target system is invalid for the selected product', 'TASK_TARGET_SYSTEM_INVALID');
+  }
+
   const createdTaskIds: string[] = [];
   const taskGroupId = countries.length > 1 ? randomUUID() : null;
 
@@ -173,7 +221,12 @@ export async function POST(req: Request) {
           id: selectedAssigneeId,
           role: UserRole.STAKEHOLDER,
           isActive: true,
-          countryCode
+          countryCode,
+          productAccesses: {
+            some: {
+              productId
+            }
+          }
         },
         select: {
           id: true,
@@ -194,7 +247,12 @@ export async function POST(req: Request) {
         where: {
           role: UserRole.STAKEHOLDER,
           isActive: true,
-          countryCode
+          countryCode,
+          productAccesses: {
+            some: {
+              productId
+            }
+          }
         },
         select: {
           id: true,
@@ -211,7 +269,9 @@ export async function POST(req: Request) {
         jiraTicket,
         crNumber,
         developer,
+        productId,
         module: moduleName,
+        targetSystemId: targetSystem?.id ?? null,
         status: TaskStatus.DRAFT,
         priority,
         countryCode,
@@ -236,7 +296,9 @@ export async function POST(req: Request) {
         jiraTicket,
         crNumber,
         developer,
+        productId,
         module: moduleName,
+        targetSystemId: targetSystem?.id ?? null,
         status: TaskStatus.DRAFT,
         priority,
         countryCode,

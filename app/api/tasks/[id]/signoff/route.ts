@@ -23,6 +23,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const body = await req.json().catch(() => null);
+  const signatureData =
+    typeof body?.signatureData === 'string' && body.signatureData.startsWith('data:image/')
+      ? body.signatureData
+      : null;
 
   const task = await prisma.task.findUnique({
     where: { id },
@@ -65,6 +69,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     data: {
       signedOffAt,
       signedOffById: session.user.id,
+      signatureData,
       updatedById: session.user.id
     }
   });
@@ -84,7 +89,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     message: `${session.user.name || session.user.email || 'User'} signed off the task.`,
     after: {
       signedOffAt: signedOffAt.toISOString(),
-      signedOffById: session.user.id
+      signedOffById: session.user.id,
+      signatureCaptured: Boolean(signatureData)
     }
   });
 

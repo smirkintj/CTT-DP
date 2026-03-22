@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Task, Status, User, Role, TestStep, Priority } from '../types';
+import { Task, Status, User, Role, TestStep, Priority, AdminProductConfig } from '../types';
 import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer, Trash2, Loader2, ShieldCheck } from 'lucide-react';
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { ApiError } from '../lib/http';
@@ -127,6 +127,47 @@ const getStepOutcome = (step: TestStep): 'PASSED' | 'FAILED' | 'CONDITIONAL' | n
 
 const isStepResolved = (step: TestStep) => getStepOutcome(step) !== null;
 
+const ISO_REQUIREMENTS = [
+  'Only authorized users should access or modify data needed for development or enhancement.',
+  'Production data should not be tampered with without proper authorization and business justification. Production data should not be improperly modified, either accidentally or maliciously.',
+  'Only authorized users should access data whenever they need to do so, with proper approvals and audit trail.',
+  'Production data copied into staging environment is only meant for testing purposes. The data should NOT be migrated back to production, and staging data should be protected with the same mechanism as production.',
+  'Data held in staging or test environment are only for testing purposes and should not be used for any other purposes.',
+  'During migration to production, any system downtime should be planned and communicated to affected users. If possible, it should not affect business use of the system.',
+];
+
+const IsoComplianceBanner: React.FC = () => {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="rounded-xl border border-blue-200 bg-blue-50 print:hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <span className="flex items-center gap-2 text-sm font-medium text-blue-800">
+          <ShieldCheck size={16} className="shrink-0 text-blue-600" />
+          ISO 27001:2013 Data Handling Requirements
+        </span>
+        {expanded
+          ? <ChevronUp size={16} className="shrink-0 text-blue-500" />
+          : <ChevronDown size={16} className="shrink-0 text-blue-500" />}
+      </button>
+      {expanded && (
+        <ul className="px-4 pb-4 space-y-2">
+          {ISO_REQUIREMENTS.map((req, i) => (
+            <li key={i} className="flex gap-2 text-sm text-blue-900">
+              <span className="mt-0.5 shrink-0 text-blue-400">•</span>
+              <span>{req}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
 export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initialStepOrder = null, initialCommentId = null, onBack, onUpdateTask, onDeleteTask }) => {
   const [localTask, setLocalTask] = useState<Task>(() => normalizeTask(task));
   const [expandedStep, setExpandedStep] = useState<string | null>(() => {
@@ -141,7 +182,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     developer: task.developer ?? '',
     dueDate: toDateInputValue(task.dueDate),
     priority: task.priority ?? Priority.MEDIUM,
+    productId: task.productId ?? '',
     featureModule: task.featureModule ?? '',
+    targetSystemId: task.targetSystemId ?? '',
     assigneeId: task.assignee?.id ?? ''
   });
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
@@ -157,6 +200,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   const [markingCommentsRead, setMarkingCommentsRead] = useState(false);
   const [markingReady, setMarkingReady] = useState(false);
   const [signingOff, setSigningOff] = useState(false);
+  const [emailingReport, setEmailingReport] = useState(false);
   const [taskMetaSaveState, setTaskMetaSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [taskMetaError, setTaskMetaError] = useState<string | null>(null);
   const [applyGlobalMetaUpdate, setApplyGlobalMetaUpdate] = useState(false);
@@ -168,7 +212,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   const [uploadStepId, setUploadStepId] = useState<string | null>(null);
   const [mentionUsers, setMentionUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const [availableModules, setAvailableModules] = useState<string[]>([]);
-  const [stakeholderOptions, setStakeholderOptions] = useState<Array<{ id: string; name: string; email: string; countryCode: string }>>([]);
+  const [products, setProducts] = useState<AdminProductConfig[]>([]);
+  const [stakeholderOptions, setStakeholderOptions] = useState<Array<{ id: string; name: string; email: string; countryCode: string; productAccesses?: Array<{ id: string; name: string; slug: string }> }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentElementRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const commentDraftStorageKey = useMemo(
@@ -208,14 +253,19 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     'Stakeholder';
   const signedOnValue = localTask.signedOffAt || localTask.signedOff?.signedAt;
   const signedOnLabel = formatDateTimeLocal(signedOnValue ?? undefined);
-  const countryStakeholders = stakeholderOptions.filter((user) => user.countryCode === localTask.countryCode);
-  const moduleOptions = Array.from(new Set([...(availableModules || []), localTask.featureModule || ''])).filter(Boolean);
+  const currentProduct = products.find((product) => product.id === taskEdits.productId || product.id === localTask.productId) ?? null;
+  const countryStakeholders = stakeholderOptions.filter(
+    (user) =>
+      user.countryCode === localTask.countryCode &&
+      ((user.productAccesses ?? []).length === 0 ||
+        (taskEdits.productId ? (user.productAccesses ?? []).some((access) => access.id === taskEdits.productId) : true))
+  );
+  const moduleOptions = Array.from(new Set([...(currentProduct?.modules.map((module) => module.name) || availableModules || []), localTask.featureModule || ''])).filter(Boolean);
+  const targetSystemOptions = currentProduct?.targetSystems ?? [];
   const canUnassign = isDraft;
 
   // Portal URL Logic
-  const portalUrl = localTask.targetSystem === 'Admin Portal' 
-    ? 'https://www.easyorderadminstg.dksh.com' 
-    : 'https://www.easyorderstg.dksh.com';
+  const portalUrl = localTask.targetSystemUrl || '#';
 
   const normalizeMentionSearch = (value: string) =>
     value
@@ -533,7 +583,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       }
       const response = await fetch(`/api/tasks/${localTask.id}/signoff`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          signatureData,
+          expectedUpdatedAt: localTask.updatedAt
+        })
       });
       if (!response.ok) {
         const data = await response.json().catch(() => null);
@@ -591,6 +645,25 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
         return;
       }
       reportWindow.focus();
+  };
+
+  const handleEmailReport = () => {
+    void (async () => {
+      setEmailingReport(true);
+      try {
+        const response = await fetch(`/api/tasks/${localTask.id}/signoff-report/email`, {
+          method: 'POST'
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          notify(data?.error || 'Failed to email report', 'error');
+          return;
+        }
+        notify('Report email sent to your inbox.', 'success');
+      } finally {
+        setEmailingReport(false);
+      }
+    })();
   };
 
   const handleDeleteTask = async () => {
@@ -699,7 +772,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
           developer: taskEdits.developer,
           dueDate: fromDateInputValue(taskEdits.dueDate),
           priority: taskEdits.priority,
+          productId: taskEdits.productId,
           module: taskEdits.featureModule,
+          targetSystemId: taskEdits.targetSystemId || null,
           ...(includeAssigneePatch ? { assigneeId: requestedAssigneeId || null } : {}),
           expectedUpdatedAt: localTask.updatedAt,
           applyToGroup: applyGlobalMetaUpdate
@@ -726,7 +801,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
         developer: safeUpdated.developer ?? '',
         dueDate: toDateInputValue(safeUpdated.dueDate),
         priority: safeUpdated.priority ?? Priority.MEDIUM,
+        productId: safeUpdated.productId ?? '',
         featureModule: safeUpdated.featureModule ?? '',
+        targetSystemId: safeUpdated.targetSystemId ?? '',
         assigneeId: safeUpdated.assignee?.id ?? ''
       });
       const summary = (updated as any)?.globalUpdateSummary;
@@ -885,7 +962,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       developer: safe.developer ?? '',
       dueDate: toDateInputValue(safe.dueDate),
       priority: safe.priority ?? Priority.MEDIUM,
+      productId: safe.productId ?? '',
       featureModule: safe.featureModule ?? '',
+      targetSystemId: safe.targetSystemId ?? '',
       assigneeId: safe.assignee?.id ?? ''
     });
     setTaskMetaError(null);
@@ -1003,10 +1082,15 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
   useEffect(() => {
     if (!isAdmin) return;
     const loadAdminOptions = async () => {
-      const [modulesRes, stakeholdersRes] = await Promise.all([
+      const [configRes, modulesRes, stakeholdersRes] = await Promise.all([
+        fetch('/api/admin/task-config', { cache: 'no-store' }),
         fetch('/api/admin/modules', { cache: 'no-store' }),
         fetch('/api/admin/stakeholders', { cache: 'no-store' })
       ]);
+      if (configRes.ok) {
+        const config = await configRes.json();
+        if (Array.isArray(config)) setProducts(config);
+      }
       if (modulesRes.ok) {
         const modules = await modulesRes.json();
         if (Array.isArray(modules)) setAvailableModules(modules);
@@ -1074,6 +1158,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
             This task is in Draft. Stakeholders can view it, but testing actions are locked until admin marks it as READY.
           </div>
         )}
+
+        {/* ISO 27001:2013 Compliance Notice */}
+        <IsoComplianceBanner />
           
         {/* Task Header Card */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 relative overflow-hidden print:border-0 print:shadow-none">
@@ -1085,6 +1172,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
           
           <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex flex-wrap gap-2">
+                <Badge type="product" value={localTask.productName || 'EasyOrder'} />
                 <Badge type="module" value={localTask.featureModule} />
                 {isAdmin && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-sky-50 text-sky-700 border border-sky-100">
@@ -1126,15 +1214,17 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                  )}
             </div>
             {/* Launch UAT Button - Hidden in Print */}
-            <a 
-                href={portalUrl} 
-                target="_blank" 
-                rel="noreferrer"
-                className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-3 bg-brand-600 text-white rounded-lg shadow-sm hover:bg-brand-700 transition-colors font-medium text-sm print:hidden"
-            >
-                <Monitor size={18} /> Launch {localTask.targetSystem}
-                <ExternalLink size={14} className="opacity-70" />
-            </a>
+            {localTask.targetSystem && portalUrl !== '#' && (
+              <a 
+                  href={portalUrl} 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-3 bg-brand-600 text-white rounded-lg shadow-sm hover:bg-brand-700 transition-colors font-medium text-sm print:hidden"
+              >
+                  <Monitor size={18} /> Launch {localTask.targetSystem}
+                  <ExternalLink size={14} className="opacity-70" />
+              </a>
+            )}
           </div>
 
           {/* Meta Data Grid */}
@@ -1233,6 +1323,30 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                 )}
               </div>
               <div>
+                <span className="text-xs text-slate-400 block mb-1">Product</span>
+                {canEditTaskMeta ? (
+                  <select
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                    value={taskEdits.productId}
+                    onChange={(e) => {
+                      const nextProduct = products.find((product) => product.id === e.target.value);
+                      setTaskEdits({
+                        ...taskEdits,
+                        productId: e.target.value,
+                        featureModule: nextProduct?.modules[0]?.name ?? '',
+                        targetSystemId: nextProduct?.targetSystems[0]?.id ?? ''
+                      });
+                    }}
+                  >
+                    {products.map((product) => (
+                      <option key={product.id} value={product.id}>{product.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-sm text-slate-700">{localTask.productName || 'EasyOrder'}</span>
+                )}
+              </div>
+              <div>
                 <span className="text-xs text-slate-400 block mb-1">Module</span>
                 {canEditTaskMeta ? (
                   <select
@@ -1248,6 +1362,23 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                   </select>
                 ) : (
                   <span className="text-sm text-slate-700">{localTask.featureModule}</span>
+                )}
+              </div>
+              <div>
+                <span className="text-xs text-slate-400 block mb-1">Target System</span>
+                {canEditTaskMeta ? (
+                  <select
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                    value={taskEdits.targetSystemId}
+                    onChange={(e) => setTaskEdits({ ...taskEdits, targetSystemId: e.target.value })}
+                  >
+                    <option value="">None</option>
+                    {targetSystemOptions.map((targetSystem) => (
+                      <option key={targetSystem.id} value={targetSystem.id}>{targetSystem.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-sm text-slate-700">{localTask.targetSystem || 'N/A'}</span>
                 )}
               </div>
               <div>
@@ -1410,9 +1541,25 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                              <p className={`text-sm font-medium ${stepOutcome === 'PASSED' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                                {step.description}
-                              </p>
+                              {isAdmin && editingStepId === step.id ? (
+                                <textarea
+                                  className="min-h-[72px] w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm focus:border-brand-500 focus:ring-brand-500"
+                                  rows={3}
+                                  value={stepEdits[step.id]?.description ?? ''}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                  onChange={(e) =>
+                                    setStepEdits((prev) => ({
+                                      ...prev,
+                                      [step.id]: { ...prev[step.id], description: e.target.value }
+                                    }))
+                                  }
+                                />
+                              ) : (
+                                <p className={`text-sm font-medium ${stepOutcome === 'PASSED' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                                  {step.description}
+                                </p>
+                              )}
                               {stepOutcome === 'CONDITIONAL' && (
                                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">
                                   Conditional
@@ -1436,13 +1583,13 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                              <div className="flex items-center gap-2">
                                <button
                                  onClick={(e) => { e.stopPropagation(); startEditStep(step); }}
-                                 className="text-[10px] font-medium text-slate-500 hover:text-slate-800"
+                                 className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900"
                                >
                                  Edit
                                </button>
                                <button
                                  onClick={(e) => { e.stopPropagation(); handleDeleteStep(step.id); }}
-                                 className="text-[10px] font-medium text-rose-600 hover:text-rose-700"
+                                 className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 shadow-sm transition hover:border-rose-300 hover:bg-rose-100 hover:text-rose-700"
                                >
                                  Delete
                                </button>
@@ -1456,82 +1603,51 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                     {(isOpen || isSignedOff) && (
                       <div className="px-4 pb-6 pt-0 animate-in slide-in-from-top-2">
                           <div className="ml-12 space-y-4">
-                              {isAdmin && editingStepId === step.id && (
-                                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
-                                  <div>
-                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Description</label>
-                                    <textarea
-                                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
-                                      value={stepEdits[step.id]?.description ?? ''}
-                                      onChange={(e) =>
-                                        setStepEdits((prev) => ({
-                                          ...prev,
-                                          [step.id]: { ...prev[step.id], description: e.target.value }
-                                        }))
-                                      }
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Expected Result</label>
-                                    <textarea
-                                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
-                                      value={stepEdits[step.id]?.expectedResult ?? ''}
-                                      onChange={(e) =>
-                                        setStepEdits((prev) => ({
-                                          ...prev,
-                                          [step.id]: { ...prev[step.id], expectedResult: e.target.value }
-                                        }))
-                                      }
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-xs font-medium text-slate-500 mb-1 block">Test Data</label>
-                                    <textarea
-                                      className="w-full rounded-md border-slate-300 text-sm focus:ring-brand-500 focus:border-brand-500"
-                                      rows={3}
-                                      value={stepEdits[step.id]?.testData ?? ''}
-                                      onChange={(e) =>
-                                        setStepEdits((prev) => ({
-                                          ...prev,
-                                          [step.id]: { ...prev[step.id], testData: e.target.value }
-                                        }))
-                                      }
-                                    />
-                                  </div>
-                                  <div className="flex justify-end gap-2">
-                                    <button
-                                      onClick={() => setEditingStepId(null)}
-                                      className="text-xs font-medium text-slate-500 hover:text-slate-700"
-                                    >
-                                      Cancel
-                                    </button>
-                                    <button
-                                      onClick={() => handleSaveStep(step.id)}
-                                      className="text-xs font-medium text-white bg-slate-900 px-3 py-1.5 rounded-md hover:bg-slate-800"
-                                    >
-                                      Save
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                              
                               {/* Expected vs Actual Grid */}
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   {/* Left Col: Requirements */}
                                   <div className="space-y-4">
                                       <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 print:bg-white print:border-slate-300">
                                           <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-2 block">Expected Result</span>
-                                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{renderTextWithLinks(step.expectedResult)}</p>
+                                          {isAdmin && editingStepId === step.id ? (
+                                            <textarea
+                                              className="w-full rounded-xl border-slate-300 bg-white text-sm text-slate-700 focus:border-brand-500 focus:ring-brand-500"
+                                              rows={4}
+                                              value={stepEdits[step.id]?.expectedResult ?? ''}
+                                              onChange={(e) =>
+                                                setStepEdits((prev) => ({
+                                                  ...prev,
+                                                  [step.id]: { ...prev[step.id], expectedResult: e.target.value }
+                                                }))
+                                              }
+                                            />
+                                          ) : (
+                                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{renderTextWithLinks(step.expectedResult)}</p>
+                                          )}
                                       </div>
                                       
-                                      {step.testData && (
+                                      {(step.testData || (isAdmin && editingStepId === step.id)) && (
                                           <div>
                                               <span className="text-[10px] uppercase font-bold text-brand-600 tracking-wider mb-1 block flex items-center gap-1">
                                                   <Database size={10}/> Test Data
                                               </span>
-                                              <code className="text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-200 text-slate-700 block font-mono whitespace-pre-wrap">
-                                                  {renderTextWithLinks(step.testData)}
-                                              </code>
+                                              {isAdmin && editingStepId === step.id ? (
+                                                <textarea
+                                                  className="w-full rounded-xl border-slate-300 bg-white text-sm text-slate-700 focus:border-brand-500 focus:ring-brand-500"
+                                                  rows={3}
+                                                  value={stepEdits[step.id]?.testData ?? ''}
+                                                  onChange={(e) =>
+                                                    setStepEdits((prev) => ({
+                                                      ...prev,
+                                                      [step.id]: { ...prev[step.id], testData: e.target.value }
+                                                    }))
+                                                  }
+                                                />
+                                              ) : (
+                                                <code className="text-xs bg-slate-50 px-2 py-1.5 rounded border border-slate-200 text-slate-700 block font-mono whitespace-pre-wrap">
+                                                    {renderTextWithLinks(step.testData)}
+                                                </code>
+                                              )}
                                           </div>
                                       )}
                                   </div>
@@ -1550,8 +1666,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                                         </div>
                                       ) : (
                                          step.actualResult && (
-                                           <div className="bg-white p-3 rounded border border-slate-200 text-sm text-slate-700 italic">
-                                             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1 block">Actual Result</span>
+                                          <div className="bg-white p-3 rounded border border-slate-200 text-sm text-slate-700 italic">
+                                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1 block">Actual Result</span>
                                              "{step.actualResult}"
                                            </div>
                                          )
@@ -1607,6 +1723,22 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                                       )}
                                   </div>
                               </div>
+                              {isAdmin && editingStepId === step.id && (
+                                <div className="flex justify-end gap-2 border-t border-slate-100 pt-3 print:hidden">
+                                  <button
+                                    onClick={() => setEditingStepId(null)}
+                                    className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => handleSaveStep(step.id)}
+                                    className="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                                  >
+                                    Save Changes
+                                  </button>
+                                </div>
+                              )}
 
                               {/* Action Bar */}
                               {canRunTestActions && (
@@ -1816,12 +1948,25 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                 )}
                 
                 {/* PDF Download Button */}
-                <button 
-                  onClick={handlePrint}
-                  className="mt-6 flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 shadow-sm transition-colors print:hidden"
-                >
-                    <Printer size={16} /> Download PDF Report
-                </button>
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-3 print:hidden">
+                  <button 
+                    onClick={handlePrint}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 shadow-sm transition-colors"
+                  >
+                      <Printer size={16} /> Download PDF Report
+                  </button>
+                  <button
+                    onClick={handleEmailReport}
+                    disabled={emailingReport}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {emailingReport ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                    {emailingReport ? 'Emailing...' : 'Email Report to Me'}
+                  </button>
+                </div>
+                <p className="mt-3 text-xs text-slate-500 print:hidden">
+                  Emails include a secure printable report link for your signed-off task.
+                </p>
              </div>
            ) : isDraft ? (
              <div className="w-full max-w-md print:hidden">

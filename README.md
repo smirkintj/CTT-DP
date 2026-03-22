@@ -5,7 +5,7 @@ CTT is a Next.js App Router web app for UAT workflow management across countries
 ## Stack
 - Next.js 15 (App Router)
 - React 19
-- NextAuth v4 (Credentials)
+- NextAuth v4 (Credentials + Admin magic link)
 - Prisma + PostgreSQL (Neon)
 - Tailwind CSS
 
@@ -46,6 +46,11 @@ npm run prisma:generate
 npm run prisma:migrate
 npm run prisma:seed
 ```
+`npm run prisma:seed` also creates:
+- 3 sample products (`EasyOrder`, `SalesHub`, `ServicePro`)
+- product-scoped modules and target systems
+- product access for seeded stakeholder users
+- ~100 mock tasks across all statuses for easy testing
 
 ## Run Locally
 ```bash
@@ -67,6 +72,7 @@ npm run start
 - `npm run audit:check-admin` (fails if admin write route has no `createAdminAudit` call)
 - `npm run perf:sample` (samples API latency headers; supports `APP_URL`, `TASK_ID`, `COOKIE_HEADER`)
 - `scripts/playwright_admin_flow.sh` (automates admin browser smoke flow with Playwright CLI wrapper)
+- `npm run db:purge-and-seed` (DANGER: deletes all data, recreates base countries/products/modules/target systems/users; requires `CONFIRM_PURGE=YES`)
 
 ## Playwright Browser Automation (Admin Flow)
 Technical dependencies:
@@ -102,6 +108,10 @@ Security notes:
 - use environment variables and avoid committing secrets
 
 ## Notes
+- Environment model for rollout:
+  - production URL: `https://ctt-dksh.vercel.app/`
+  - staging / UAT URL: `https://ctt-dksh-git-staging-ptrmhrdn-4569s-projects.vercel.app`
+  - production is for real users; staging is for testers only
 - Build script runs `prisma generate && next build` to avoid stale Prisma client issues in CI/Vercel.
 - Vercel Speed Insights is enabled in `/Users/putra/Desktop/CTT-DKSH-main/app/layout.tsx` for runtime frontend performance telemetry.
 - Middleware enforces:
@@ -110,16 +120,25 @@ Security notes:
 - Login hardening is enabled:
   - client-side email validation + submit throttling UX
   - server-side temporary lockout after repeated failed attempts
+  - lockout now lasts 30 seconds and the login error message shows a live countdown
   - disabled users (`User.isActive = false`) cannot log in
   - forced permanent-password setup (`mustChangePassword`) before portal access, then user stays signed in and is redirected to dashboard
   - password-change modal now uses focused centered width, stronger backdrop layering, and real-time password rule/match validation
+  - session display name is refreshed from the database so the top-right profile label reflects the saved user/admin name
   - accessibility improvements on login form controls and error/loading semantics
+  - admin passwordless recovery option:
+    - login page includes a small `Admin only: password recovery` section for one-time admin sign-in link by email
+    - success message is shown as toast (auto-dismiss), not persistent inline text
+    - link is single-use, hashed in DB, and expires after 15 minutes
+    - request endpoint returns generic success response (no user enumeration)
+    - request rate limiting is applied per email+IP
 - Recent Activity is database-backed via `Activity` and `ActivityRead` tables.
 - Task mutation APIs enforce:
   - status transition rules (invalid transitions return `409`)
   - optimistic concurrency using `expectedUpdatedAt` (stale updates return `409`)
-  - assignee integrity checks on create/edit (active stakeholder in matching country)
+  - assignee integrity checks on create/edit (active stakeholder in matching country with matching product access)
   - non-draft tasks cannot be unassigned
+  - selected module and target system must belong to the selected product
 - Task APIs are being standardized to a shared error response shape via `lib/apiError.ts` (`error`, `code`, optional `detail` in dev).
 - Shared Prisma include maps are centralized at `app/api/tasks/_query.ts` to reduce query-shape drift.
 - Performance baseline work (Phase 1):
@@ -146,12 +165,28 @@ Security notes:
     - toggles: assignment email, reminder email, mention/inbox, sign-off email
     - users can only read/update their own preferences
   - Notification senders now respect user preferences for assignment/reminder/sign-off, and inbox/unread routes respect mention/inbox preference.
+  - Admin magic-link email:
+    - request endpoint: `/api/auth/magic-link/request`
+    - consume route: `/auth/magic?token=...`
+    - email sender: `sendAdminMagicLoginEmail` in `/Users/putra/Desktop/CTT-DKSH-main/lib/email.ts`
 - Admin user management:
   - List/create/update/disable/reset password endpoints:
     - `/api/admin/users`
     - `/api/admin/users/[id]`
     - `/api/admin/users/[id]/reset-password`
   - UI: `/admin/database` → `Users` tab (drawer-based management)
+  - user rows are directly clickable to open management drawer; no separate action column
+  - Stakeholder accounts now require at least one product access assignment.
+  - Admin accounts can also be scoped by product access.
+  - Admin scope rule:
+    - admins with one or more product assignments are restricted to those products
+    - admins with no product assignments remain unrestricted (legacy super-admin behavior)
+  - `/admin/database` → `Products` tab manages:
+    - products
+    - product-scoped modules
+    - product-scoped target systems / launch URLs
+  - Stakeholder helpful links are configured in:
+    - `/admin/database` → `Helpful Links` tab
   - Security rules:
     - ADMIN-only APIs
     - cannot create additional ADMIN users (current policy)
@@ -177,6 +212,11 @@ Security notes:
 - Operational docs:
   - Production checklist: `/Users/putra/Desktop/CTT-DKSH-main/PRODUCTION_READINESS.md`
   - Incident runbook: `/Users/putra/Desktop/CTT-DKSH-main/OPS_RUNBOOK.md`
+  - UAT / prod readiness pack: `/Users/putra/Desktop/Code/CTT-DKSH-main/UAT_PROD_READINESS.md`
+  - tester UAT pack: `/Users/putra/Desktop/Code/CTT-DKSH-main/TESTER_UAT_PACK.md`
+  - security and compliance checklist: `/Users/putra/Desktop/Code/CTT-DKSH-main/SECURITY_COMPLIANCE_CHECKLIST.md`
+  - Azure / Bitbucket migration plan: `/Users/putra/Desktop/Code/CTT-DKSH-main/AZURE_BITBUCKET_MIGRATION_PLAN.md`
+  - ISO 27001:2013 aligned UAT checklist: `/Users/putra/Desktop/Code/CTT-DKSH-main/ISO27001_UAT_CHECKLIST.md`
 - Import wizard:
   - `/import` supports CSV files exported from Excel (header row required).
   - Admin maps columns (description/expected result/actual result/test data), manually fixes missing preview fields inline, and then either:
@@ -194,11 +234,13 @@ Security notes:
   - security: global update is ADMIN-only and still enforces signed-off locks.
 - task detail preview now shows affected market list and disables global apply when no editable tasks remain.
 - task detail admin step edit now uses multiline input for `Test Data` (newline-friendly).
+- task detail step editing now happens inline on the same visible step surface for `Description`, `Expected Result`, and `Test Data`, instead of opening a second edit block below.
 - task detail header now shows current task country for admin context.
 - `Mark as READY` now shows in-button loading state while status update is in progress.
 - comment mentions now render highlighted (bold + colored) and display user name in comment body.
 - `Sign & Complete Task` now shows in-button loading state while sign-off request is processing.
 - Task detail image evidence upload/paste now auto-optimizes (resize + compression) before save to reduce storage payload.
+- Task detail step `Edit` / `Delete` controls now use larger pill buttons for easier targeting.
 - Sign-off PDF report now includes step evidence images (auto-scaled thumbnail layout).
   - admin task table now supports selected-group global edit modal (same supported fields as task detail global update).
 - Reporting:
@@ -207,6 +249,17 @@ Security notes:
 - CSV exports now include UTF-8 BOM for better compatibility with multilingual text in Excel (VN/TH/HK/TW names and comments).
 - Sign-off report uses a dedicated portrait printable template via `/api/tasks/[id]/signoff-report`, includes recent task history plus step-grouped comments, and supports auto print prompt (`?autoprint=1`).
   - If a task has no comments, the comments section is omitted from the PDF output.
+  - Report now includes:
+    - DKSH brand mark in the header
+    - product name in task summary
+    - persisted user signature in the footer for printed pages
+    - `Email Report to Me` action from signed-off task detail (emails a secure printable report link)
+- Multi-product support:
+  - every task now belongs to a product
+  - modules and target systems are scoped to that product
+  - admins can assign the same tester to multiple products
+  - dashboards and task detail now show a clear product badge so users know which product each task belongs to
+  - admin dashboard task cards now show country as a color-coded badge alongside product/module metadata
 
 ## Task Workflow
 - New tasks are created as `DRAFT`.

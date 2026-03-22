@@ -2,7 +2,7 @@ import React from 'react';
 import { Status, Priority } from '../types';
 
 interface BadgeProps {
-  type: 'status' | 'priority' | 'country' | 'module';
+  type: 'status' | 'priority' | 'country' | 'module' | 'product';
   value: string;
   className?: string;
 }
@@ -99,6 +99,14 @@ export const Badge: React.FC<BadgeProps> = ({ type, value, className = '' }) => 
   if (type === 'module') {
     return (
       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100 ${className}`}>
+        {value}
+      </span>
+    );
+  }
+
+  if (type === 'product') {
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 ${className}`}>
         {value}
       </span>
     );
