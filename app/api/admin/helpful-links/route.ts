@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
 import prisma from '../../../../lib/prisma';
 import { getHelpfulLinksKey } from '../../../../lib/helpfulLinks';
-import { adminCanAccessProduct } from '../../../../lib/adminAccess';
 import { randomUUID } from 'crypto';
 
 const isValidUrl = (value: string) => {
@@ -28,9 +27,6 @@ export async function GET(req: Request) {
   if (!productId) {
     return NextResponse.json({ error: 'productId is required', code: 'PRODUCT_ID_REQUIRED' }, { status: 400 });
   }
-  if (!(await adminCanAccessProduct(session.user.id, productId))) {
-    return NextResponse.json({ error: 'Forbidden', code: 'ADMIN_PRODUCT_FORBIDDEN' }, { status: 403 });
-  }
 
   const setting = await prisma.portalSetting.findUnique({
     where: { key: getHelpfulLinksKey(productId) },
@@ -53,9 +49,6 @@ export async function PATCH(req: Request) {
   const productId = body?.productId?.toString().trim();
   if (!productId) {
     return NextResponse.json({ error: 'productId is required', code: 'PRODUCT_ID_REQUIRED' }, { status: 400 });
-  }
-  if (!(await adminCanAccessProduct(session.user.id, productId))) {
-    return NextResponse.json({ error: 'Forbidden', code: 'ADMIN_PRODUCT_FORBIDDEN' }, { status: 403 });
   }
 
   const links = Array.isArray(body?.links) ? body.links : null;

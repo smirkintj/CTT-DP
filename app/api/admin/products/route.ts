@@ -4,7 +4,6 @@ import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { badRequest, forbidden, unauthorized } from '@/lib/apiError';
 import { createAdminAudit } from '@/lib/adminAudit';
-import { adminCanAccessProduct } from '@/lib/adminAccess';
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -72,9 +71,6 @@ export async function DELETE(req: Request) {
   const body = await req.json().catch(() => null);
   const productId = body?.productId?.toString().trim();
   if (!productId) return badRequest('Product is required', 'PRODUCT_REQUIRED');
-  if (!(await adminCanAccessProduct(auth.session.user.id, productId))) {
-    return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
-  }
 
   const tasksCount = await prisma.task.count({ where: { productId } });
   if (tasksCount > 0) {
