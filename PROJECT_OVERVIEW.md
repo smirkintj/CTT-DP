@@ -230,6 +230,8 @@ Task mutation guarantees:
 ### Admin Utilities
 - `POST /api/admin/test-notification`
   - Admin-only test email endpoint for Resend setup verification.
+- `POST /api/admin/teams-webhooks/test`
+  - Admin-only Teams webhook test endpoint for per-country channel verification.
 - `GET/POST /api/admin/users`
   - Admin-only user list/create (current policy: stakeholder creation only).
   - stakeholder create now requires one or more product assignments.
@@ -300,6 +302,10 @@ Currently created events:
   - admin manual assignment/reminder actions from admin task management
   - sign-off flow auto-sends signed-off email to admin (`to`) and assignee (`cc` when available)
 - Current delivery in local/dev follows Resend sandbox rules unless domain is verified.
+- Teams webhook POC:
+  - per-country webhook config is saved in Admin Database
+  - admin can send a sample Teams card through `/api/admin/teams-webhooks/test`
+  - this validates channel delivery independently from task events
 
 ## Recent UI/Behavior Updates
 - Admin task table was compacted to fit within viewport better.

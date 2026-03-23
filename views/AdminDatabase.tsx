@@ -115,6 +115,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     notifyFailedStep: boolean;
   }>>({});
   const [teamsSaveStateByCountry, setTeamsSaveStateByCountry] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
+  const [teamsTestStateByCountry, setTeamsTestStateByCountry] = useState<Record<string, 'idle' | 'sending' | 'sent' | 'error'>>({});
   useEffect(() => {
     fetch('/api/admin/email-settings')
       .then((r) => r.ok ? r.json() : null)
@@ -655,6 +656,33 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     })();
   };
 
+  const sendTeamsTest = (countryCode: string) => {
+    void (async () => {
+      setTeamsTestStateByCountry((prev) => ({ ...prev, [countryCode]: 'sending' }));
+      const response = await fetch('/api/admin/teams-webhooks/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ countryCode })
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        setTeamsTestStateByCountry((prev) => ({ ...prev, [countryCode]: 'error' }));
+        notify(data?.error || `Failed to send Teams test for ${countryCode}`, 'error');
+        window.setTimeout(() => {
+          setTeamsTestStateByCountry((prev) => ({ ...prev, [countryCode]: 'idle' }));
+        }, 2000);
+        return;
+      }
+
+      setTeamsTestStateByCountry((prev) => ({ ...prev, [countryCode]: 'sent' }));
+      notify(`Teams test sent for ${countryCode}`, 'success');
+      window.setTimeout(() => {
+        setTeamsTestStateByCountry((prev) => ({ ...prev, [countryCode]: 'idle' }));
+      }, 1500);
+    })();
+  };
+
   const handleTabChange = (nextTab: 'countries' | 'products' | 'notifications' | 'users') => {
     if (activeTab === 'notifications' && nextTab !== 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig)) {
       setConfirmDialog({
@@ -1097,6 +1125,9 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                   <p className="text-xs text-slate-500">
                     Configure incoming webhook URLs per market channel. Supported events: assignment, reminder, sign-off, failed step.
                   </p>
+                  <p className="text-xs text-slate-400">
+                    Save the webhook first, then use <span className="font-medium text-slate-600">Send Test</span> to verify the channel receives a sample message.
+                  </p>
 
                   <div className="space-y-4">
                     {countries.map((country) => {
@@ -1196,7 +1227,18 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                             </label>
                           </div>
 
-                          <div className="flex justify-end">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => sendTeamsTest(country.code)}
+                              disabled={teamsTestStateByCountry[country.code] === 'sending'}
+                              className="border border-slate-200 bg-white text-slate-700 px-3 py-1.5 rounded-md text-xs font-medium hover:bg-slate-100 disabled:opacity-60"
+                            >
+                              {teamsTestStateByCountry[country.code] === 'sending'
+                                ? 'Sending Test...'
+                                : teamsTestStateByCountry[country.code] === 'sent'
+                                  ? 'Test Sent'
+                                  : 'Send Test'}
+                            </button>
                             <button
                               onClick={() => saveTeamsConfig(country.code)}
                               disabled={teamsSaveStateByCountry[country.code] === 'saving'}

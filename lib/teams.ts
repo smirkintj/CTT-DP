@@ -68,3 +68,51 @@ export async function sendTeamsMessage(params: {
     return false;
   }
 }
+
+export async function sendTeamsTestMessage(params: {
+  countryCode: string;
+  initiatedBy: string;
+}): Promise<{ ok: boolean; reason?: 'CONFIG_NOT_FOUND' | 'WEBHOOK_MISSING' | 'DELIVERY_FAILED' }> {
+  const config = await prisma.notificationConfig.findUnique({
+    where: { countryCode: params.countryCode }
+  });
+
+  if (!config) {
+    return { ok: false, reason: 'CONFIG_NOT_FOUND' };
+  }
+
+  if (!config.teamsWebhookUrl) {
+    return { ok: false, reason: 'WEBHOOK_MISSING' };
+  }
+
+  const baseUrl = process.env.NEXTAUTH_URL?.replace(/\/$/, '');
+  const payload = {
+    '@type': 'MessageCard',
+    '@context': 'https://schema.org/extensions',
+    summary: `CTT Teams Test (${params.countryCode})`,
+    themeColor: '0F172A',
+    title: `CTT Teams Test (${params.countryCode})`,
+    text: 'This is a test message from the CTT admin portal. If you can see this card, the Teams webhook is working.',
+    sections: [
+      {
+        facts: [
+          { name: 'Country', value: params.countryCode },
+          { name: 'Initiated By', value: params.initiatedBy },
+          { name: 'Environment', value: baseUrl || 'Unknown' },
+          { name: 'Timestamp', value: new Date().toLocaleString() }
+        ]
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch(config.teamsWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return response.ok ? { ok: true } : { ok: false, reason: 'DELIVERY_FAILED' };
+  } catch {
+    return { ok: false, reason: 'DELIVERY_FAILED' };
+  }
+}

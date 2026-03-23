@@ -159,6 +159,7 @@ Security notes:
   - Run `npm run comments:backfill-step-order` once after upgrading old environments.
 - Email notifications:
   - Admin test email: `/api/admin/test-notification`
+  - Teams test notification: `/api/admin/teams-webhooks/test`
   - Assignment email: `/api/tasks/[id]/notify-assigned`
   - Manual reminder email: `/api/tasks/[id]/reminder`
   - Sign-off email is triggered from `/api/tasks/[id]/signoff`
@@ -292,6 +293,9 @@ Security notes:
   - Task Detail edits
   - Admin Task create modal
   - Admin Database notification settings (email + Teams)
+- Teams webhook POC:
+  - admin can save a per-country Teams webhook in Admin Database
+  - admin can send a sample Teams message per country to verify channel delivery without waiting for a real task event
 - Auth/session hydration now shows a neutral loading state to prevent brief login-page flicker on refresh.
 - Auth/session hydration loading state now includes a subtle animated progress bar + pulse indicators for clearer feedback while workspace loads.
   - QA helper: append `?debugLoading=1` to hold the loading screen for 5 seconds and validate layout/animation.
