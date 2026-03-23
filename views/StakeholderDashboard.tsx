@@ -4,7 +4,6 @@ import { Task, Status } from '../types';
 import { Badge } from '../components/Badge';
 import { Search, ArrowRight, MessageSquare, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { notify } from '../lib/notify';
-import { DEFAULT_HELPFUL_LINKS } from '../lib/helpfulLinks';
 
 interface StakeholderDashboardProps {
   tasks: Task[];
@@ -39,7 +38,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [unreadComments, setUnreadComments] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [helpfulLinks, setHelpfulLinks] = useState(DEFAULT_HELPFUL_LINKS);
+  const [helpfulLinks, setHelpfulLinks] = useState<{ id: string; label: string; url: string }[]>([]);
   
   const myTasks = tasks.filter(t => t.countryCode === currentUserCountry);
   const statusFilteredTasks = filterStatus === 'ALL'
@@ -553,18 +552,20 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                 ))
               )}
               
-              <div className="pt-4 border-t border-slate-100">
-                  <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Helpful Links</h4>
-                  <ul className="space-y-2">
-                    {helpfulLinks.map((link) => (
-                      <li key={link.id}>
-                        <a href={link.url} target="_blank" rel="noreferrer" className="text-sm text-brand-600 hover:underline">
-                          {link.label}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-              </div>
+              {helpfulLinks.length > 0 && (
+                <div className="pt-4 border-t border-slate-100">
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Helpful Links</h4>
+                    <ul className="space-y-2">
+                      {helpfulLinks.map((link) => (
+                        <li key={link.id}>
+                          <a href={link.url} target="_blank" rel="noreferrer" className="text-sm text-brand-600 hover:underline">
+                            {link.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                </div>
+              )}
             </div>
           </div>
         </div>
