@@ -93,6 +93,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     name: '',
     email: '',
     countryCode: '',
+    role: 'STAKEHOLDER' as 'ADMIN' | 'STAKEHOLDER',
     isActive: true,
     productIds: [] as string[]
   });
@@ -215,6 +216,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
       name: '',
       email: '',
       countryCode: countries[0]?.code || '',
+      role: 'STAKEHOLDER',
       isActive: true,
       productIds: products.length > 0 ? [products[0].id] : []
     });
@@ -229,6 +231,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
       name: user.name,
       email: user.email,
       countryCode: user.countryCode || '',
+      role: user.role as 'ADMIN' | 'STAKEHOLDER',
       isActive: user.isActive,
       productIds: user.productAccesses.map((access) => access.id)
     });
@@ -256,8 +259,8 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
       notify('Enter a valid email address', 'error');
       return;
     }
-    const isAdminUser = userDrawerMode === 'edit' && selectedUser?.role === 'ADMIN';
-    if (!countryCode && !isAdminUser) {
+    const isAdminRole = userForm.role === 'ADMIN';
+    if (!countryCode && !isAdminRole) {
       notify('Country is required', 'error');
       return;
     }
@@ -281,8 +284,8 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
           body: JSON.stringify({
             name,
             email,
-            role: 'STAKEHOLDER',
-            countryCode,
+            role: userForm.role,
+            countryCode: isAdminRole ? '' : countryCode,
             temporaryPassword: password,
             productIds
           })
@@ -299,9 +302,9 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name,
-            countryCode,
+            countryCode: userForm.role === 'ADMIN' ? '' : countryCode,
             isActive: userForm.isActive,
-            role: selectedUser.role,
+            role: userForm.role,
             productIds
           })
         });
@@ -1280,10 +1283,11 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
               <table className="min-w-full divide-y divide-slate-200 text-sm table-fixed">
                 <thead className="bg-slate-50">
                   <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-3 w-[20%]">Name</th>
-                    <th className="px-3 py-3 w-[26%]">Email</th>
-                    <th className="px-3 py-3 w-[10%]">Country</th>
-                    <th className="px-3 py-3 w-[20%]">Products</th>
+                    <th className="px-3 py-3 w-[18%]">Name</th>
+                    <th className="px-3 py-3 w-[22%]">Email</th>
+                    <th className="px-3 py-3 w-[8%]">Role</th>
+                    <th className="px-3 py-3 w-[8%]">Country</th>
+                    <th className="px-3 py-3 w-[18%]">Products</th>
                     <th className="px-3 py-3 w-[10%]">Status</th>
                     <th className="px-3 py-3 w-[14%]">Last Login</th>
                   </tr>
@@ -1291,13 +1295,13 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                 <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
                   {usersLoading ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                      <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                         Loading users...
                       </td>
                     </tr>
                   ) : filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                      <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                         No users found.
                       </td>
                     </tr>
@@ -1310,6 +1314,13 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                       >
                         <td className="px-3 py-3 font-medium text-slate-900 truncate">{user.name}</td>
                         <td className="px-3 py-3 truncate">{user.email}</td>
+                        <td className="px-3 py-3">
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                            user.role === 'ADMIN' ? 'bg-violet-50 text-violet-700' : 'bg-sky-50 text-sky-700'
+                          }`}>
+                            {user.role === 'ADMIN' ? 'Admin' : 'Stakeholder'}
+                          </span>
+                        </td>
                         <td className="px-3 py-3">{user.countryCode || '—'}</td>
                         <td className="px-3 py-3">
                           <div className="flex flex-wrap gap-1">
@@ -1353,7 +1364,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">
                     {userDrawerMode === 'create'
-                      ? 'Create a stakeholder account with temporary password.'
+                      ? 'Create a user account with temporary password.'
                       : 'Update profile, status, and reset password.'}
                   </p>
                 </div>
@@ -1385,20 +1396,41 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold uppercase text-slate-500">Country</label>
+                  <label className="text-xs font-semibold uppercase text-slate-500">Role</label>
                   <select
-                    value={userForm.countryCode}
-                    onChange={(event) => setUserForm((prev) => ({ ...prev, countryCode: event.target.value }))}
+                    value={userForm.role}
+                    onChange={(event) => {
+                      const role = event.target.value as 'ADMIN' | 'STAKEHOLDER';
+                      setUserForm((prev) => ({
+                        ...prev,
+                        role,
+                        countryCode: role === 'ADMIN' ? '' : prev.countryCode
+                      }));
+                    }}
                     className={`${selectBaseClass} mt-1`}
                   >
-                    <option value="">Select country</option>
-                    {countries.map((country) => (
-                      <option key={country.code} value={country.code}>
-                        {country.code} - {country.name}
-                      </option>
-                    ))}
+                    <option value="STAKEHOLDER">Stakeholder</option>
+                    <option value="ADMIN">Admin</option>
                   </select>
                 </div>
+
+                {userForm.role === 'STAKEHOLDER' && (
+                  <div>
+                    <label className="text-xs font-semibold uppercase text-slate-500">Country</label>
+                    <select
+                      value={userForm.countryCode}
+                      onChange={(event) => setUserForm((prev) => ({ ...prev, countryCode: event.target.value }))}
+                      className={`${selectBaseClass} mt-1`}
+                    >
+                      <option value="">Select country</option>
+                      {countries.map((country) => (
+                        <option key={country.code} value={country.code}>
+                          {country.code} - {country.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className="text-xs font-semibold uppercase text-slate-500">Product Access</label>
