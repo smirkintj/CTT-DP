@@ -204,12 +204,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     </table>`;
 
   const signatureFooter = buildSignatureFooter(task);
-  const dkshLogo = `
-    <svg viewBox="0 0 172 38" xmlns="http://www.w3.org/2000/svg" aria-label="DKSH">
-      <rect width="172" height="38" rx="10" fill="#C8102E"/>
-      <text x="86" y="24" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18" font-weight="700" fill="#FFFFFF" letter-spacing="2">DKSH</text>
-    </svg>
-  `;
+  const baseUrl = (process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
+  const dkshLogoHtml = `<img src="${baseUrl}/dksh-logo.png" alt="DKSH" class="brand-mark" />`;
 
   const html = `<!doctype html>
 <html>
@@ -223,8 +219,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
     .header-copy { max-width: 70%; }
     .brand-lockup { width: 132px; display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
-    .brand-mark { width: 132px; height: auto; display:block; }
-    .brand-caption { color:#64748b; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; }
+    .brand-mark { width: 120px; height: auto; display:block; }
     h1 { margin: 0; font-size: 20px; }
     .subtitle { margin-top: 4px; color: #64748b; font-size: 12px; }
     .section-title { margin: 18px 0 8px; font-size: 13px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -239,6 +234,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .evidence-image { width: 100%; max-height: 120px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; }
     .section-row td { background: #f8fafc; font-weight: 600; color: #334155; }
     .footer { margin-top: 14px; color: #64748b; font-size: 11px; }
+    .iso-banner { margin: 16px 0; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; font-size: 11px; }
+    .iso-banner__header { background: #f1f5f9; padding: 7px 12px; display: flex; align-items: center; gap: 6px; font-weight: 700; color: #334155; letter-spacing: 0.03em; text-transform: uppercase; font-size: 10.5px; }
+    .iso-banner__body { padding: 8px 12px; }
+    .iso-banner__body ol { margin: 0; padding-left: 16px; color: #475569; line-height: 1.6; }
+    .iso-banner__body li { margin-bottom: 2px; }
     .signature-footer { position: fixed; left: 14mm; right: 14mm; bottom: 8mm; display:flex; justify-content:space-between; align-items:flex-end; gap:16px; border-top:1px solid #e2e8f0; padding-top:8px; background:#fff; }
     .signature-footer__meta { font-size: 11px; color: #64748b; }
     .signature-footer__label { font-weight: 600; color: #334155; margin-bottom: 2px; }
@@ -254,8 +254,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         <div class="subtitle">Generated on ${formatDateTime(new Date())}</div>
       </div>
       <div class="brand-lockup">
-        <div class="brand-mark">${dkshLogo}</div>
-        <div class="brand-caption">Digital QA Record</div>
+        ${dkshLogoHtml}
+      </div>
+    </div>
+    <div class="iso-banner">
+      <div class="iso-banner__header">&#x1F6E1;&#xFE0F; ISO 27001:2013 Compliance Notice</div>
+      <div class="iso-banner__body">
+        <ol>
+          <li>Only authorized users should access or modify data needed for development or enhancement.</li>
+          <li>Production data should not be tampered without proper authorization and business justification. Production data should not be improperly modified, either accidentally or maliciously.</li>
+          <li>Only authorized users should access data whenever they need to do so with proper approvals and audit trail.</li>
+          <li>Production data copied into staging environment is only meant for testing purposes. The data should NOT be migrated back to production and staging data should be protected with the same mechanism as production.</li>
+          <li>Data held in staging or test environment are only for testing purposes and should not be used for any other purposes.</li>
+          <li>During migration to production, any system downtime should be planned and communicated to affected users. If possible, it should not affect business use of the system.</li>
+        </ol>
       </div>
     </div>
     <div class="section-title">Task Summary</div>
