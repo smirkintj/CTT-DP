@@ -7,6 +7,7 @@ import { validateExpectedUpdatedAt } from '../../../../../lib/taskGuards';
 import { createTaskHistory } from '../../../../../lib/taskHistory';
 import { badRequest, conflict, forbidden, notFound, unauthorized } from '../../../../../lib/apiError';
 import { logPilotEvent } from '../../../../../lib/telemetry';
+import { sendMentionEmail } from '../../../../../lib/email';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -142,6 +143,28 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     },
     metadata: mentionUserIds.length > 0 ? { mentionUserIds } : undefined
   });
+
+  // Fire-and-forget mention emails — never block or fail the request
+  if (mentionUserIds.length > 0) {
+    prisma.user.findMany({
+      where: { id: { in: mentionUserIds }, isActive: true, notifyOnMentionInbox: true },
+      select: { email: true, name: true }
+    }).then((recipients) => {
+      const mentionedBy = session.user.name || session.user.email || 'Someone';
+      for (const recipient of recipients) {
+        if (!recipient.email) continue;
+        sendMentionEmail({
+          to: recipient.email,
+          recipientName: recipient.name ?? undefined,
+          mentionedBy,
+          taskTitle: task.title,
+          taskId: id,
+          stepOrder: stepOrder && stepOrder > 0 ? stepOrder : null,
+          commentSnippet: text.trim()
+        }).catch(() => {/* silent */});
+      }
+    }).catch(() => {/* silent */});
+  }
 
   logPilotEvent('comment.create.success', {
     taskId: id,

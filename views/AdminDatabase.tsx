@@ -41,15 +41,11 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   const [activeTab, setActiveTab] = useState<'countries' | 'products' | 'notifications' | 'helpfulLinks' | 'users'>('countries');
   const [emailSettings, setEmailSettings] = useState({
     enableReminders: false,
-    cronExpression: '0 9 * * 1-5',
-    timezone: 'Asia/Singapore',
-    note: ''
+    daysBefore: 3
   });
   const [savedEmailSettings, setSavedEmailSettings] = useState({
     enableReminders: false,
-    cronExpression: '0 9 * * 1-5',
-    timezone: 'Asia/Singapore',
-    note: ''
+    daysBefore: 3
   });
   const [emailSaveState, setEmailSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   
@@ -117,13 +113,18 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   const [helpfulLinksSaveState, setHelpfulLinksSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem('ctt-email-settings');
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      setEmailSettings((prev) => ({ ...prev, ...parsed }));
-      setSavedEmailSettings((prev) => ({ ...prev, ...parsed }));
-    } catch {}
+    fetch('/api/admin/email-settings')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data) return;
+        const loaded = {
+          enableReminders: data.enabled === true,
+          daysBefore: typeof data.daysBefore === 'number' ? data.daysBefore : 3
+        };
+        setEmailSettings(loaded);
+        setSavedEmailSettings(loaded);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -350,9 +351,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
 
   const emailSettingsDirty =
     emailSettings.enableReminders !== savedEmailSettings.enableReminders ||
-    emailSettings.cronExpression !== savedEmailSettings.cronExpression ||
-    emailSettings.timezone !== savedEmailSettings.timezone ||
-    emailSettings.note !== savedEmailSettings.note;
+    emailSettings.daysBefore !== savedEmailSettings.daysBefore;
 
   const hasUnsavedTeamsConfig = Object.keys(teamsConfigs).some((countryCode) => {
     const current = teamsConfigs[countryCode];
@@ -532,11 +531,23 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
 
   const handleSaveEmailSettings = () => {
     setEmailSaveState('saving');
-    window.localStorage.setItem('ctt-email-settings', JSON.stringify(emailSettings));
-    setSavedEmailSettings(emailSettings);
-    setEmailSaveState('saved');
-    notify('Email reminder settings saved.', 'success');
-    window.setTimeout(() => setEmailSaveState('idle'), 1500);
+    fetch('/api/admin/email-settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: emailSettings.enableReminders, daysBefore: emailSettings.daysBefore })
+    })
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then(() => {
+        setSavedEmailSettings({ ...emailSettings });
+        setEmailSaveState('saved');
+        notify('Email reminder settings saved.', 'success');
+        window.setTimeout(() => setEmailSaveState('idle'), 1500);
+      })
+      .catch(() => {
+        setEmailSaveState('error');
+        notify('Failed to save email settings.', 'error');
+        window.setTimeout(() => setEmailSaveState('idle'), 2000);
+      });
   };
 
   const saveTeamsConfig = (countryCode: string) => {
@@ -884,9 +895,9 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                 <div className="flex items-start gap-3">
                     <Bell className="text-slate-500 mt-0.5" size={18} />
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-900">Reminder Job Configuration</h3>
+                        <h3 className="text-sm font-semibold text-slate-900">Email Reminder Settings</h3>
                         <p className="text-xs text-slate-500 mt-1">
-                          Configure cron settings in the admin portal. This is settings-only for now; scheduler wiring can be added later.
+                          Automated reminders run daily at 9 AM MYT via Vercel Cron. Emails go to stakeholders whose tasks are due within the configured window.
                         </p>
                     </div>
                 </div>
@@ -898,40 +909,25 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                       checked={emailSettings.enableReminders}
                       onChange={(e) => setEmailSettings((prev) => ({ ...prev, enableReminders: e.target.checked }))}
                     />
-                    Enable reminder job
+                    Enable automated reminder emails
                 </label>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-xs font-semibold text-slate-500 uppercase">Cron Expression</label>
-                        <input
-                          type="text"
-                          className="w-full mt-1 border-slate-300 rounded-md text-sm"
-                          value={emailSettings.cronExpression}
-                          onChange={(e) => setEmailSettings((prev) => ({ ...prev, cronExpression: e.target.value }))}
-                          placeholder="0 9 * * 1-5"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs font-semibold text-slate-500 uppercase">Timezone</label>
-                        <input
-                          type="text"
-                          className="w-full mt-1 border-slate-300 rounded-md text-sm"
-                          value={emailSettings.timezone}
-                          onChange={(e) => setEmailSettings((prev) => ({ ...prev, timezone: e.target.value }))}
-                          placeholder="Asia/Singapore"
-                        />
-                    </div>
-                </div>
-
-                <div>
-                    <label className="text-xs font-semibold text-slate-500 uppercase">Notes</label>
-                    <textarea
-                      className="w-full mt-1 border-slate-300 rounded-md text-sm h-20"
-                      value={emailSettings.note}
-                      onChange={(e) => setEmailSettings((prev) => ({ ...prev, note: e.target.value }))}
-                      placeholder="Optional admin notes for scheduler setup."
+                <div className="max-w-xs">
+                    <label className="text-xs font-semibold text-slate-500 uppercase">Remind N days before due date</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      className="w-full mt-1 border-slate-300 rounded-md text-sm"
+                      value={emailSettings.daysBefore}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        if (!isNaN(val) && val > 0) {
+                          setEmailSettings((prev) => ({ ...prev, daysBefore: val }));
+                        }
+                      }}
                     />
+                    <p className="text-xs text-slate-400 mt-1">Tasks due within this many days will trigger a reminder. Default: 3.</p>
                 </div>
 
                 <div className="flex justify-end">

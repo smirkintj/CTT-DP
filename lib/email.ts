@@ -41,6 +41,16 @@ type TaskReportEmailInput = {
   signedOffAt?: string | Date | null;
 };
 
+type MentionEmailInput = {
+  to: string;
+  recipientName?: string;
+  mentionedBy: string;
+  taskTitle: string;
+  taskId?: string;
+  stepOrder?: number | null;
+  commentSnippet?: string;
+};
+
 
 function formatDate(value?: string | Date | null): string {
   if (!value) return "N/A";
@@ -204,6 +214,34 @@ export async function sendTemporaryPasswordEmail(input: TemporaryPasswordEmailIn
   return sendEmail({
     to: input.to,
     subject: 'CTT UAT Portal - Temporary Password',
+    html
+  });
+}
+
+export async function sendMentionEmail(input: MentionEmailInput): Promise<boolean> {
+  const location =
+    input.stepOrder && input.stepOrder > 0
+      ? `Step ${input.stepOrder} of`
+      : 'a comment on';
+  const intro = `${input.mentionedBy} mentioned you in ${location} <strong>${input.taskTitle}</strong>.`;
+  const lines: string[] = [];
+  if (input.commentSnippet) {
+    const snippet = input.commentSnippet.length > 200
+      ? input.commentSnippet.slice(0, 200) + '…'
+      : input.commentSnippet;
+    lines.push(`"${snippet}"`);
+  }
+
+  const html = createTemplate(
+    'You were mentioned',
+    intro,
+    lines,
+    getTaskUrl(input.taskId) ? { label: 'View Comment', href: getTaskUrl(input.taskId)! } : undefined
+  );
+
+  return sendEmail({
+    to: input.to,
+    subject: `${input.mentionedBy} mentioned you in: ${input.taskTitle}`,
     html
   });
 }
