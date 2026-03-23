@@ -333,6 +333,7 @@ Currently created events:
 - Sign-off report now includes product name, DKSH branding in the header, and the captured user signature in the printable footer.
 - Signed-off task detail now includes an `Email Report to Me` action for users/admins.
 - Session display name now refreshes from the database so top-right profile text reflects the saved user/admin name.
+- Dashboard task cards now show overdue/pass state through border/top-bar accents and due-date color, reducing extra status pills.
 - Admin database includes a new `Users` tab:
   - searchable/filterable stakeholder/user list
   - table rows are clickable to open user management

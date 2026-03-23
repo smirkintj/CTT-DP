@@ -243,6 +243,7 @@ Security notes:
 - Task detail image evidence upload/paste now auto-optimizes (resize + compression) before save to reduce storage payload.
 - Task detail step `Edit` / `Delete` controls now use larger pill buttons for easier targeting.
 - Sign-off PDF report now includes step evidence images (auto-scaled thumbnail layout).
+- Dashboard task cards now use card border/top-bar accent plus due-date color for overdue (`red`) and passed/signed-off (`green`) states instead of adding another status pill.
   - admin task table now supports selected-group global edit modal (same supported fields as task detail global update).
 - Reporting:
 - Admin task table supports filtered CSV export.

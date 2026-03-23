@@ -232,6 +232,35 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
     return parts[0][0].toUpperCase();
   };
 
+  const getTaskAccent = (task: Task) => {
+    if (isTaskOverdue(task)) {
+      return {
+        cardClass: 'border-rose-200',
+        barClass: 'bg-rose-500',
+        dueDateClass: 'text-rose-700 font-semibold'
+      };
+    }
+
+    const statusKey = normalizeStatusKey(task.status as unknown as string);
+    if (statusKey === 'PASSED' || statusKey === 'DEPLOYED' || Boolean(task.signedOffAt || task.signedOff?.signedAt)) {
+      return {
+        cardClass: 'border-emerald-200',
+        barClass: 'bg-emerald-500',
+        dueDateClass: 'text-emerald-700 font-semibold'
+      };
+    }
+
+    return {
+      cardClass: 'border-slate-200',
+      barClass:
+        task.status === Status.FAILED ? 'bg-rose-500' :
+        task.status === Status.BLOCKED ? 'bg-amber-500' :
+        task.status === Status.IN_PROGRESS ? 'bg-blue-500' :
+        'bg-slate-300',
+      dueDateClass: 'text-slate-500'
+    };
+  };
+
   return (
     <div className="space-y-6">
       
@@ -456,30 +485,21 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                   )}
                 </div>
               ) : (
-                filteredTasks.map((task) => (
+                filteredTasks.map((task) => {
+                  const accent = getTaskAccent(task);
+                  return (
                   <div 
                     key={task.id}
                     onClick={() => onSelectTask(task)}
-                    className="group bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md hover:border-brand-200 transition-all motion-safe:hover:-translate-y-0.5 cursor-pointer relative overflow-hidden flex flex-col h-full animate-card-enter"
+                    className={`group bg-white rounded-xl p-5 border shadow-sm hover:shadow-md hover:border-brand-200 transition-all motion-safe:hover:-translate-y-0.5 cursor-pointer relative overflow-hidden flex flex-col h-full animate-card-enter ${accent.cardClass}`}
                   >
                     {/* Status Strip */}
-                    <div className={`absolute top-0 left-0 right-0 h-1 ${
-                      task.status === Status.PASSED ? 'bg-emerald-500' :
-                      task.status === Status.FAILED ? 'bg-rose-500' :
-                      task.status === Status.BLOCKED ? 'bg-amber-500' :
-                      task.status === Status.IN_PROGRESS ? 'bg-blue-500' :
-                      'bg-slate-300'
-                    }`} />
+                    <div className={`absolute top-0 left-0 right-0 h-1 ${accent.barClass}`} />
 
                     <div className="flex justify-between items-start mb-3 pt-2">
                        <div className="flex items-center gap-2">
                          <Badge type="product" value={task.productName || 'EasyOrder'} />
                          <Badge type="module" value={task.featureModule} />
-                         {isTaskOverdue(task) && (
-                           <span className="inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
-                             Overdue
-                           </span>
-                         )}
                          {hasConditionalStep(task) && (
                            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
                              Conditional
@@ -502,10 +522,10 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                           ) : (
                             <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">{getAssigneeInitials(task)}</div>
                           )}
-                          <span className="text-xs text-slate-600 font-medium">{getAssigneeName(task)}</span>
+                         <span className="text-xs text-slate-600 font-medium">{getAssigneeName(task)}</span>
                          </div>
                          <div className="flex items-center gap-3">
-                          <span className="text-xs text-slate-500">Due: {formatDateOnly(task.dueDate)}</span>
+                          <span className={`text-xs ${accent.dueDateClass}`}>Due: {formatDateOnly(task.dueDate)}</span>
                           {(task.commentCount ?? (task.steps ?? []).reduce((acc, step) => acc + (step.comments?.length ?? 0), 0)) > 0 && (
                              <span className="flex items-center text-xs text-slate-400 gap-1">
                                <MessageSquare size={12}/> {task.commentCount ?? (task.steps ?? []).reduce((acc, step) => acc + (step.comments?.length ?? 0), 0)}
@@ -522,7 +542,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                        )}
                     </div>
                   </div>
-                ))
+                )})
               )}
             </div>
           </div>
