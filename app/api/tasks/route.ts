@@ -10,7 +10,7 @@ import { isValidDueDate, isValidJiraTicket } from '../../../lib/taskValidation';
 import { taskRelationIncludeList, taskRelationIncludeSafe } from './_query';
 import { randomUUID } from 'crypto';
 import { logPilotEvent } from '../../../lib/telemetry';
-import { adminCanAccessProduct, getAdminProductScope } from '../../../lib/adminAccess';
+import { adminCanAccessProduct } from '../../../lib/adminAccess';
 
 export async function GET() {
   const startedAt = Date.now();
@@ -26,12 +26,9 @@ export async function GET() {
     return unauthorized('Unauthorized', 'AUTH_INVALID_SESSION');
   }
 
-  const adminScope = isAdmin ? await getAdminProductScope(session.user.id) : null;
-  const where = isAdmin
-    ? adminScope?.restricted
-      ? { productId: { in: adminScope.productIds } }
-      : undefined
-    : { assigneeId: session.user.id };
+  // Admins always see all tasks regardless of product access assignment.
+  // Product access only scopes user-management actions, not task visibility.
+  const where = isAdmin ? undefined : { assigneeId: session.user.id };
   try {
     let tasks: any[] = [];
     try {

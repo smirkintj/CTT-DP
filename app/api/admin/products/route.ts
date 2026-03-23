@@ -40,8 +40,6 @@ export async function GET() {
 export async function POST(req: Request) {
   const auth = await requireAdmin();
   if ('error' in auth) return auth.error;
-  const scope = await getAdminProductScope(auth.session.user.id);
-  if (scope.restricted) return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
 
   const body = await req.json().catch(() => null);
   const name = body?.name?.toString().trim();

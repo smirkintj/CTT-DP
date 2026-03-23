@@ -78,6 +78,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   const [userSearch, setUserSearch] = useState('');
   const [userCountryFilter, setUserCountryFilter] = useState<'ALL' | string>('ALL');
   const [userStatusFilter, setUserStatusFilter] = useState<'ALL' | 'ACTIVE' | 'DISABLED'>('ALL');
+  const [userProductFilter, setUserProductFilter] = useState<'ALL' | string>('ALL');
   const [isUserDrawerOpen, setIsUserDrawerOpen] = useState(false);
   const [userDrawerMode, setUserDrawerMode] = useState<UserDrawerMode>('create');
   const [selectedUser, setSelectedUser] = useState<AdminUserRow | null>(null);
@@ -376,7 +377,10 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     const matchesStatus =
       userStatusFilter === 'ALL' ||
       (userStatusFilter === 'ACTIVE' ? user.isActive : !user.isActive);
-    return matchesSearch && matchesCountry && matchesStatus;
+    const matchesProduct =
+      userProductFilter === 'ALL' ||
+      user.productAccesses.some((p) => p.id === userProductFilter);
+    return matchesSearch && matchesCountry && matchesStatus && matchesProduct;
   });
 
   const formatDateTime = (value?: string | null) =>
@@ -1128,7 +1132,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
               <div className="md:col-span-2 relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
@@ -1148,6 +1152,18 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                 {countries.map((country) => (
                   <option key={country.code} value={country.code}>
                     {country.code} - {country.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={userProductFilter}
+                onChange={(event) => setUserProductFilter(event.target.value)}
+                className={selectBaseClass}
+              >
+                <option value="ALL">All products</option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name}
                   </option>
                 ))}
               </select>
