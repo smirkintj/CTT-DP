@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { badRequest, forbidden, unauthorized } from '@/lib/apiError';
 import { createAdminAudit } from '@/lib/adminAudit';
-import { adminCanAccessProduct, getAdminProductScope } from '@/lib/adminAccess';
+import { adminCanAccessProduct } from '@/lib/adminAccess';
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -24,13 +24,10 @@ function slugify(value: string) {
 export async function GET() {
   const auth = await requireAdmin();
   if ('error' in auth) return auth.error;
-  const scope = await getAdminProductScope(auth.session.user.id);
 
+  // Database page — all admins see all products regardless of their own product assignment
   const products = await prisma.product.findMany({
-    where: {
-      isActive: true,
-      ...(scope.restricted ? { id: { in: scope.productIds } } : {})
-    },
+    where: { isActive: true },
     orderBy: { name: 'asc' }
   });
 
