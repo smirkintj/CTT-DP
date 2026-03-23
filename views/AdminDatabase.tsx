@@ -255,7 +255,8 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
       notify('Enter a valid email address', 'error');
       return;
     }
-    if (!countryCode) {
+    const isAdminUser = userDrawerMode === 'edit' && selectedUser?.role === 'ADMIN';
+    if (!countryCode && !isAdminUser) {
       notify('Country is required', 'error');
       return;
     }
