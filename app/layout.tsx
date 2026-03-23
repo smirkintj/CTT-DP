@@ -5,7 +5,6 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 export const metadata = {
   title: 'CTT - Cuba Try Test',
   description: 'Cuba Try Test - UAT Management',
-  icons: { icon: '/dksh-logo.png' },
 };
 
 export const viewport = {

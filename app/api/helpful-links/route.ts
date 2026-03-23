@@ -10,21 +10,36 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Resolve the user's product — take the earliest-assigned product access.
-  const access = await prisma.userProductAccess.findFirst({
+  // Get all product accesses for the user
+  const accesses = await prisma.userProductAccess.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: 'asc' },
-    select: { productId: true }
+    select: {
+      product: { select: { id: true, name: true } }
+    }
   });
 
-  if (!access) {
+  if (accesses.length === 0) {
     return NextResponse.json([]);
   }
 
-  const setting = await prisma.portalSetting.findUnique({
-    where: { key: getHelpfulLinksKey(access.productId) },
-    select: { value: true }
-  });
+  // Fetch links for all products in parallel
+  const groups = await Promise.all(
+    accesses.map(async (access) => {
+      const setting = await prisma.portalSetting.findUnique({
+        where: { key: getHelpfulLinksKey(access.product.id) },
+        select: { value: true }
+      });
+      const links = Array.isArray(setting?.value) ? setting.value : [];
+      if (links.length === 0) return null;
+      return {
+        productId: access.product.id,
+        productName: access.product.name,
+        links
+      };
+    })
+  );
 
-  return NextResponse.json(Array.isArray(setting?.value) ? setting.value : []);
+  // Filter out products with no links
+  return NextResponse.json(groups.filter(Boolean));
 }

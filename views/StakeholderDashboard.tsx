@@ -38,7 +38,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [unreadComments, setUnreadComments] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [helpfulLinks, setHelpfulLinks] = useState<{ id: string; label: string; url: string }[]>([]);
+  const [helpfulLinkGroups, setHelpfulLinkGroups] = useState<{ productId: string; productName: string; links: { id: string; label: string; url: string }[] }[]>([]);
   
   const myTasks = tasks.filter(t => t.countryCode === currentUserCountry);
   const statusFilteredTasks = filterStatus === 'ALL'
@@ -161,8 +161,8 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
       if (!response.ok) return;
       const data = await response.json().catch(() => null);
       if (Array.isArray(data)) {
-        setHelpfulLinks(
-          data.filter((item) => typeof item?.label === 'string' && typeof item?.url === 'string')
+        setHelpfulLinkGroups(
+          data.filter((group) => Array.isArray(group?.links) && group.links.length > 0)
         );
       }
     };
@@ -559,18 +559,23 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                 ))
               )}
               
-              {helpfulLinks.length > 0 && (
-                <div className="pt-4 border-t border-slate-100">
+              {helpfulLinkGroups.length > 0 && (
+                <div className="pt-4 border-t border-slate-100 space-y-4">
                     <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Helpful Links</h4>
-                    <ul className="space-y-2">
-                      {helpfulLinks.map((link) => (
-                        <li key={link.id}>
-                          <a href={link.url} target="_blank" rel="noreferrer" className="text-sm text-brand-600 hover:underline">
-                            {link.label}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
+                    {helpfulLinkGroups.map((group) => (
+                      <div key={group.productId}>
+                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">{group.productName}</p>
+                        <ul className="space-y-1.5">
+                          {group.links.map((link: { id: string; label: string; url: string }) => (
+                            <li key={link.id}>
+                              <a href={link.url} target="_blank" rel="noreferrer" className="text-sm text-brand-600 hover:underline">
+                                {link.label}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
                 </div>
               )}
             </div>
