@@ -34,6 +34,7 @@ Set in `.env` (or deployment env):
 - `NEXTAUTH_URL` = app base URL (required in deployed env)
 - `RESEND_API_KEY` = Resend API key
 - `EMAIL_FROM` = sender email (must match Resend/domain policy)
+- `CRON_SECRET` = strong random secret to secure `/api/cron/reminders`; set the same value in Vercel environment variables (staging + prod)
 
 ## Install
 ```bash

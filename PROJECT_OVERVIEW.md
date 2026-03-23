@@ -131,10 +131,17 @@ Defined in `prisma/schema.prisma`.
   - after successful password change, user is redirected to their dashboard without an extra re-login
   - password-change modal includes real-time password policy and confirm-match validation feedback
 - `User` notification preferences:
-  - `notifyOnAssignmentEmail`
-  - `notifyOnReminderEmail`
-  - `notifyOnMentionInbox`
-  - `notifyOnSignoffEmail`
+  - `notifyOnAssignmentEmail` — email when task is assigned
+  - `notifyOnReminderEmail` — email from automated daily reminder cron
+  - `notifyOnMentionInbox` — email when @mentioned in a comment
+  - `notifyOnSignoffEmail` — email when task is signed off
+
+### Email notifications
+- **Task assigned** — fires automatically on DRAFT→READY transition or assignee change
+- **@mention** — fires fire-and-forget when a comment containing @username is posted; respects `notifyOnMentionInbox` preference; self-mentions skipped
+- **Automated reminder** — daily Vercel Cron (`vercel.json`, `0 1 * * *` = 9 AM MYT) calls `/api/cron/reminders`; sends to assignees of READY/IN_PROGRESS tasks due within N days (configurable in Admin → Notifications); secured with `CRON_SECRET` env var
+- **Sign-off** — fires automatically when a task is signed off
+- All templates use `lib/email.ts` via Resend API; consistent DKSH red header branding
 
 ### Passwordless admin sign-in model
 - `MagicLoginToken`
@@ -165,6 +172,8 @@ Defined in `prisma/schema.prisma`.
 - `POST /api/tasks/[id]/signoff`
 - `POST /api/tasks/[id]/notify-assigned` (admin manual trigger)
 - `POST /api/tasks/[id]/reminder` (admin manual trigger)
+- `GET /api/cron/reminders` — automated daily reminder job; secured with `Authorization: Bearer <CRON_SECRET>`
+- `GET/PATCH /api/admin/email-settings` — admin-only reminder toggle and daysBefore config; persisted to `PortalSetting`
 - `POST /api/tasks/[id]/steps`
 - `PATCH /api/tasks/[id]/steps/[stepId]`
 - `DELETE /api/tasks/[id]/steps/[stepId]`
