@@ -220,7 +220,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
     .header-copy { max-width: 70%; }
     .brand-lockup { width: 132px; display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
-    .brand-mark { max-width: 130px; width: 100%; height: auto; object-fit: contain; display:block; }
+    .brand-mark { max-width: 80px; width: 100%; height: auto; object-fit: contain; display:block; }
     h1 { margin: 0; font-size: 20px; }
     .subtitle { margin-top: 4px; color: #64748b; font-size: 12px; }
     .section-title { margin: 18px 0 8px; font-size: 13px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.04em; }
