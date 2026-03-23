@@ -205,28 +205,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const signatureFooter = buildSignatureFooter(task);
 
-  // Inline SVG — no external file dependency, always renders in print/PDF
-  const dkshLogoHtml = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 80" class="brand-mark" aria-label="DKSH" role="img">
-    <!-- Red circle badge -->
-    <circle cx="40" cy="40" r="38" fill="#C8102E"/>
-    <!-- Stylised white palm fronds -->
-    <g fill="#ffffff">
-      <!-- centre trunk base -->
-      <ellipse cx="40" cy="62" rx="3.5" ry="5" />
-      <!-- frond 1 — far left -->
-      <path d="M40 58 Q18 44 14 26 Q24 36 40 52Z"/>
-      <!-- frond 2 — left -->
-      <path d="M40 56 Q24 38 22 18 Q32 30 40 50Z"/>
-      <!-- frond 3 — centre-left -->
-      <path d="M40 54 Q32 32 34 12 Q40 26 42 50Z"/>
-      <!-- frond 4 — centre-right -->
-      <path d="M40 54 Q50 32 50 12 Q44 28 38 50Z"/>
-      <!-- frond 5 — right -->
-      <path d="M40 56 Q58 36 62 18 Q50 30 40 50Z"/>
-    </g>
-    <!-- DKSH wordmark -->
-    <text x="90" y="52" font-family="Arial,Helvetica,sans-serif" font-size="36" font-weight="900" fill="#C8102E" letter-spacing="1">DKSH</text>
-  </svg>`;
+  const baseUrl = (process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
+  const dkshLogoHtml = `<img src="${baseUrl}/dksh-logo.png" alt="DKSH" class="brand-mark" />`;
 
   const html = `<!doctype html>
 <html>
@@ -240,7 +220,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
     .header-copy { max-width: 70%; }
     .brand-lockup { width: 132px; display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
-    .brand-mark { width: 140px; height: auto; display:block; }
+    .brand-mark { max-width: 130px; width: 100%; height: auto; object-fit: contain; display:block; }
     h1 { margin: 0; font-size: 20px; }
     .subtitle { margin-top: 4px; color: #64748b; font-size: 12px; }
     .section-title { margin: 18px 0 8px; font-size: 13px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.04em; }
