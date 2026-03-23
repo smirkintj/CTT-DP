@@ -4,10 +4,6 @@ export type HelpfulLinkItem = {
   url: string;
 };
 
-export const DEFAULT_HELPFUL_LINKS: HelpfulLinkItem[] = [
-  { id: 'uat-guidelines', label: 'UAT Guidelines PDF', url: '#' },
-  { id: 'report-bug', label: 'Report a System Bug', url: '#' },
-  { id: 'contact-admin', label: 'Contact Admin', url: '#' }
-];
-
-export const HELPFUL_LINKS_SETTING_KEY = 'helpful_links';
+export function getHelpfulLinksKey(productId: string): string {
+  return `helpful_links:${productId}`;
+}
