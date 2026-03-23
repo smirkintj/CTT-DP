@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
 import prisma from '../../../../lib/prisma';
-import { DEFAULT_HELPFUL_LINKS, HELPFUL_LINKS_SETTING_KEY } from '../../../../lib/helpfulLinks';
+import { getHelpfulLinksKey } from '../../../../lib/helpfulLinks';
+import { adminCanAccessProduct } from '../../../../lib/adminAccess';
+import { randomUUID } from 'crypto';
 
 const isValidUrl = (value: string) => {
   try {
@@ -13,7 +15,7 @@ const isValidUrl = (value: string) => {
   }
 };
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -22,12 +24,20 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  const productId = new URL(req.url).searchParams.get('productId');
+  if (!productId) {
+    return NextResponse.json({ error: 'productId is required', code: 'PRODUCT_ID_REQUIRED' }, { status: 400 });
+  }
+  if (!(await adminCanAccessProduct(session.user.id, productId))) {
+    return NextResponse.json({ error: 'Forbidden', code: 'ADMIN_PRODUCT_FORBIDDEN' }, { status: 403 });
+  }
+
   const setting = await prisma.portalSetting.findUnique({
-    where: { key: HELPFUL_LINKS_SETTING_KEY },
+    where: { key: getHelpfulLinksKey(productId) },
     select: { value: true }
   });
 
-  return NextResponse.json(Array.isArray(setting?.value) ? setting.value : DEFAULT_HELPFUL_LINKS);
+  return NextResponse.json(Array.isArray(setting?.value) ? setting.value : []);
 }
 
 export async function PATCH(req: Request) {
@@ -40,33 +50,45 @@ export async function PATCH(req: Request) {
   }
 
   const body = await req.json().catch(() => null);
+  const productId = body?.productId?.toString().trim();
+  if (!productId) {
+    return NextResponse.json({ error: 'productId is required', code: 'PRODUCT_ID_REQUIRED' }, { status: 400 });
+  }
+  if (!(await adminCanAccessProduct(session.user.id, productId))) {
+    return NextResponse.json({ error: 'Forbidden', code: 'ADMIN_PRODUCT_FORBIDDEN' }, { status: 403 });
+  }
+
   const links = Array.isArray(body?.links) ? body.links : null;
-  if (!links || links.length === 0) {
-    return NextResponse.json({ error: 'At least one link is required' }, { status: 400 });
+  if (links === null) {
+    return NextResponse.json({ error: 'links must be an array', code: 'HELPFUL_LINKS_INVALID' }, { status: 400 });
+  }
+  if (links.length > 5) {
+    return NextResponse.json({ error: 'Max 5 links allowed', code: 'HELPFUL_LINKS_MAX_EXCEEDED' }, { status: 400 });
   }
 
   for (const link of links) {
     const label = (link?.label || '').toString().trim();
     const url = (link?.url || '').toString().trim();
     if (!label) {
-      return NextResponse.json({ error: 'Link label is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Link label is required', code: 'HELPFUL_LINKS_LABEL_REQUIRED' }, { status: 400 });
     }
     if (!url || !isValidUrl(url)) {
-      return NextResponse.json({ error: `Invalid URL for "${label || 'link'}"` }, { status: 400 });
+      return NextResponse.json({ error: `Invalid URL for "${label}"`, code: 'HELPFUL_LINKS_URL_INVALID' }, { status: 400 });
     }
   }
 
+  // Server regenerates all IDs to prevent malformed/duplicate client IDs.
+  const sanitised = links.map((link: { label: string; url: string }) => ({
+    id: randomUUID(),
+    label: link.label.toString().trim(),
+    url: link.url.toString().trim()
+  }));
+
+  const key = getHelpfulLinksKey(productId);
   const saved = await prisma.portalSetting.upsert({
-    where: { key: HELPFUL_LINKS_SETTING_KEY },
-    create: {
-      key: HELPFUL_LINKS_SETTING_KEY,
-      value: links,
-      updatedById: session.user.id
-    },
-    update: {
-      value: links,
-      updatedById: session.user.id
-    },
+    where: { key },
+    create: { key, value: sanitised, updatedById: session.user.id },
+    update: { value: sanitised, updatedById: session.user.id },
     select: { value: true }
   });
 
