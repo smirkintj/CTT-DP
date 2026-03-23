@@ -39,14 +39,6 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [unreadComments, setUnreadComments] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [notificationPrefs, setNotificationPrefs] = useState({
-    notifyOnAssignmentEmail: true,
-    notifyOnReminderEmail: true,
-    notifyOnMentionInbox: true,
-    notifyOnSignoffEmail: true
-  });
-  const [prefsDirty, setPrefsDirty] = useState(false);
-  const [savingPrefs, setSavingPrefs] = useState(false);
   const [helpfulLinks, setHelpfulLinks] = useState(DEFAULT_HELPFUL_LINKS);
   
   const myTasks = tasks.filter(t => t.countryCode === currentUserCountry);
@@ -178,52 +170,6 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
     void loadHelpfulLinks();
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    const loadNotificationPreferences = async () => {
-      const response = await fetch('/api/users/notification-preferences', { cache: 'no-store' });
-      if (!response.ok) return;
-      const data = await response.json();
-      if (!active || !data) return;
-      setNotificationPrefs({
-        notifyOnAssignmentEmail: Boolean(data.notifyOnAssignmentEmail),
-        notifyOnReminderEmail: Boolean(data.notifyOnReminderEmail),
-        notifyOnMentionInbox: Boolean(data.notifyOnMentionInbox),
-        notifyOnSignoffEmail: Boolean(data.notifyOnSignoffEmail)
-      });
-      setPrefsDirty(false);
-    };
-
-    void loadNotificationPreferences();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const updatePreference = (key: keyof typeof notificationPrefs, value: boolean) => {
-    setNotificationPrefs((prev) => ({ ...prev, [key]: value }));
-    setPrefsDirty(true);
-  };
-
-  const saveNotificationPreferences = async () => {
-    try {
-      setSavingPrefs(true);
-      const response = await fetch('/api/users/notification-preferences', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(notificationPrefs)
-      });
-      if (!response.ok) {
-        notify('Failed to save notification preferences', 'error');
-        return;
-      }
-      setPrefsDirty(false);
-      notify('Notification preferences saved', 'success');
-    } finally {
-      setSavingPrefs(false);
-    }
-  };
-
   const formatTimeAgo = (isoDate: string) => {
     const time = new Date(isoDate).getTime();
     if (Number.isNaN(time)) return '';
@@ -278,50 +224,6 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
   const getAssigneeAvatar = (task: Task) => {
     return task.assignee?.avatarUrl;
   };
-
-  const notificationPreferenceItems: Array<{ key: keyof typeof notificationPrefs; label: string }> = [
-    { key: 'notifyOnAssignmentEmail', label: 'Task assignment emails' },
-    { key: 'notifyOnReminderEmail', label: 'Reminder emails' },
-    { key: 'notifyOnMentionInbox', label: 'Inbox mentions/discussions' },
-    { key: 'notifyOnSignoffEmail', label: 'Task sign-off emails' }
-  ];
-
-  const notificationPreferenceCard = (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 animate-card-enter">
-      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4">Notification Preferences</h3>
-      <div className="space-y-3">
-        {notificationPreferenceItems.map((item) => (
-          <label key={item.key} className="flex items-center justify-between gap-3 text-sm text-slate-700">
-            <span>{item.label}</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={notificationPrefs[item.key]}
-              aria-label={item.label}
-              onClick={() => updatePreference(item.key, !notificationPrefs[item.key])}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                notificationPrefs[item.key] ? 'bg-slate-900' : 'bg-slate-300'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  notificationPrefs[item.key] ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </label>
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={() => void saveNotificationPreferences()}
-        disabled={!prefsDirty || savingPrefs}
-        className="mt-4 w-full px-3 py-2 rounded-md bg-slate-900 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800"
-      >
-        {savingPrefs ? 'Saving...' : 'Save Preferences'}
-      </button>
-    </div>
-  );
 
   return (
     <div className="space-y-6">
@@ -405,10 +307,6 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
               </div>
             </div>
           )}
-
-          <div className="lg:hidden">
-            {notificationPreferenceCard}
-          </div>
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -626,8 +524,6 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
 
         {/* Right Column: Activity Feed (Desktop) */}
         <div className="hidden lg:block space-y-6">
-          {notificationPreferenceCard}
-
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 sticky top-24">
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-4">Recent Activity</h3>
             
