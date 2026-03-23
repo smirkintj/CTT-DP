@@ -88,17 +88,18 @@ export async function POST(req: Request) {
 
   if (!name) return badRequest('Name is required', 'NAME_REQUIRED');
   if (!EMAIL_REGEX.test(email)) return badRequest('Valid email is required', 'EMAIL_INVALID');
-  if (role === UserRole.ADMIN) return forbidden('Creating admin users is disabled', 'ADMIN_CREATE_DISABLED');
-  if (!countryCode) return badRequest('Country is required for stakeholders', 'COUNTRY_REQUIRED');
+  if (role === UserRole.STAKEHOLDER && !countryCode) return badRequest('Country is required for stakeholders', 'COUNTRY_REQUIRED');
   if (temporaryPassword.length < 8) return badRequest('Temporary password must be at least 8 characters', 'PASSWORD_TOO_SHORT');
   if (productIds.length === 0) return badRequest('At least one product is required', 'PRODUCT_ACCESS_REQUIRED');
 
   try {
-    const countryExists = await prisma.country.findUnique({
-      where: { code: countryCode },
-      select: { code: true }
-    });
-    if (!countryExists) return badRequest('Country does not exist', 'COUNTRY_INVALID');
+    if (countryCode) {
+      const countryExists = await prisma.country.findUnique({
+        where: { code: countryCode },
+        select: { code: true }
+      });
+      if (!countryExists) return badRequest('Country does not exist', 'COUNTRY_INVALID');
+    }
 
     const existing = await prisma.user.findUnique({
       where: { email },
@@ -120,7 +121,7 @@ export async function POST(req: Request) {
         name,
         email,
         role,
-        countryCode,
+        countryCode: countryCode || null,
         isActive: true,
         mustChangePassword: true,
         passwordHash,
@@ -139,7 +140,7 @@ export async function POST(req: Request) {
 
     await createAdminAudit({
       actorId: session.user.id,
-      message: `Admin created stakeholder user ${created.email} (${created.countryCode || 'N/A'}).`,
+      message: `Admin created ${created.role.toLowerCase()} user ${created.email} (${created.countryCode || 'N/A'}).`,
       countryCode: created.countryCode,
       metadata: { action: 'USER_CREATED', userId: created.id }
     });
