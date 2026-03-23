@@ -6,8 +6,6 @@ import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { badRequest, conflict, forbidden, internalError, unauthorized } from '@/lib/apiError';
 import { createAdminAudit } from '@/lib/adminAudit';
-import { getAdminProductScope } from '@/lib/adminAccess';
-
 type CreateUserBody = {
   name?: string;
   email?: string;
@@ -28,24 +26,10 @@ export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   if (session.user.role !== 'ADMIN') return forbidden('Forbidden', 'ADMIN_REQUIRED');
-  const scope = await getAdminProductScope(session.user.id);
 
   try {
+    // Database page — all admins see all users regardless of product assignment
     const users = await prisma.user.findMany({
-      where: scope.restricted
-        ? {
-            OR: [
-              { id: session.user.id },
-              {
-                productAccesses: {
-                  some: {
-                    productId: { in: scope.productIds }
-                  }
-                }
-              }
-            ]
-          }
-        : undefined,
       include: {
         productAccesses: {
           include: {
@@ -87,7 +71,6 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   if (session.user.role !== 'ADMIN') return forbidden('Forbidden', 'ADMIN_REQUIRED');
-  const scope = await getAdminProductScope(session.user.id);
 
   let body: CreateUserBody;
   try {
@@ -109,9 +92,6 @@ export async function POST(req: Request) {
   if (!countryCode) return badRequest('Country is required for stakeholders', 'COUNTRY_REQUIRED');
   if (temporaryPassword.length < 8) return badRequest('Temporary password must be at least 8 characters', 'PASSWORD_TOO_SHORT');
   if (productIds.length === 0) return badRequest('At least one product is required', 'PRODUCT_ACCESS_REQUIRED');
-  if (scope.restricted && productIds.some((productId) => !scope.productIds.includes(productId))) {
-    return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
-  }
 
   try {
     const countryExists = await prisma.country.findUnique({

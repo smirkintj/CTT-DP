@@ -96,13 +96,11 @@ export async function DELETE(req: Request) {
     return badRequest('Product is required', 'PRODUCT_REQUIRED');
   }
 
-  const tasksCount = await prisma.task.count({ where: { module: name, productId } });
-  if (tasksCount > 0) {
-    return NextResponse.json(
-      { error: 'Cannot delete module that is already used by tasks.' },
-      { status: 400 }
-    );
-  }
+  // Nullify module reference on tasks before deleting
+  await prisma.task.updateMany({
+    where: { module: name, productId },
+    data: { module: null }
+  });
 
   await prisma.module.delete({ where: { productId_name: { productId, name } } });
   await createAdminAudit({

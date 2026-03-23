@@ -73,16 +73,16 @@ export async function DELETE(req: Request) {
   if (!productId) return badRequest('Product is required', 'PRODUCT_REQUIRED');
   if (!name) return badRequest('Target system name is required', 'TARGET_SYSTEM_NAME_REQUIRED');
 
-  const tasksCount = await prisma.task.count({
-    where: {
-      productId,
-      targetSystem: {
-        is: { name }
-      }
-    }
+  // Nullify target system reference on tasks before deleting
+  const targetSystem = await prisma.targetSystem.findUnique({
+    where: { productId_name: { productId, name } },
+    select: { id: true }
   });
-  if (tasksCount > 0) {
-    return NextResponse.json({ error: 'Cannot delete target system that is already used by tasks.' }, { status: 400 });
+  if (targetSystem) {
+    await prisma.task.updateMany({
+      where: { targetSystemId: targetSystem.id },
+      data: { targetSystemId: null }
+    });
   }
 
   await prisma.targetSystem.delete({

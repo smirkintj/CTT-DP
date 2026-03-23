@@ -64,6 +64,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   const [productHelpfulLinksSaveState, setProductHelpfulLinksSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [productLinksSubTab, setProductLinksSubTab] = useState<'modules' | 'targetSystems' | 'helpfulLinks'>('modules');
   const [productLinksLoading, setProductLinksLoading] = useState(false);
+  const [productsLoading, setProductsLoading] = useState(true);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -152,21 +153,29 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   }, []);
 
   const loadProductConfig = async () => {
-    const response = await fetch('/api/admin/task-config', { cache: 'no-store' });
-    const data = await response.json().catch(() => null);
-    if (!response.ok) {
-      notify(data?.error || 'Failed to load product settings', 'error');
-      return;
-    }
-    if (!Array.isArray(data)) return;
-    setProducts(data as AdminProductConfig[]);
-    if ((data as AdminProductConfig[]).length > 0) {
-      setSelectedProductId((prev) => prev || (data as AdminProductConfig[])[0].id);
-      setProductLinksSubTab('modules');
-      setProductHelpfulLinks([]);
-      setSavedProductHelpfulLinks([]);
-      setProductHelpfulLinksSaveState('idle');
-      onUpdateModules((data as AdminProductConfig[])[0].modules.map((module) => module.name));
+    setProductsLoading(true);
+    try {
+      const response = await fetch('/api/admin/task-config', { cache: 'no-store' });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        notify(data?.error || 'Failed to load product settings', 'error');
+        return;
+      }
+      if (!Array.isArray(data)) return;
+      setProducts(data as AdminProductConfig[]);
+      if ((data as AdminProductConfig[]).length > 0) {
+        const firstId = (data as AdminProductConfig[])[0].id;
+        setSelectedProductId((prev) => prev || firstId);
+        setProductLinksSubTab('modules');
+        setProductHelpfulLinks([]);
+        setSavedProductHelpfulLinks([]);
+        setProductHelpfulLinksSaveState('idle');
+        onUpdateModules((data as AdminProductConfig[])[0].modules.map((module) => module.name));
+        // Preload helpful links for the initially selected product
+        void loadProductHelpfulLinks(firstId);
+      }
+    } finally {
+      setProductsLoading(false);
     }
   };
 
@@ -435,7 +444,12 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   };
 
   const handleDeleteModule = (mod: string) => {
-      void (async () => {
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Module',
+      message: `Delete "${mod}"? Tasks using this module will have it cleared.`,
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
         const response = await fetch('/api/admin/modules', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
@@ -447,7 +461,8 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
           return;
         }
         await loadProductConfig();
-      })();
+      }
+    });
   };
 
   const handleAddProduct = () => {
@@ -514,19 +529,25 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   };
 
   const handleDeleteTargetSystem = (name: string) => {
-    void (async () => {
-      const response = await fetch('/api/admin/target-systems', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: selectedProductId, name })
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        notify(data?.error || 'Failed to delete target system', 'error');
-        return;
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Target System',
+      message: `Delete "${name}"? Tasks using this target system will have it cleared.`,
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        const response = await fetch('/api/admin/target-systems', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId: selectedProductId, name })
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          notify(data?.error || 'Failed to delete target system', 'error');
+          return;
+        }
+        await loadProductConfig();
       }
-      await loadProductConfig();
-    })();
+    });
   };
 
   const loadProductHelpfulLinks = async (productId: string) => {
@@ -574,9 +595,6 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
       if (!window.confirm('You have unsaved changes to Helpful Links. Leave without saving?')) return;
     }
     setProductLinksSubTab(next);
-    if (next === 'helpfulLinks' && selectedProduct) {
-      void loadProductHelpfulLinks(selectedProduct.id);
-    }
   };
 
   const handleSaveEmailSettings = () => {
@@ -745,6 +763,13 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
 
         {activeTab === 'products' && (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+              {productsLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((n) => (
+                    <div key={n} className="h-14 bg-slate-100 rounded-xl animate-pulse" />
+                  ))}
+                </div>
+              ) : (
                 <div className="grid gap-6 lg:grid-cols-[280px,1fr]">
                   <div className="space-y-4">
                     <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
@@ -776,6 +801,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                             setSavedProductHelpfulLinks([]);
                             setProductHelpfulLinksSaveState('idle');
                             onUpdateModules(product.modules.map((module) => module.name));
+                            void loadProductHelpfulLinks(product.id);
                           }}
                           className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
                             selectedProductId === product.id
@@ -1005,6 +1031,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                     )}
                   </div>
                 </div>
+              )}
             </div>
         )}
 

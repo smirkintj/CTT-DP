@@ -162,7 +162,7 @@ model Task {
   priority    TaskPriority
   countryCode String
   productId   String
-  module      String
+  module      String?
   targetSystemId String?
   assigneeId  String?
   dueDate     DateTime?
