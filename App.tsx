@@ -591,7 +591,11 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
   const selectedTask = selectedTaskId ? tasks.find(t => t.id === selectedTaskId) : null;
 
-  if (status === 'loading' || (session?.user && !currentUser) || debugLoadingHold) {
+  // Only block with the loading screen when we know the user IS authenticated
+  // (session data is present but local state hasn't hydrated yet).
+  // For cold unauthenticated visits — status='loading' with session=null — render
+  // the login form immediately so the LCP element paints without delay.
+  if ((session?.user && !currentUser) || debugLoadingHold) {
     return <WorkspaceLoadingScreen />;
   }
 
