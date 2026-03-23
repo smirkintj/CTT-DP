@@ -73,26 +73,31 @@ export async function DELETE(req: Request) {
   if (!productId) return badRequest('Product is required', 'PRODUCT_REQUIRED');
   if (!name) return badRequest('Target system name is required', 'TARGET_SYSTEM_NAME_REQUIRED');
 
-  // Nullify target system reference on tasks before deleting
-  const targetSystem = await prisma.targetSystem.findUnique({
-    where: { productId_name: { productId, name } },
-    select: { id: true }
-  });
-  if (targetSystem) {
-    await prisma.task.updateMany({
-      where: { targetSystemId: targetSystem.id },
-      data: { targetSystemId: null }
+  try {
+    // Nullify target system reference on tasks before deleting
+    const targetSystem = await prisma.targetSystem.findUnique({
+      where: { productId_name: { productId, name } },
+      select: { id: true }
     });
+    if (targetSystem) {
+      await prisma.task.updateMany({
+        where: { targetSystemId: targetSystem.id },
+        data: { targetSystemId: null }
+      });
+    }
+
+    await prisma.targetSystem.delete({
+      where: { productId_name: { productId, name } }
+    });
+
+    await createAdminAudit({
+      actorId: auth.session.user.id,
+      message: `${auth.session.user.name || auth.session.user.email || 'Admin'} deleted target system ${name}.`
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Failed to delete target system:', error);
+    return NextResponse.json({ error: 'Failed to delete target system' }, { status: 500 });
   }
-
-  await prisma.targetSystem.delete({
-    where: { productId_name: { productId, name } }
-  });
-
-  await createAdminAudit({
-    actorId: auth.session.user.id,
-    message: `${auth.session.user.name || auth.session.user.email || 'Admin'} deleted target system ${name}.`
-  });
-
-  return NextResponse.json({ success: true });
 }

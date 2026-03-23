@@ -96,16 +96,21 @@ export async function DELETE(req: Request) {
     return badRequest('Product is required', 'PRODUCT_REQUIRED');
   }
 
-  // Nullify module reference on tasks before deleting
-  await prisma.task.updateMany({
-    where: { module: name, productId },
-    data: { module: null }
-  });
+  try {
+    // Nullify module reference on tasks before deleting
+    await prisma.task.updateMany({
+      where: { module: name, productId },
+      data: { module: null }
+    });
 
-  await prisma.module.delete({ where: { productId_name: { productId, name } } });
-  await createAdminAudit({
-    actorId: auth.session.user.id,
-    message: `${auth.session.user.name || auth.session.user.email || 'Admin'} deleted module ${name}.`
-  });
-  return NextResponse.json({ success: true });
+    await prisma.module.delete({ where: { productId_name: { productId, name } } });
+    await createAdminAudit({
+      actorId: auth.session.user.id,
+      message: `${auth.session.user.name || auth.session.user.email || 'Admin'} deleted module ${name}.`
+    });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Failed to delete module:', error);
+    return NextResponse.json({ error: 'Failed to delete module' }, { status: 500 });
+  }
 }
