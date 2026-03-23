@@ -5,7 +5,6 @@ import { Trash2, Plus, Package, Bell, Users, Search, X, RotateCcw, UserPlus } fr
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass } from '../components/ui/formClasses';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { DEFAULT_HELPFUL_LINKS } from '../lib/helpfulLinks';
 
 interface AdminDatabaseProps {
   countries: CountryConfig[];
@@ -38,7 +37,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   onUpdateModules,
   currentUserId
 }) => {
-  const [activeTab, setActiveTab] = useState<'countries' | 'products' | 'notifications' | 'helpfulLinks' | 'users'>('countries');
+  const [activeTab, setActiveTab] = useState<'countries' | 'products' | 'notifications' | 'users'>('countries');
   const [emailSettings, setEmailSettings] = useState({
     enableReminders: false,
     daysBefore: 3
@@ -60,6 +59,11 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   const [newTargetSystemUrl, setNewTargetSystemUrl] = useState('');
   const [products, setProducts] = useState<AdminProductConfig[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [productHelpfulLinks, setProductHelpfulLinks] = useState<{ id: string; label: string; url: string }[]>([]);
+  const [savedProductHelpfulLinks, setSavedProductHelpfulLinks] = useState<{ id: string; label: string; url: string }[]>([]);
+  const [productHelpfulLinksSaveState, setProductHelpfulLinksSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [productLinksSubTab, setProductLinksSubTab] = useState<'modules' | 'targetSystems' | 'helpfulLinks'>('modules');
+  const [productLinksLoading, setProductLinksLoading] = useState(false);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -109,10 +113,6 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     notifyFailedStep: boolean;
   }>>({});
   const [teamsSaveStateByCountry, setTeamsSaveStateByCountry] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
-  const [helpfulLinks, setHelpfulLinks] = useState(DEFAULT_HELPFUL_LINKS);
-  const [savedHelpfulLinks, setSavedHelpfulLinks] = useState(DEFAULT_HELPFUL_LINKS);
-  const [helpfulLinksSaveState, setHelpfulLinksSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-
   useEffect(() => {
     fetch('/api/admin/email-settings')
       .then((r) => r.ok ? r.json() : null)
@@ -151,19 +151,6 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     })();
   }, []);
 
-  useEffect(() => {
-    if (activeTab !== 'helpfulLinks') return;
-    void (async () => {
-      const response = await fetch('/api/admin/helpful-links', { cache: 'no-store' });
-      if (!response.ok) return;
-      const data = await response.json().catch(() => null);
-      if (Array.isArray(data)) {
-        setHelpfulLinks(data);
-        setSavedHelpfulLinks(data);
-      }
-    })();
-  }, [activeTab]);
-
   const loadProductConfig = async () => {
     const response = await fetch('/api/admin/task-config', { cache: 'no-store' });
     const data = await response.json().catch(() => null);
@@ -175,6 +162,10 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     setProducts(data as AdminProductConfig[]);
     if ((data as AdminProductConfig[]).length > 0) {
       setSelectedProductId((prev) => prev || (data as AdminProductConfig[])[0].id);
+      setProductLinksSubTab('modules');
+      setProductHelpfulLinks([]);
+      setSavedProductHelpfulLinks([]);
+      setProductHelpfulLinksSaveState('idle');
       onUpdateModules((data as AdminProductConfig[])[0].modules.map((module) => module.name));
     }
   };
@@ -367,7 +358,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     };
     return JSON.stringify(current) !== JSON.stringify(saved);
   });
-  const helpfulLinksDirty = JSON.stringify(helpfulLinks) !== JSON.stringify(savedHelpfulLinks);
+  const productHelpfulLinksDirty = JSON.stringify(productHelpfulLinks) !== JSON.stringify(savedProductHelpfulLinks);
 
   const filteredUsers = users.filter((user) => {
     const query = userSearch.trim().toLowerCase();
@@ -476,6 +467,10 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
       setNewProductName('');
       await loadProductConfig();
       setSelectedProductId(data.id);
+      setProductLinksSubTab('modules');
+      setProductHelpfulLinks([]);
+      setSavedProductHelpfulLinks([]);
+      setProductHelpfulLinksSaveState('idle');
     })();
   };
 
@@ -534,6 +529,56 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     })();
   };
 
+  const loadProductHelpfulLinks = async (productId: string) => {
+    setProductLinksLoading(true);
+    try {
+      const response = await fetch(`/api/admin/helpful-links?productId=${productId}`, { cache: 'no-store' });
+      if (!response.ok) return;
+      const data = await response.json().catch(() => null);
+      if (Array.isArray(data)) {
+        setProductHelpfulLinks(data);
+        setSavedProductHelpfulLinks(data);
+      }
+    } finally {
+      setProductLinksLoading(false);
+    }
+  };
+
+  const saveProductHelpfulLinks = () => {
+    if (!selectedProduct) return;
+    void (async () => {
+      setProductHelpfulLinksSaveState('saving');
+      const response = await fetch('/api/admin/helpful-links', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: selectedProduct.id, links: productHelpfulLinks })
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        setProductHelpfulLinksSaveState('error');
+        notify(data?.error || 'Failed to save helpful links', 'error');
+        return;
+      }
+      if (Array.isArray(data)) {
+        setProductHelpfulLinks(data);
+        setSavedProductHelpfulLinks(data);
+      }
+      setProductHelpfulLinksSaveState('saved');
+      notify('Helpful links saved', 'success');
+      window.setTimeout(() => setProductHelpfulLinksSaveState('idle'), 1200);
+    })();
+  };
+
+  const handleProductSubTab = (next: 'modules' | 'targetSystems' | 'helpfulLinks') => {
+    if (productLinksSubTab === 'helpfulLinks' && next !== 'helpfulLinks' && productHelpfulLinksDirty) {
+      if (!window.confirm('You have unsaved changes to Helpful Links. Leave without saving?')) return;
+    }
+    setProductLinksSubTab(next);
+    if (next === 'helpfulLinks' && selectedProduct) {
+      void loadProductHelpfulLinks(selectedProduct.id);
+    }
+  };
+
   const handleSaveEmailSettings = () => {
     setEmailSaveState('saving');
     fetch('/api/admin/email-settings', {
@@ -589,34 +634,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     })();
   };
 
-  const updateHelpfulLink = (index: number, field: 'label' | 'url', value: string) => {
-    setHelpfulLinks((prev) =>
-      prev.map((item, idx) => (idx === index ? { ...item, [field]: value } : item))
-    );
-  };
-
-  const saveHelpfulLinks = () => {
-    void (async () => {
-      setHelpfulLinksSaveState('saving');
-      const response = await fetch('/api/admin/helpful-links', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ links: helpfulLinks })
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        setHelpfulLinksSaveState('error');
-        notify(data?.error || 'Failed to save helpful links', 'error');
-        return;
-      }
-      setSavedHelpfulLinks(helpfulLinks);
-      setHelpfulLinksSaveState('saved');
-      notify('Helpful links saved', 'success');
-      window.setTimeout(() => setHelpfulLinksSaveState('idle'), 1200);
-    })();
-  };
-
-  const handleTabChange = (nextTab: 'countries' | 'products' | 'notifications' | 'helpfulLinks' | 'users') => {
+  const handleTabChange = (nextTab: 'countries' | 'products' | 'notifications' | 'users') => {
     if (activeTab === 'notifications' && nextTab !== 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig)) {
       setConfirmDialog({
         open: true,
@@ -627,29 +645,19 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
       });
       return;
     }
-    if (activeTab === 'helpfulLinks' && nextTab !== 'helpfulLinks' && helpfulLinksDirty) {
-      setConfirmDialog({
-        open: true,
-        title: 'Unsaved Helpful Links',
-        message: 'You have unsaved helpful links. Leave without saving?',
-        confirmLabel: 'Leave',
-        onConfirm: () => setActiveTab(nextTab)
-      });
-      return;
-    }
     setActiveTab(nextTab);
   };
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if ((activeTab === 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig)) || (activeTab === 'helpfulLinks' && helpfulLinksDirty)) {
+      if (activeTab === 'notifications' && (emailSettingsDirty || hasUnsavedTeamsConfig)) {
         event.preventDefault();
         event.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [activeTab, emailSettingsDirty, hasUnsavedTeamsConfig, helpfulLinksDirty]);
+  }, [activeTab, emailSettingsDirty, hasUnsavedTeamsConfig]);
 
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
@@ -677,13 +685,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
             >
                Email Notifications
             </button>
-            <button 
-              onClick={() => handleTabChange('helpfulLinks')}
-              className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'helpfulLinks' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            >
-               Helpful Links
-            </button>
-            <button 
+            <button
               onClick={() => handleTabChange('users')}
               className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'users' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
@@ -769,6 +771,10 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                           type="button"
                           onClick={() => {
                             setSelectedProductId(product.id);
+                            setProductLinksSubTab('modules');
+                            setProductHelpfulLinks([]);
+                            setSavedProductHelpfulLinks([]);
+                            setProductHelpfulLinksSaveState('idle');
                             onUpdateModules(product.modules.map((module) => module.name));
                           }}
                           className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
@@ -803,87 +809,194 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                   <div className="space-y-6">
                     {selectedProduct ? (
                       <>
-                        <div className="rounded-xl border border-slate-200 p-5">
-                          <h3 className="text-sm font-semibold text-slate-900">Modules for {selectedProduct.name}</h3>
-                          <div className="flex gap-3 mb-5 items-end bg-slate-50 p-4 rounded-lg mt-4">
-                            <div className="flex-1">
-                              <label className="text-xs font-semibold text-slate-500 uppercase">Module Name</label>
-                              <input
-                                type="text"
-                                className="w-full mt-1 border-slate-300 rounded-md text-sm"
-                                placeholder="e.g. Logistics"
-                                value={newModule}
-                                onChange={(e) => setNewModule(e.target.value)}
-                              />
-                            </div>
+                        {/* Product sub-tab bar */}
+                        <div className="flex gap-0 border-b border-slate-200 mb-4">
+                          {(['modules', 'targetSystems', 'helpfulLinks'] as const).map((tab) => (
                             <button
-                              onClick={handleAddModule}
-                              className="bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-800 flex items-center gap-2 h-[38px]"
+                              key={tab}
+                              onClick={() => handleProductSubTab(tab)}
+                              className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                                productLinksSubTab === tab
+                                  ? 'border-slate-900 text-slate-900'
+                                  : 'border-transparent text-slate-500 hover:text-slate-700'
+                              }`}
                             >
-                              <Plus size={16} /> Add
+                              {tab === 'modules' ? 'Modules' : tab === 'targetSystems' ? 'Target Systems' : 'Helpful Links'}
                             </button>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {selectedProduct.modules.map((module) => (
-                              <div key={module.id} className="flex justify-between items-center p-3 border border-slate-200 rounded-lg">
-                                <div className="flex items-center gap-3">
-                                  <Package size={18} className="text-slate-400" />
-                                  <span className="text-sm font-medium text-slate-900">{module.name}</span>
-                                </div>
-                                <button onClick={() => handleDeleteModule(module.name)} className="text-slate-400 hover:text-red-500 p-1">
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
+                          ))}
                         </div>
 
-                        <div className="rounded-xl border border-slate-200 p-5">
-                          <h3 className="text-sm font-semibold text-slate-900">Target Systems for {selectedProduct.name}</h3>
-                          <div className="grid gap-3 bg-slate-50 p-4 rounded-lg mt-4 md:grid-cols-[1fr,1.2fr,auto] md:items-end">
-                            <div>
-                              <label className="text-xs font-semibold text-slate-500 uppercase">System Name</label>
-                              <input
-                                type="text"
-                                className="w-full mt-1 border-slate-300 rounded-md text-sm"
-                                placeholder="e.g. Customer Portal"
-                                value={newTargetSystemName}
-                                onChange={(e) => setNewTargetSystemName(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs font-semibold text-slate-500 uppercase">Base URL</label>
-                              <input
-                                type="url"
-                                className="w-full mt-1 border-slate-300 rounded-md text-sm"
-                                placeholder="https://..."
-                                value={newTargetSystemUrl}
-                                onChange={(e) => setNewTargetSystemUrl(e.target.value)}
-                              />
-                            </div>
-                            <button
-                              onClick={handleAddTargetSystem}
-                              className="bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-800 flex items-center gap-2 h-[38px]"
-                            >
-                              <Plus size={16} /> Add
-                            </button>
-                          </div>
-
-                          <div className="space-y-3 mt-5">
-                            {selectedProduct.targetSystems.map((targetSystem) => (
-                              <div key={targetSystem.id} className="flex justify-between items-center gap-3 p-3 border border-slate-200 rounded-lg">
-                                <div className="min-w-0">
-                                  <p className="text-sm font-medium text-slate-900">{targetSystem.name}</p>
-                                  <p className="text-xs text-slate-500 truncate">{targetSystem.baseUrl || 'No launch URL configured yet'}</p>
-                                </div>
-                                <button onClick={() => handleDeleteTargetSystem(targetSystem.name)} className="text-slate-400 hover:text-red-500 p-1">
-                                  <Trash2 size={16} />
-                                </button>
+                        {/* Modules panel */}
+                        {productLinksSubTab === 'modules' && (
+                          <div className="rounded-xl border border-slate-200 p-5">
+                            <h3 className="text-sm font-semibold text-slate-900">Modules for {selectedProduct.name}</h3>
+                            <div className="flex gap-3 mb-5 items-end bg-slate-50 p-4 rounded-lg mt-4">
+                              <div className="flex-1">
+                                <label className="text-xs font-semibold text-slate-500 uppercase">Module Name</label>
+                                <input
+                                  type="text"
+                                  className="w-full mt-1 border-slate-300 rounded-md text-sm"
+                                  placeholder="e.g. Logistics"
+                                  value={newModule}
+                                  onChange={(e) => setNewModule(e.target.value)}
+                                />
                               </div>
-                            ))}
+                              <button
+                                onClick={handleAddModule}
+                                className="bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-800 flex items-center gap-2 h-[38px]"
+                              >
+                                <Plus size={16} /> Add
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {selectedProduct.modules.map((module) => (
+                                <div key={module.id} className="flex justify-between items-center p-3 border border-slate-200 rounded-lg">
+                                  <div className="flex items-center gap-3">
+                                    <Package size={18} className="text-slate-400" />
+                                    <span className="text-sm font-medium text-slate-900">{module.name}</span>
+                                  </div>
+                                  <button onClick={() => handleDeleteModule(module.name)} className="text-slate-400 hover:text-red-500 p-1">
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
+                        )}
+
+                        {/* Target Systems panel */}
+                        {productLinksSubTab === 'targetSystems' && (
+                          <div className="rounded-xl border border-slate-200 p-5">
+                            <h3 className="text-sm font-semibold text-slate-900">Target Systems for {selectedProduct.name}</h3>
+                            <div className="grid gap-3 bg-slate-50 p-4 rounded-lg mt-4 md:grid-cols-[1fr,1.2fr,auto] md:items-end">
+                              <div>
+                                <label className="text-xs font-semibold text-slate-500 uppercase">System Name</label>
+                                <input
+                                  type="text"
+                                  className="w-full mt-1 border-slate-300 rounded-md text-sm"
+                                  placeholder="e.g. Customer Portal"
+                                  value={newTargetSystemName}
+                                  onChange={(e) => setNewTargetSystemName(e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs font-semibold text-slate-500 uppercase">Base URL</label>
+                                <input
+                                  type="url"
+                                  className="w-full mt-1 border-slate-300 rounded-md text-sm"
+                                  placeholder="https://..."
+                                  value={newTargetSystemUrl}
+                                  onChange={(e) => setNewTargetSystemUrl(e.target.value)}
+                                />
+                              </div>
+                              <button
+                                onClick={handleAddTargetSystem}
+                                className="bg-slate-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-800 flex items-center gap-2 h-[38px]"
+                              >
+                                <Plus size={16} /> Add
+                              </button>
+                            </div>
+
+                            <div className="space-y-3 mt-5">
+                              {selectedProduct.targetSystems.map((targetSystem) => (
+                                <div key={targetSystem.id} className="flex justify-between items-center gap-3 p-3 border border-slate-200 rounded-lg">
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium text-slate-900">{targetSystem.name}</p>
+                                    <p className="text-xs text-slate-500 truncate">{targetSystem.baseUrl || 'No launch URL configured yet'}</p>
+                                  </div>
+                                  <button onClick={() => handleDeleteTargetSystem(targetSystem.name)} className="text-slate-400 hover:text-red-500 p-1">
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Helpful Links panel */}
+                        {productLinksSubTab === 'helpfulLinks' && (
+                          <div className="rounded-xl border border-slate-200 p-5 space-y-4">
+                            <p className="text-xs text-slate-500">
+                              Configure links shown in the stakeholder dashboard sidebar for <strong>{selectedProduct.name}</strong> users. Max 5 links.
+                            </p>
+
+                            {productLinksLoading ? (
+                              <div className="space-y-2">
+                                {[1, 2].map((n) => (
+                                  <div key={n} className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                {productHelpfulLinks.map((link, index) => (
+                                  <div key={link.id || index} className="grid grid-cols-[1fr_1fr_28px] gap-2 items-center">
+                                    <input
+                                      type="text"
+                                      value={link.label}
+                                      onChange={(e) =>
+                                        setProductHelpfulLinks((prev) =>
+                                          prev.map((item, i) => (i === index ? { ...item, label: e.target.value } : item))
+                                        )
+                                      }
+                                      className={fieldBaseClass}
+                                      placeholder="Link label"
+                                    />
+                                    <input
+                                      type="url"
+                                      value={link.url}
+                                      onChange={(e) =>
+                                        setProductHelpfulLinks((prev) =>
+                                          prev.map((item, i) => (i === index ? { ...item, url: e.target.value } : item))
+                                        )
+                                      }
+                                      className={fieldBaseClass}
+                                      placeholder="https://..."
+                                    />
+                                    <button
+                                      onClick={() =>
+                                        setProductHelpfulLinks((prev) => prev.filter((_, i) => i !== index))
+                                      }
+                                      className="w-7 h-7 flex items-center justify-center rounded-md bg-red-50 text-red-500 hover:bg-red-100 text-base leading-none"
+                                      aria-label="Remove link"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {productHelpfulLinks.length < 5 && (
+                              <button
+                                onClick={() =>
+                                  setProductHelpfulLinks((prev) => [
+                                    ...prev,
+                                    { id: '', label: '', url: '' }
+                                  ])
+                                }
+                                className="flex items-center gap-2 text-xs text-slate-600 border border-dashed border-slate-300 rounded-lg px-3 py-2 hover:bg-slate-50"
+                              >
+                                <Plus size={14} /> Add link
+                                <span className="text-slate-400">({5 - productHelpfulLinks.length} of 5 remaining)</span>
+                              </button>
+                            )}
+
+                            <div className="flex justify-end pt-2 border-t border-slate-100">
+                              <button
+                                onClick={saveProductHelpfulLinks}
+                                disabled={!productHelpfulLinksDirty || productHelpfulLinksSaveState === 'saving'}
+                                className="bg-slate-900 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {productHelpfulLinksSaveState === 'saving'
+                                  ? 'Saving...'
+                                  : productHelpfulLinksSaveState === 'saved'
+                                  ? 'Saved'
+                                  : 'Save Links'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <div className="rounded-xl border border-dashed border-slate-200 p-10 text-sm text-slate-500 text-center">
@@ -1073,48 +1186,6 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                 </div>
 
             </div>
-        )}
-
-        {activeTab === 'helpfulLinks' && (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-slate-900">Stakeholder Helpful Links</h3>
-            <p className="text-xs text-slate-500">
-              Configure names and URLs shown in stakeholder dashboard sidebar.
-            </p>
-            <div className="space-y-3">
-              {helpfulLinks.map((link, index) => (
-                <div key={link.id || index} className="grid grid-cols-1 md:grid-cols-2 gap-2 rounded-lg border border-slate-200 p-3 bg-slate-50">
-                  <input
-                    type="text"
-                    value={link.label}
-                    onChange={(event) => updateHelpfulLink(index, 'label', event.target.value)}
-                    className={fieldBaseClass}
-                    placeholder="Link label"
-                  />
-                  <input
-                    type="url"
-                    value={link.url}
-                    onChange={(event) => updateHelpfulLink(index, 'url', event.target.value)}
-                    className={fieldBaseClass}
-                    placeholder="https://..."
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-end">
-              <button
-                onClick={saveHelpfulLinks}
-                disabled={!helpfulLinksDirty || helpfulLinksSaveState === 'saving'}
-                className="bg-slate-900 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {helpfulLinksSaveState === 'saving'
-                  ? 'Saving...'
-                  : helpfulLinksSaveState === 'saved'
-                    ? 'Saved'
-                    : 'Save Helpful Links'}
-              </button>
-            </div>
-          </div>
         )}
 
         {activeTab === 'users' && (
