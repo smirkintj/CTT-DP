@@ -224,6 +224,14 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
     return task.assignee?.avatarUrl;
   };
 
+  const getAssigneeInitials = (task: Task) => {
+    const name = task.assignee?.name;
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return parts[0][0].toUpperCase();
+  };
+
   return (
     <div className="space-y-6">
       
@@ -485,7 +493,6 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                       {task.title}
                     </h3>
                     <p className="text-slate-500 text-sm line-clamp-2 mb-4 flex-1">{task.description}</p>
-                    <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400 mb-4">{task.productName || 'EasyOrder'} product</p>
 
                     <div className="border-t border-slate-100 pt-3 mt-auto">
                        <div className="flex items-center justify-between gap-3">
@@ -493,7 +500,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                           {getAssigneeAvatar(task) ? (
                             <img src={getAssigneeAvatar(task)} alt="Assignee" className="w-6 h-6 rounded-full border border-slate-200"/>
                           ) : (
-                            <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">?</div>
+                            <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">{getAssigneeInitials(task)}</div>
                           )}
                           <span className="text-xs text-slate-600 font-medium">{getAssigneeName(task)}</span>
                          </div>
