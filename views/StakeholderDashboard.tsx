@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Task, Status } from '../types';
 import { Badge } from '../components/Badge';
 import { Search, ArrowRight, MessageSquare, AlertCircle, CheckCircle, Clock } from 'lucide-react';
@@ -54,16 +54,57 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
         }
         return statusKey === filterStatus;
       });
-  const filteredTasks = statusFilteredTasks.filter((task) => {
+  const isTaskCompleted = (task: Task) => {
+    const statusKey = normalizeStatusKey(task.status as unknown as string);
+    return statusKey === 'DEPLOYED' || Boolean(task.signedOffAt || task.signedOff?.signedAt);
+  };
+
+  const isTaskOverdue = (task: Task) => {
+    if (isTaskCompleted(task) || !task.dueDate) return false;
+    const dueTime = new Date(task.dueDate).getTime();
+    if (Number.isNaN(dueTime)) return false;
+    return dueTime < Date.now();
+  };
+
+  const filteredTasks = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
-    if (!query) return true;
-    return (
-      task.title.toLowerCase().includes(query) ||
-      (task.productName || '').toLowerCase().includes(query) ||
-      task.featureModule.toLowerCase().includes(query) ||
-      (task.description || '').toLowerCase().includes(query)
-    );
-  });
+    const searched = statusFilteredTasks.filter((task) => {
+      if (!query) return true;
+      return (
+        task.title.toLowerCase().includes(query) ||
+        (task.productName || '').toLowerCase().includes(query) ||
+        task.featureModule.toLowerCase().includes(query) ||
+        (task.description || '').toLowerCase().includes(query)
+      );
+    });
+
+    const getDueTime = (task: Task) => {
+      if (!task.dueDate) return Number.POSITIVE_INFINITY;
+      const time = new Date(task.dueDate).getTime();
+      return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time;
+    };
+
+    const getPriorityBucket = (task: Task) => {
+      const statusKey = normalizeStatusKey(task.status as unknown as string);
+      if (isTaskOverdue(task)) return 0;
+      if (statusKey === 'BLOCKED') return 1;
+      if (statusKey === 'FAILED') return 2;
+      if (statusKey === 'IN_PROGRESS') return 3;
+      if (statusKey === 'READY' || statusKey === 'PENDING') return 4;
+      if (statusKey === 'PASSED' && !Boolean(task.signedOffAt || task.signedOff)) return 5;
+      return 6;
+    };
+
+    return [...searched].sort((a, b) => {
+      const bucketDiff = getPriorityBucket(a) - getPriorityBucket(b);
+      if (bucketDiff !== 0) return bucketDiff;
+
+      const dueDiff = getDueTime(a) - getDueTime(b);
+      if (dueDiff !== 0) return dueDiff;
+
+      return a.title.localeCompare(b.title);
+    });
+  }, [statusFilteredTasks, searchTerm]);
   
   // Calculate specific stats
   const pendingCount = myTasks.filter((task) => {
@@ -71,6 +112,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
     const isSignedOff = Boolean(task.signedOffAt || task.signedOff);
     return key === 'READY' || key === 'PENDING' || key === 'IN_PROGRESS' || key === 'BLOCKED' || key === 'FAILED' || (key === 'PASSED' && !isSignedOff);
   }).length;
+  const overdueCount = myTasks.filter((task) => isTaskOverdue(task)).length;
   const completedTasks = myTasks.filter((task) => {
     const key = task.status?.toString().trim().replace(/\s+/g, '_').toUpperCase();
     return key === 'DEPLOYED' || Boolean(task.signedOffAt || task.signedOff);
@@ -196,18 +238,6 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
 
   const getSignedOffByLabel = (task: Task) => {
     return task.signedOffBy?.name || task.signedOffBy?.email || task.signedOff?.signedBy || null;
-  };
-
-  const isTaskCompleted = (task: Task) => {
-    const statusKey = normalizeStatusKey(task.status as unknown as string);
-    return statusKey === 'DEPLOYED' || Boolean(task.signedOffAt || task.signedOff?.signedAt);
-  };
-
-  const isTaskOverdue = (task: Task) => {
-    if (isTaskCompleted(task) || !task.dueDate) return false;
-    const dueTime = new Date(task.dueDate).getTime();
-    if (Number.isNaN(dueTime)) return false;
-    return dueTime < Date.now();
   };
 
   const hasConditionalStep = (task: Task) => {
@@ -382,6 +412,13 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                 <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-bold text-slate-900">{pendingCount}</span>
                     <span className="text-xs text-slate-400">remaining</span>
+                </div>
+                <div className="mt-3 text-xs">
+                  {overdueCount > 0 ? (
+                    <span className="font-medium text-rose-700">{overdueCount} overdue</span>
+                  ) : (
+                    <span className="text-slate-400">No overdue tasks</span>
+                  )}
                 </div>
               </div>
 

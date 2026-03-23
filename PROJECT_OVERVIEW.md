@@ -334,6 +334,7 @@ Currently created events:
 - Signed-off task detail now includes an `Email Report to Me` action for users/admins.
 - Session display name now refreshes from the database so top-right profile text reflects the saved user/admin name.
 - Dashboard task cards now show overdue/pass state through border/top-bar accents and due-date color, reducing extra status pills.
+- Stakeholder dashboard card ordering now prioritizes overdue and active tasks first, and the open-task KPI includes an inline overdue count.
 - Admin database includes a new `Users` tab:
   - searchable/filterable stakeholder/user list
   - table rows are clickable to open user management
