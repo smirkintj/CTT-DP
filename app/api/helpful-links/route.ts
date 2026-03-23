@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth';
 import prisma from '../../../lib/prisma';
-import { DEFAULT_HELPFUL_LINKS, HELPFUL_LINKS_SETTING_KEY } from '../../../lib/helpfulLinks';
+import { getHelpfulLinksKey } from '../../../lib/helpfulLinks';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -10,11 +10,21 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Resolve the user's product — take the earliest-assigned product access.
+  const access = await prisma.userProductAccess.findFirst({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: 'asc' },
+    select: { productId: true }
+  });
+
+  if (!access) {
+    return NextResponse.json([]);
+  }
+
   const setting = await prisma.portalSetting.findUnique({
-    where: { key: HELPFUL_LINKS_SETTING_KEY },
+    where: { key: getHelpfulLinksKey(access.productId) },
     select: { value: true }
   });
 
-  const links = Array.isArray(setting?.value) ? setting?.value : DEFAULT_HELPFUL_LINKS;
-  return NextResponse.json(links);
+  return NextResponse.json(Array.isArray(setting?.value) ? setting.value : []);
 }
