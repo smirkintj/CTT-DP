@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
 import { badRequest, forbidden, notFound, unauthorized } from '../../../../lib/apiError';
 import { createAdminAudit } from '../../../../lib/adminAudit';
+import { encryptField, decryptField } from '../../../../lib/encrypt';
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
     orderBy: { countryCode: 'asc' }
   });
 
-  return NextResponse.json(configs);
+  return NextResponse.json(configs.map(c => ({ ...c, teamsWebhookUrl: decryptField(c.teamsWebhookUrl) })));
 }
 
 export async function POST(req: Request) {
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
   const config = await prisma.notificationConfig.upsert({
     where: { productId_countryCode: { productId, countryCode } },
     update: {
-      teamsWebhookUrl: body?.teamsWebhookUrl?.toString().trim() || null,
+      teamsWebhookUrl: encryptField(body?.teamsWebhookUrl?.toString().trim() || null),
       isActive: Boolean(body?.isActive),
       notifyTaskAssigned: body?.notifyTaskAssigned !== false,
       notifyReminder: body?.notifyReminder !== false,
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
     create: {
       productId,
       countryCode,
-      teamsWebhookUrl: body?.teamsWebhookUrl?.toString().trim() || null,
+      teamsWebhookUrl: encryptField(body?.teamsWebhookUrl?.toString().trim() || null),
       isActive: Boolean(body?.isActive),
       notifyTaskAssigned: body?.notifyTaskAssigned !== false,
       notifyReminder: body?.notifyReminder !== false,

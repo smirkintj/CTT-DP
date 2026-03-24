@@ -1,4 +1,5 @@
 import prisma from './prisma';
+import { decryptField } from './encrypt';
 
 type TeamsEventType = 'TASK_ASSIGNED' | 'REMINDER' | 'SIGNED_OFF' | 'FAILED_STEP';
 type TeamsFlagField = 'notifyTaskAssigned' | 'notifyReminder' | 'notifySignedOff' | 'notifyFailedStep';
@@ -152,7 +153,10 @@ export async function sendTeamsMessage(params: TeamsMessageParams): Promise<bool
     where: { productId_countryCode: { productId: params.productId, countryCode: params.countryCode } }
   });
 
-  if (!config || !config.isActive || !config.teamsWebhookUrl) return false;
+  if (!config || !config.isActive) return false;
+
+  const webhookUrl = decryptField(config.teamsWebhookUrl);
+  if (!webhookUrl) return false;
 
   const eventField = eventFieldMap[params.eventType];
   if (!config[eventField]) return false;
@@ -163,7 +167,7 @@ export async function sendTeamsMessage(params: TeamsMessageParams): Promise<bool
   const payload = buildPayload(params, taskUrl);
 
   try {
-    const response = await fetch(config.teamsWebhookUrl, {
+    const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -187,7 +191,8 @@ export async function sendTeamsTestMessage(params: {
     return { ok: false, reason: 'CONFIG_NOT_FOUND' };
   }
 
-  if (!config.teamsWebhookUrl) {
+  const webhookUrl = decryptField(config.teamsWebhookUrl);
+  if (!webhookUrl) {
     return { ok: false, reason: 'WEBHOOK_MISSING' };
   }
 
@@ -214,7 +219,7 @@ export async function sendTeamsTestMessage(params: {
   };
 
   try {
-    const response = await fetch(config.teamsWebhookUrl, {
+    const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

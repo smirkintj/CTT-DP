@@ -1,9 +1,32 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { checkRateLimit } from './lib/apiRateLimit';
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // Rate limiting for API routes
+  if (req.nextUrl.pathname.startsWith('/api/') &&
+      !req.nextUrl.pathname.startsWith('/api/auth/')) {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const isWrite = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
+    const limit = isWrite ? 30 : 120;
+    const { allowed, remaining, resetInMs } = checkRateLimit(`${ip}:${isWrite ? 'w' : 'r'}`, limit);
+
+    if (!allowed) {
+      return new NextResponse(JSON.stringify({ error: 'Too many requests', code: 'RATE_LIMITED' }), {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-RateLimit-Limit': String(limit),
+          'X-RateLimit-Remaining': '0',
+          'Retry-After': String(Math.ceil(resetInMs / 1000)),
+        },
+      });
+    }
+    void remaining;
+  }
 
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
@@ -32,5 +55,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/import', '/tasks/:path*', '/inbox', '/knowledge-base']
+  matcher: ['/admin/:path*', '/import', '/tasks/:path*', '/inbox', '/knowledge-base', '/api/:path*']
 };
