@@ -31,7 +31,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           name: true,
           notifyOnAssignmentEmail: true
         }
-      }
+      },
+      product: { select: { name: true } },
+      targetSystem: { select: { baseUrl: true } }
     }
   });
 
@@ -100,13 +102,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   void sendTeamsMessage({
     countryCode: task.countryCode,
     eventType: 'TASK_ASSIGNED',
-    title: `Task Assignment (${task.countryCode})`,
-    text: `Assignment notification sent for "${task.title}".`,
     taskId: task.id,
-    facts: [
-      { name: 'Task', value: task.title },
-      { name: 'Assignee', value: task.assignee.name || task.assignee.email || 'User' }
-    ]
+    taskTitle: task.title,
+    productName: task.product.name,
+    module: task.module,
+    targetSystemUrl: task.targetSystem?.baseUrl,
+    dueDate: task.dueDate,
+    actorName: session.user.name || session.user.email
   });
 
   return NextResponse.json({ success: true });

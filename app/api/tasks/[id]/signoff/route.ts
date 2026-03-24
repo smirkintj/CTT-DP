@@ -37,7 +37,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           name: true,
           notifyOnSignoffEmail: true
         }
-      }
+      },
+      product: { select: { name: true } }
     }
   });
 
@@ -117,14 +118,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   void sendTeamsMessage({
     countryCode: task.countryCode,
     eventType: 'SIGNED_OFF',
-    title: `Task Signed Off (${task.countryCode})`,
-    text: `${session.user.name || session.user.email} signed off "${task.title}".`,
     taskId: task.id,
-    facts: [
-      { name: 'Task', value: task.title },
-      { name: 'Country', value: task.countryCode },
-      { name: 'Signed Off By', value: session.user.name || session.user.email || 'User' }
-    ]
+    taskTitle: task.title,
+    productName: task.product.name,
+    module: task.module,
+    actorName: session.user.name || session.user.email,
+    signedOffAt
   });
 
   logPilotEvent('task.signoff.success', {
