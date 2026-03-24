@@ -117,6 +117,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   void sendTeamsMessage({
     countryCode: task.countryCode,
+    productId: task.productId,
     eventType: 'SIGNED_OFF',
     taskId: task.id,
     taskTitle: task.title,

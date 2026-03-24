@@ -17,12 +17,14 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => null);
+  const productId = body?.productId?.toString().trim();
   const countryCode = body?.countryCode?.toString().trim().toUpperCase();
-  if (!countryCode) {
-    return badRequest('countryCode is required', 'COUNTRY_CODE_REQUIRED');
-  }
+
+  if (!productId) return badRequest('productId is required', 'PRODUCT_ID_REQUIRED');
+  if (!countryCode) return badRequest('countryCode is required', 'COUNTRY_CODE_REQUIRED');
 
   const result = await sendTeamsTestMessage({
+    productId,
     countryCode,
     initiatedBy: session.user.name || session.user.email || 'Admin'
   });
@@ -31,31 +33,24 @@ export async function POST(req: Request) {
     await createAdminAudit({
       actorId: session.user.id,
       countryCode,
-      message: `Admin Teams test notification failed for ${countryCode}.`,
-      metadata: {
-        action: 'TEAMS_TEST_FAILED',
-        reason: result.reason || 'UNKNOWN'
-      }
+      message: `Teams test notification failed for ${countryCode}.`,
+      metadata: { action: 'TEAMS_TEST_FAILED', productId, reason: result.reason || 'UNKNOWN' }
     });
 
     if (result.reason === 'CONFIG_NOT_FOUND') {
-      return NextResponse.json({ error: 'No Teams configuration found for this country.' }, { status: 404 });
+      return NextResponse.json({ error: 'No Teams configuration found for this product/country.' }, { status: 404 });
     }
-
     if (result.reason === 'WEBHOOK_MISSING') {
-      return NextResponse.json({ error: 'Teams webhook URL is missing for this country.' }, { status: 400 });
+      return NextResponse.json({ error: 'Teams webhook URL is missing.' }, { status: 400 });
     }
-
     return NextResponse.json({ error: 'Failed to deliver Teams test message.' }, { status: 500 });
   }
 
   await createAdminAudit({
     actorId: session.user.id,
     countryCode,
-    message: `Admin sent Teams test notification for ${countryCode}.`,
-    metadata: {
-      action: 'TEAMS_TEST_SENT'
-    }
+    message: `Teams test notification sent for ${countryCode}.`,
+    metadata: { action: 'TEAMS_TEST_SENT', productId }
   });
 
   return NextResponse.json({ success: true });

@@ -12,6 +12,7 @@ const eventFieldMap: Record<TeamsEventType, TeamsFlagField> = {
 
 export type TeamsMessageParams = {
   countryCode?: string | null;
+  productId?: string | null;   // ADD THIS
   eventType: TeamsEventType;
   taskId?: string;
   taskTitle: string;
@@ -146,8 +147,9 @@ function buildPayload(params: TeamsMessageParams, taskUrl: string | undefined): 
 export async function sendTeamsMessage(params: TeamsMessageParams): Promise<boolean> {
   if (!params.countryCode) return false;
 
+  if (!params.productId) return false;
   const config = await prisma.notificationConfig.findUnique({
-    where: { countryCode: params.countryCode }
+    where: { productId_countryCode: { productId: params.productId, countryCode: params.countryCode } }
   });
 
   if (!config || !config.isActive || !config.teamsWebhookUrl) return false;
@@ -173,11 +175,12 @@ export async function sendTeamsMessage(params: TeamsMessageParams): Promise<bool
 }
 
 export async function sendTeamsTestMessage(params: {
+  productId: string;
   countryCode: string;
   initiatedBy: string;
 }): Promise<{ ok: boolean; reason?: 'CONFIG_NOT_FOUND' | 'WEBHOOK_MISSING' | 'DELIVERY_FAILED' }> {
   const config = await prisma.notificationConfig.findUnique({
-    where: { countryCode: params.countryCode }
+    where: { productId_countryCode: { productId: params.productId, countryCode: params.countryCode } }
   });
 
   if (!config) {
