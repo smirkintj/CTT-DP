@@ -732,7 +732,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
               onClick={() => handleTabChange('notifications')}
               className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'notifications' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
-               Email Notifications
+               Notifications
             </button>
             <button
               onClick={() => handleTabChange('users')}
