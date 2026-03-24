@@ -37,6 +37,7 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 - `/import` → Import wizard
 - `/tasks/[id]` → Task detail route
 - `/knowledge-base` → Shared knowledge base route (authenticated)
+- Floating assistant → available across authenticated screens via `components/AssistantDock.tsx`
 
 ## Core UI Components
 ### Main App Shell
@@ -56,8 +57,16 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 
 ### Shared Components (`components/`)
 - `Layout.tsx` (top nav, notifications, profile, shell container)
+- `AssistantDock.tsx` (floating UAT assistant panel with structured task cards)
 - `Badge.tsx`
 - `SignatureCanvas.tsx`
+
+## In-App Assistant
+- API route: `app/api/assistant/chat/route.ts`
+- Core logic: `lib/assistant.ts`
+- Uses the existing NextAuth session plus Prisma queries for role, country, assignee, and product scoping.
+- Uses OpenAI-compatible chat completions via `fetch`, so Ollama or another compatible provider can be swapped through env vars without changing route code.
+- Returns conversational text plus card payloads for task-style answers so the UI can render structured results instead of plain paragraphs.
 
 ### Runtime Telemetry
 - Vercel Speed Insights is mounted in root layout:

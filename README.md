@@ -35,6 +35,9 @@ Set in `.env` (or deployment env):
 - `RESEND_API_KEY` = Resend API key
 - `EMAIL_FROM` = sender email (must match Resend/domain policy)
 - `CRON_SECRET` = strong random secret to secure `/api/cron/reminders`; set the same value in Vercel environment variables (staging + prod)
+- `LLM_BASE_URL` = OpenAI-compatible LLM endpoint for the in-app assistant (example: `http://localhost:11434/v1`)
+- `LLM_MODEL` = assistant model name (example: `llama3.1`)
+- `LLM_API_KEY` = assistant API key/token (use `ollama` for local Ollama)
 
 ## Install
 ```bash
@@ -57,6 +60,14 @@ npm run prisma:seed
 ```bash
 npm run dev
 ```
+
+To use the assistant locally with Ollama:
+```bash
+ollama serve
+ollama pull llama3.1
+```
+
+The assistant is available from the floating action button inside authenticated pages and calls `/api/assistant/chat`.
 
 ## Build
 ```bash
