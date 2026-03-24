@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Role } from '../types';
 import { LogOut, LayoutGrid, UploadCloud, Bell, MessageSquare, AlertCircle, Check, Info, List, Database, BookOpen } from 'lucide-react';
+import { AssistantDock } from './AssistantDock';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -277,6 +278,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
+      <AssistantDock currentUser={currentUser} />
     </div>
   );
 };

@@ -41,7 +41,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           name: true,
           notifyOnAssignmentEmail: true
         }
-      }
+      },
+      product: { select: { name: true } },
+      targetSystem: { select: { baseUrl: true } }
     }
   });
 
@@ -119,15 +121,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     void sendTeamsMessage({
       countryCode: task.countryCode,
+      productId: task.productId,
       eventType: 'TASK_ASSIGNED',
-      title: `UAT Task Ready (${task.countryCode})`,
-      text: `Task "${task.title}" is ready for testing and assigned to ${task.assignee.name || task.assignee.email}.`,
       taskId: task.id,
-      facts: [
-        { name: 'Task', value: task.title },
-        { name: 'Assignee', value: task.assignee.name || task.assignee.email },
-        { name: 'Due Date', value: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A' }
-      ]
+      taskTitle: task.title,
+      productName: task.product.name,
+      module: task.module,
+      targetSystemUrl: task.targetSystem?.baseUrl,
+      dueDate: task.dueDate,
+      actorName: session.user.name || session.user.email
     });
   }
 
@@ -151,15 +153,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (dbStatus === 'FAILED') {
       void sendTeamsMessage({
         countryCode: task.countryCode,
+        productId: task.productId,
         eventType: 'FAILED_STEP',
-        title: `UAT Step Failed (${task.countryCode})`,
-        text: failedMessage,
         taskId: task.id,
-        facts: [
-          { name: 'Task', value: task.title },
-          { name: 'Status', value: toStatusLabel(dbStatus) },
-          { name: 'Actor', value: session.user.name || session.user.email || 'User' }
-        ]
+        taskTitle: task.title,
+        productName: task.product.name,
+        module: task.module,
+        actorName: session.user.name || session.user.email
       });
     }
   }

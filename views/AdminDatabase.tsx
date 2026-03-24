@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { AdminProductConfig, CountryConfig } from '../types';
-import { Trash2, Plus, Package, Bell, Users, Search, X, RotateCcw, UserPlus } from 'lucide-react';
+import { Trash2, Plus, Package, Bell, Users, Search, X, RotateCcw, UserPlus, Info } from 'lucide-react';
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass } from '../components/ui/formClasses';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -62,7 +62,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   const [productHelpfulLinks, setProductHelpfulLinks] = useState<{ id: string; label: string; url: string }[]>([]);
   const [savedProductHelpfulLinks, setSavedProductHelpfulLinks] = useState<{ id: string; label: string; url: string }[]>([]);
   const [productHelpfulLinksSaveState, setProductHelpfulLinksSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [productLinksSubTab, setProductLinksSubTab] = useState<'modules' | 'targetSystems' | 'helpfulLinks'>('modules');
+  const [productLinksSubTab, setProductLinksSubTab] = useState<'modules' | 'targetSystems' | 'helpfulLinks' | 'notifications'>('modules');
   const [productLinksLoading, setProductLinksLoading] = useState(false);
   const [productsLoading, setProductsLoading] = useState(true);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
@@ -98,7 +98,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     productIds: [] as string[]
   });
   const [tempPassword, setTempPassword] = useState('');
-  const [teamsConfigs, setTeamsConfigs] = useState<Record<string, {
+  const [productTeamsConfigs, setProductTeamsConfigs] = useState<Record<string, {
     teamsWebhookUrl: string;
     isActive: boolean;
     notifyTaskAssigned: boolean;
@@ -106,7 +106,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     notifySignedOff: boolean;
     notifyFailedStep: boolean;
   }>>({});
-  const [savedTeamsConfigs, setSavedTeamsConfigs] = useState<Record<string, {
+  const [savedProductTeamsConfigs, setSavedProductTeamsConfigs] = useState<Record<string, {
     teamsWebhookUrl: string;
     isActive: boolean;
     notifyTaskAssigned: boolean;
@@ -114,7 +114,8 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     notifySignedOff: boolean;
     notifyFailedStep: boolean;
   }>>({});
-  const [teamsSaveStateByCountry, setTeamsSaveStateByCountry] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
+  const [productTeamsSaveState, setProductTeamsSaveState] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
+  const [productTeamsTestState, setProductTeamsTestState] = useState<Record<string, 'idle' | 'sending' | 'sent' | 'error'>>({});
   useEffect(() => {
     fetch('/api/admin/email-settings')
       .then((r) => r.ok ? r.json() : null)
@@ -128,29 +129,6 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
         setSavedEmailSettings(loaded);
       })
       .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    void (async () => {
-      const response = await fetch('/api/admin/teams-webhooks', { cache: 'no-store' });
-      if (!response.ok) return;
-      const data = await response.json();
-      if (!Array.isArray(data)) return;
-      const next: Record<string, any> = {};
-      for (const item of data) {
-        if (!item?.countryCode) continue;
-        next[item.countryCode] = {
-          teamsWebhookUrl: item.teamsWebhookUrl || '',
-          isActive: Boolean(item.isActive),
-          notifyTaskAssigned: item.notifyTaskAssigned !== false,
-          notifyReminder: item.notifyReminder !== false,
-          notifySignedOff: item.notifySignedOff !== false,
-          notifyFailedStep: item.notifyFailedStep !== false
-        };
-      }
-      setTeamsConfigs(next);
-      setSavedTeamsConfigs(next);
-    })();
   }, []);
 
   const loadProductConfig = async () => {
@@ -358,9 +336,9 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     emailSettings.enableReminders !== savedEmailSettings.enableReminders ||
     emailSettings.daysBefore !== savedEmailSettings.daysBefore;
 
-  const hasUnsavedTeamsConfig = Object.keys(teamsConfigs).some((countryCode) => {
-    const current = teamsConfigs[countryCode];
-    const saved = savedTeamsConfigs[countryCode] || {
+  const hasUnsavedTeamsConfig = Object.keys(productTeamsConfigs).some((countryCode) => {
+    const current = productTeamsConfigs[countryCode];
+    const saved = savedProductTeamsConfigs[countryCode] || {
       teamsWebhookUrl: '',
       isActive: false,
       notifyTaskAssigned: true,
@@ -368,7 +346,14 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
       notifySignedOff: true,
       notifyFailedStep: true
     };
-    return JSON.stringify(current) !== JSON.stringify(saved);
+    return (
+      current.teamsWebhookUrl !== saved.teamsWebhookUrl ||
+      current.isActive !== saved.isActive ||
+      current.notifyTaskAssigned !== saved.notifyTaskAssigned ||
+      current.notifyReminder !== saved.notifyReminder ||
+      current.notifySignedOff !== saved.notifySignedOff ||
+      current.notifyFailedStep !== saved.notifyFailedStep
+    );
   });
   const productHelpfulLinksDirty = JSON.stringify(productHelpfulLinks) !== JSON.stringify(savedProductHelpfulLinks);
 
@@ -568,6 +553,29 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     }
   };
 
+  const loadProductTeamsConfigs = async (productId: string) => {
+    const response = await fetch(`/api/admin/teams-webhooks?productId=${productId}`, { cache: 'no-store' });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (!Array.isArray(data)) return;
+    const next: Record<string, any> = {};
+    for (const item of data) {
+      if (!item?.countryCode) continue;
+      next[item.countryCode] = {
+        teamsWebhookUrl: item.teamsWebhookUrl || '',
+        isActive: Boolean(item.isActive),
+        notifyTaskAssigned: item.notifyTaskAssigned !== false,
+        notifyReminder: item.notifyReminder !== false,
+        notifySignedOff: item.notifySignedOff !== false,
+        notifyFailedStep: item.notifyFailedStep !== false
+      };
+    }
+    setProductTeamsConfigs(next);
+    setSavedProductTeamsConfigs(next);
+    setProductTeamsSaveState({});
+    setProductTeamsTestState({});
+  };
+
   const saveProductHelpfulLinks = () => {
     if (!selectedProduct) return;
     void (async () => {
@@ -593,11 +601,14 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     })();
   };
 
-  const handleProductSubTab = (next: 'modules' | 'targetSystems' | 'helpfulLinks') => {
+  const handleProductSubTab = (next: 'modules' | 'targetSystems' | 'helpfulLinks' | 'notifications') => {
     if (productLinksSubTab === 'helpfulLinks' && next !== 'helpfulLinks' && productHelpfulLinksDirty) {
       if (!window.confirm('You have unsaved changes to Helpful Links. Leave without saving?')) return;
     }
     setProductLinksSubTab(next);
+    if (next === 'notifications' && selectedProductId) {
+      void loadProductTeamsConfigs(selectedProductId);
+    }
   };
 
   const handleSaveEmailSettings = () => {
@@ -621,8 +632,9 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
       });
   };
 
-  const saveTeamsConfig = (countryCode: string) => {
-    const config = teamsConfigs[countryCode] || {
+  const saveProductTeamsConfig = (countryCode: string) => {
+    if (!selectedProductId) return;
+    const config = productTeamsConfigs[countryCode] || {
       teamsWebhookUrl: '',
       isActive: false,
       notifyTaskAssigned: true,
@@ -632,25 +644,50 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     };
 
     void (async () => {
-      setTeamsSaveStateByCountry((prev) => ({ ...prev, [countryCode]: 'saving' }));
+      setProductTeamsSaveState((prev) => ({ ...prev, [countryCode]: 'saving' }));
       const response = await fetch('/api/admin/teams-webhooks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          countryCode,
-          ...config
-        })
+        body: JSON.stringify({ productId: selectedProductId, countryCode, ...config })
       });
       if (!response.ok) {
-        setTeamsSaveStateByCountry((prev) => ({ ...prev, [countryCode]: 'error' }));
+        setProductTeamsSaveState((prev) => ({ ...prev, [countryCode]: 'error' }));
         notify(`Failed to save Teams webhook for ${countryCode}`, 'error');
         return;
       }
-      setSavedTeamsConfigs((prev) => ({ ...prev, [countryCode]: config }));
-      setTeamsSaveStateByCountry((prev) => ({ ...prev, [countryCode]: 'saved' }));
+      setSavedProductTeamsConfigs((prev) => ({ ...prev, [countryCode]: config }));
+      setProductTeamsSaveState((prev) => ({ ...prev, [countryCode]: 'saved' }));
       notify(`Teams webhook saved for ${countryCode}`, 'success');
       window.setTimeout(() => {
-        setTeamsSaveStateByCountry((prev) => ({ ...prev, [countryCode]: 'idle' }));
+        setProductTeamsSaveState((prev) => ({ ...prev, [countryCode]: 'idle' }));
+      }, 1500);
+    })();
+  };
+
+  const sendProductTeamsTest = (countryCode: string) => {
+    if (!selectedProductId) return;
+    void (async () => {
+      setProductTeamsTestState((prev) => ({ ...prev, [countryCode]: 'sending' }));
+      const response = await fetch('/api/admin/teams-webhooks/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: selectedProductId, countryCode })
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        setProductTeamsTestState((prev) => ({ ...prev, [countryCode]: 'error' }));
+        notify(data?.error || `Failed to send Teams test for ${countryCode}`, 'error');
+        window.setTimeout(() => {
+          setProductTeamsTestState((prev) => ({ ...prev, [countryCode]: 'idle' }));
+        }, 2000);
+        return;
+      }
+
+      setProductTeamsTestState((prev) => ({ ...prev, [countryCode]: 'sent' }));
+      notify(`Teams test sent for ${countryCode}`, 'success');
+      window.setTimeout(() => {
+        setProductTeamsTestState((prev) => ({ ...prev, [countryCode]: 'idle' }));
       }, 1500);
     })();
   };
@@ -704,7 +741,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
               onClick={() => handleTabChange('notifications')}
               className={`pb-3 px-4 text-sm font-medium transition-colors border-b-2 ${activeTab === 'notifications' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
-               Email Notifications
+               Notifications
             </button>
             <button
               onClick={() => handleTabChange('users')}
@@ -840,7 +877,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                       <>
                         {/* Product sub-tab bar */}
                         <div className="flex gap-0 border-b border-slate-200 mb-4">
-                          {(['modules', 'targetSystems', 'helpfulLinks'] as const).map((tab) => (
+                          {(['modules', 'targetSystems', 'helpfulLinks', 'notifications'] as const).map((tab) => (
                             <button
                               key={tab}
                               onClick={() => handleProductSubTab(tab)}
@@ -850,7 +887,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                                   : 'border-transparent text-slate-500 hover:text-slate-700'
                               }`}
                             >
-                              {tab === 'modules' ? 'Modules' : tab === 'targetSystems' ? 'Target Systems' : 'Helpful Links'}
+                              {tab === 'modules' ? 'Modules' : tab === 'targetSystems' ? 'Target Systems' : tab === 'helpfulLinks' ? 'Helpful Links' : 'Notifications'}
                             </button>
                           ))}
                         </div>
@@ -1026,6 +1063,115 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                             </div>
                           </div>
                         )}
+                        {/* Notifications panel */}
+                        {productLinksSubTab === 'notifications' && (
+                          <div className="rounded-xl border border-slate-200 p-5 space-y-4">
+                            <div>
+                              <h3 className="text-sm font-semibold text-slate-900">Teams Notifications for {selectedProduct.name}</h3>
+                              <p className="text-xs text-slate-500 mt-1">
+                                Configure a Microsoft Teams webhook per market. Save the webhook first, then use Send Test to verify.
+                              </p>
+                            </div>
+                            <div className="space-y-4">
+                              {countries.map((country) => {
+                                const config = productTeamsConfigs[country.code] || {
+                                  teamsWebhookUrl: '',
+                                  isActive: false,
+                                  notifyTaskAssigned: true,
+                                  notifyReminder: true,
+                                  notifySignedOff: true,
+                                  notifyFailedStep: true
+                                };
+                                return (
+                                  <div key={country.code} className="rounded-lg border border-slate-200 p-4 bg-slate-50">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <p className="text-sm font-semibold text-slate-800">{country.code} — {country.name}</p>
+                                      <label className="inline-flex items-center gap-2 text-xs text-slate-600">
+                                        <input
+                                          type="checkbox"
+                                          checked={config.isActive}
+                                          onChange={(e) =>
+                                            setProductTeamsConfigs((prev) => ({
+                                              ...prev,
+                                              [country.code]: { ...config, isActive: e.target.checked }
+                                            }))
+                                          }
+                                        />
+                                        Active
+                                      </label>
+                                    </div>
+                                    <input
+                                      type="text"
+                                      placeholder="https://...powerautomate.com/..."
+                                      className="w-full border-slate-300 rounded-md text-sm mb-3"
+                                      value={config.teamsWebhookUrl}
+                                      onChange={(e) =>
+                                        setProductTeamsConfigs((prev) => ({
+                                          ...prev,
+                                          [country.code]: { ...config, teamsWebhookUrl: e.target.value }
+                                        }))
+                                      }
+                                    />
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mb-3">
+                                      {([
+                                        ['notifyTaskAssigned', 'Task assigned', null],
+                                        ['notifyReminder', 'Reminder', 'Sent automatically each day when a task is due within the configured window (default: 3 days). Managed under the Notifications tab.'],
+                                        ['notifySignedOff', 'Signed off', null],
+                                        ['notifyFailedStep', 'Failed step', null]
+                                      ] as const).map(([field, label, tooltip]) => (
+                                        <label key={field} className="inline-flex items-center gap-1.5">
+                                          <input
+                                            type="checkbox"
+                                            checked={config[field]}
+                                            onChange={(e) =>
+                                              setProductTeamsConfigs((prev) => ({
+                                                ...prev,
+                                                [country.code]: { ...config, [field]: e.target.checked }
+                                              }))
+                                            }
+                                          />
+                                          {label}
+                                          {tooltip && (
+                                            <span className="relative group inline-flex">
+                                              <Info size={12} className="text-slate-400 cursor-help" />
+                                              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-56 rounded-md bg-slate-800 px-2.5 py-1.5 text-[11px] text-slate-100 opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
+                                                {tooltip}
+                                              </span>
+                                            </span>
+                                          )}
+                                        </label>
+                                      ))}
+                                    </div>
+                                    <div className="flex justify-end gap-2">
+                                      <button
+                                        onClick={() => sendProductTeamsTest(country.code)}
+                                        disabled={productTeamsTestState[country.code] === 'sending'}
+                                        className="border border-slate-200 bg-white text-slate-700 px-3 py-1.5 rounded-md text-xs font-medium hover:bg-slate-100 disabled:opacity-60"
+                                      >
+                                        {productTeamsTestState[country.code] === 'sending'
+                                          ? 'Sending Test...'
+                                          : productTeamsTestState[country.code] === 'sent'
+                                            ? 'Test Sent ✓'
+                                            : 'Send Test'}
+                                      </button>
+                                      <button
+                                        onClick={() => saveProductTeamsConfig(country.code)}
+                                        disabled={productTeamsSaveState[country.code] === 'saving'}
+                                        className="bg-slate-900 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-slate-800 disabled:opacity-60"
+                                      >
+                                        {productTeamsSaveState[country.code] === 'saving'
+                                          ? 'Saving...'
+                                          : productTeamsSaveState[country.code] === 'saved'
+                                            ? 'Saved ✓'
+                                            : 'Save'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <div className="rounded-xl border border-dashed border-slate-200 p-10 text-sm text-slate-500 text-center">
@@ -1040,6 +1186,10 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
 
         {activeTab === 'notifications' && (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
+                  <span className="text-amber-500 text-sm">🚧</span>
+                  <p className="text-xs font-medium text-amber-700">This section is under construction. Settings saved here are not yet active.</p>
+                </div>
                 <div className="flex items-start gap-3">
                     <Bell className="text-slate-500 mt-0.5" size={18} />
                     <div>
@@ -1092,128 +1242,6 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                     </button>
                 </div>
 
-                <div className="border-t border-slate-200 pt-5 space-y-4">
-                  <h3 className="text-sm font-semibold text-slate-900">Microsoft Teams Webhooks (per country)</h3>
-                  <p className="text-xs text-slate-500">
-                    Configure incoming webhook URLs per market channel. Supported events: assignment, reminder, sign-off, failed step.
-                  </p>
-
-                  <div className="space-y-4">
-                    {countries.map((country) => {
-                      const config = teamsConfigs[country.code] || {
-                        teamsWebhookUrl: '',
-                        isActive: false,
-                        notifyTaskAssigned: true,
-                        notifyReminder: true,
-                        notifySignedOff: true,
-                        notifyFailedStep: true
-                      };
-
-                      return (
-                        <div key={country.code} className="rounded-lg border border-slate-200 p-4 bg-slate-50">
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm font-semibold text-slate-800">{country.code} - {country.name}</p>
-                            <label className="inline-flex items-center gap-2 text-xs text-slate-600">
-                              <input
-                                type="checkbox"
-                                checked={config.isActive}
-                                onChange={(e) =>
-                                  setTeamsConfigs((prev) => ({
-                                    ...prev,
-                                    [country.code]: { ...config, isActive: e.target.checked }
-                                  }))
-                                }
-                              />
-                              Active
-                            </label>
-                          </div>
-
-                          <input
-                            type="text"
-                            placeholder="https://outlook.office.com/webhook/..."
-                            className="w-full border-slate-300 rounded-md text-sm mb-3"
-                            value={config.teamsWebhookUrl}
-                            onChange={(e) =>
-                              setTeamsConfigs((prev) => ({
-                                ...prev,
-                                [country.code]: { ...config, teamsWebhookUrl: e.target.value }
-                              }))
-                            }
-                          />
-
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mb-3">
-                            <label className="inline-flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={config.notifyTaskAssigned}
-                                onChange={(e) =>
-                                  setTeamsConfigs((prev) => ({
-                                    ...prev,
-                                    [country.code]: { ...config, notifyTaskAssigned: e.target.checked }
-                                  }))
-                                }
-                              />
-                              Task assigned
-                            </label>
-                            <label className="inline-flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={config.notifyReminder}
-                                onChange={(e) =>
-                                  setTeamsConfigs((prev) => ({
-                                    ...prev,
-                                    [country.code]: { ...config, notifyReminder: e.target.checked }
-                                  }))
-                                }
-                              />
-                              Reminder
-                            </label>
-                            <label className="inline-flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={config.notifySignedOff}
-                                onChange={(e) =>
-                                  setTeamsConfigs((prev) => ({
-                                    ...prev,
-                                    [country.code]: { ...config, notifySignedOff: e.target.checked }
-                                  }))
-                                }
-                              />
-                              Signed off
-                            </label>
-                            <label className="inline-flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={config.notifyFailedStep}
-                                onChange={(e) =>
-                                  setTeamsConfigs((prev) => ({
-                                    ...prev,
-                                    [country.code]: { ...config, notifyFailedStep: e.target.checked }
-                                  }))
-                                }
-                              />
-                              Failed step
-                            </label>
-                          </div>
-
-                          <div className="flex justify-end">
-                            <button
-                              onClick={() => saveTeamsConfig(country.code)}
-                              disabled={teamsSaveStateByCountry[country.code] === 'saving'}
-                              className="bg-slate-900 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-slate-800"
-                            >
-                              {teamsSaveStateByCountry[country.code] === 'saving'
-                                ? 'Saving...'
-                                : teamsSaveStateByCountry[country.code] === 'saved'
-                                  ? 'Saved'
-                                  : 'Save Teams Config'}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
 
             </div>
         )}

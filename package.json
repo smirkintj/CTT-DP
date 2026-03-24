@@ -7,7 +7,7 @@
     "clean": "rm -rf .next tsconfig.tsbuildinfo",
     "reset:dev": "bash ./scripts/reset-dev.sh",
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
@@ -15,6 +15,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
+    "db:purge-and-seed": "tsx scripts/purge-and-seed.ts",
     "comments:backfill-step-order": "tsx scripts/backfill-comment-step-order.ts",
     "audit:check-admin": "node scripts/check-admin-audit-coverage.mjs",
     "perf:sample": "bash ./scripts/perf-baseline.sh"

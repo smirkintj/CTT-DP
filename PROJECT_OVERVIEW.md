@@ -37,6 +37,7 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 - `/import` → Import wizard
 - `/tasks/[id]` → Task detail route
 - `/knowledge-base` → Shared knowledge base route (authenticated)
+- Floating assistant → available across authenticated screens via `components/AssistantDock.tsx`
 
 ## Core UI Components
 ### Main App Shell
@@ -56,8 +57,16 @@ The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)
 
 ### Shared Components (`components/`)
 - `Layout.tsx` (top nav, notifications, profile, shell container)
+- `AssistantDock.tsx` (floating UAT assistant panel with structured task cards)
 - `Badge.tsx`
 - `SignatureCanvas.tsx`
+
+## In-App Assistant
+- API route: `app/api/assistant/chat/route.ts`
+- Core logic: `lib/assistant.ts`
+- Uses the existing NextAuth session plus Prisma queries for role, country, assignee, and product scoping.
+- Uses OpenAI-compatible chat completions via `fetch`, so Ollama or another compatible provider can be swapped through env vars without changing route code.
+- Returns conversational text plus card payloads for task-style answers so the UI can render structured results instead of plain paragraphs.
 
 ### Runtime Telemetry
 - Vercel Speed Insights is mounted in root layout:
@@ -230,6 +239,8 @@ Task mutation guarantees:
 ### Admin Utilities
 - `POST /api/admin/test-notification`
   - Admin-only test email endpoint for Resend setup verification.
+- `POST /api/admin/teams-webhooks/test`
+  - Admin-only Teams webhook test endpoint for per-country channel verification.
 - `GET/POST /api/admin/users`
   - Admin-only user list/create (current policy: stakeholder creation only).
   - stakeholder create now requires one or more product assignments.
@@ -300,6 +311,10 @@ Currently created events:
   - admin manual assignment/reminder actions from admin task management
   - sign-off flow auto-sends signed-off email to admin (`to`) and assignee (`cc` when available)
 - Current delivery in local/dev follows Resend sandbox rules unless domain is verified.
+- Teams webhook POC:
+  - per-country webhook config is saved in Admin Database
+  - admin can send a sample Teams card through `/api/admin/teams-webhooks/test`
+  - this validates channel delivery independently from task events
 
 ## Recent UI/Behavior Updates
 - Admin task table was compacted to fit within viewport better.
@@ -333,6 +348,8 @@ Currently created events:
 - Sign-off report now includes product name, DKSH branding in the header, and the captured user signature in the printable footer.
 - Signed-off task detail now includes an `Email Report to Me` action for users/admins.
 - Session display name now refreshes from the database so top-right profile text reflects the saved user/admin name.
+- Dashboard task cards now show overdue/pass state through border/top-bar accents and due-date color, reducing extra status pills.
+- Stakeholder dashboard card ordering now prioritizes overdue and active tasks first, and the open-task KPI includes an inline overdue count.
 - Admin database includes a new `Users` tab:
   - searchable/filterable stakeholder/user list
   - table rows are clickable to open user management

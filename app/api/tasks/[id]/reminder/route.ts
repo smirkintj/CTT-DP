@@ -31,7 +31,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           name: true,
           notifyOnReminderEmail: true
         }
-      }
+      },
+      product: { select: { name: true } }
     }
   });
 
@@ -107,15 +108,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   void sendTeamsMessage({
     countryCode: task.countryCode,
+    productId: task.productId,
     eventType: 'REMINDER',
-    title: `UAT Reminder (${task.countryCode})`,
-    text: `Reminder sent for "${task.title}" to ${task.assignee.name || task.assignee.email}.`,
     taskId: task.id,
-    facts: [
-      { name: 'Task', value: task.title },
-      { name: 'Assignee', value: task.assignee.name || task.assignee.email || 'User' },
-      { name: 'Due Date', value: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A' }
-    ]
+    taskTitle: task.title,
+    productName: task.product.name,
+    module: task.module,
+    dueDate: task.dueDate,
+    taskStatus: task.status
   });
 
   return NextResponse.json({ success: true });

@@ -1,6 +1,10 @@
 # Env
 .env
 .env.*
+.env.production
+.env.local
+.env.*.local
+.env.production.local
 
 # Next.js
 .next/
@@ -33,3 +37,5 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+.vercel
+.env*.local

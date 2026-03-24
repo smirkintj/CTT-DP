@@ -35,6 +35,9 @@ Set in `.env` (or deployment env):
 - `RESEND_API_KEY` = Resend API key
 - `EMAIL_FROM` = sender email (must match Resend/domain policy)
 - `CRON_SECRET` = strong random secret to secure `/api/cron/reminders`; set the same value in Vercel environment variables (staging + prod)
+- `LLM_BASE_URL` = OpenAI-compatible LLM endpoint for the in-app assistant (example: `http://localhost:11434/v1`)
+- `LLM_MODEL` = assistant model name (example: `llama3.1`)
+- `LLM_API_KEY` = assistant API key/token (use `ollama` for local Ollama)
 
 ## Install
 ```bash
@@ -57,6 +60,14 @@ npm run prisma:seed
 ```bash
 npm run dev
 ```
+
+To use the assistant locally with Ollama:
+```bash
+ollama serve
+ollama pull llama3.1
+```
+
+The assistant is available from the floating action button inside authenticated pages and calls `/api/assistant/chat`.
 
 ## Build
 ```bash
@@ -159,6 +170,7 @@ Security notes:
   - Run `npm run comments:backfill-step-order` once after upgrading old environments.
 - Email notifications:
   - Admin test email: `/api/admin/test-notification`
+  - Teams test notification: `/api/admin/teams-webhooks/test`
   - Assignment email: `/api/tasks/[id]/notify-assigned`
   - Manual reminder email: `/api/tasks/[id]/reminder`
   - Sign-off email is triggered from `/api/tasks/[id]/signoff`
@@ -243,6 +255,8 @@ Security notes:
 - Task detail image evidence upload/paste now auto-optimizes (resize + compression) before save to reduce storage payload.
 - Task detail step `Edit` / `Delete` controls now use larger pill buttons for easier targeting.
 - Sign-off PDF report now includes step evidence images (auto-scaled thumbnail layout).
+- Dashboard task cards now use card border/top-bar accent plus due-date color for overdue (`red`) and passed/signed-off (`green`) states instead of adding another status pill.
+- Stakeholder dashboard task list is now intentionally sorted so overdue and active work appears first; the `Open Tasks` KPI also shows overdue count inline.
   - admin task table now supports selected-group global edit modal (same supported fields as task detail global update).
 - Reporting:
 - Admin task table supports filtered CSV export.
@@ -290,6 +304,9 @@ Security notes:
   - Task Detail edits
   - Admin Task create modal
   - Admin Database notification settings (email + Teams)
+- Teams webhook POC:
+  - admin can save a per-country Teams webhook in Admin Database
+  - admin can send a sample Teams message per country to verify channel delivery without waiting for a real task event
 - Auth/session hydration now shows a neutral loading state to prevent brief login-page flicker on refresh.
 - Auth/session hydration loading state now includes a subtle animated progress bar + pulse indicators for clearer feedback while workspace loads.
   - QA helper: append `?debugLoading=1` to hold the loading screen for 5 seconds and validate layout/animation.

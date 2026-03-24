@@ -86,6 +86,31 @@ const countryBadgeClassMap: Record<string, string> = {
 const getCountryBadgeClass = (countryCode?: string) =>
   countryBadgeClassMap[countryCode || ''] ?? 'bg-slate-100 text-slate-700';
 
+const getTaskAccent = (task: Task) => {
+  if (isTaskOverdue(task)) {
+    return {
+      cardClass: 'border-rose-200',
+      barClass: 'bg-rose-500',
+      dueDateClass: 'text-rose-700 font-semibold'
+    };
+  }
+
+  const statusKey = normalizeStatusKey(task.status as unknown as string);
+  if (statusKey === 'PASSED' || statusKey === 'DEPLOYED' || Boolean(task.signedOffAt || task.signedOff?.signedAt)) {
+    return {
+      cardClass: 'border-emerald-200',
+      barClass: 'bg-emerald-500',
+      dueDateClass: 'text-emerald-700 font-semibold'
+    };
+  }
+
+  return {
+    cardClass: 'border-slate-200',
+    barClass: 'bg-transparent',
+    dueDateClass: 'text-slate-500'
+  };
+};
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, onSelectTask, onManageTasks, currentUser }) => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
@@ -319,12 +344,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                  Loading tasks...
                </div>
              ) : (
-               recentTasks.map(task => (
+               recentTasks.map(task => {
+                 const accent = getTaskAccent(task);
+                 return (
                  <div
                    key={task.id}
                    onClick={() => onSelectTask(task)}
-                   className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm hover:border-brand-300 transition-all cursor-pointer group"
+                   className={`relative overflow-hidden bg-white rounded-xl p-4 border shadow-sm hover:border-brand-300 transition-all cursor-pointer group ${accent.cardClass}`}
                  >
+                   <div className={`absolute top-0 left-0 right-0 h-1 ${accent.barClass}`} />
                    <div className="flex justify-between items-start gap-3">
                      <div className="min-w-0">
                        <h4 className="font-semibold text-slate-900 group-hover:text-brand-600 line-clamp-1">{task.title}</h4>
@@ -350,7 +378,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                          Assignee: <strong>{task.assignee?.name || task.assignee?.email || task.assigneeId || 'Unassigned'}</strong>
                        </span>
                        <span className="inline-flex items-center gap-2 shrink-0">
-                         <span className={isTaskOverdue(task) ? 'text-rose-700 font-semibold' : ''}>
+                         <span className={accent.dueDateClass}>
                            Due: {formatDate(task.dueDate)}
                          </span>
                          <ArrowRight size={16} className="text-slate-300 group-hover:text-brand-500" />
@@ -364,7 +392,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                      )}
                    </div>
                  </div>
-               ))
+               )})
              )}
            </div>
            

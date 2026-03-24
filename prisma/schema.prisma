@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum UserRole {
@@ -92,10 +93,11 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  modules       Module[]
-  targetSystems TargetSystem[]
-  tasks         Task[]
-  userAccesses  UserProductAccess[]
+  modules               Module[]
+  targetSystems         TargetSystem[]
+  tasks                 Task[]
+  userAccesses          UserProductAccess[]
+  notificationConfigs   NotificationConfig[]
 }
 
 model Country {
@@ -106,7 +108,7 @@ model Country {
   updatedAt DateTime @updatedAt
 
   tasks Task[]
-  notificationConfig NotificationConfig?
+  notificationConfigs NotificationConfig[]
 }
 
 model Module {
@@ -285,7 +287,8 @@ model ActivityRead {
 
 model NotificationConfig {
   id                 String   @id @default(cuid())
-  countryCode        String   @unique
+  productId          String
+  countryCode        String
   teamsWebhookUrl    String?
   isActive           Boolean  @default(false)
   notifyTaskAssigned Boolean  @default(true)
@@ -295,7 +298,10 @@ model NotificationConfig {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   country Country @relation(fields: [countryCode], references: [code], onDelete: Cascade)
+
+  @@unique([productId, countryCode])
 }
 
 model TaskHistory {

@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
 import { badRequest, forbidden, notFound, unauthorized } from '../../../../lib/apiError';
 import { createAdminAudit } from '../../../../lib/adminAudit';
+import { encryptField, decryptField } from '../../../../lib/encrypt';
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -12,20 +13,20 @@ async function requireAdmin() {
   return { session };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const auth = await requireAdmin();
   if ('error' in auth) return auth.error;
 
+  const { searchParams } = new URL(req.url);
+  const productId = searchParams.get('productId');
+  if (!productId) return badRequest('productId is required', 'PRODUCT_ID_REQUIRED');
+
   const configs = await prisma.notificationConfig.findMany({
-    include: {
-      country: {
-        select: { code: true, name: true }
-      }
-    },
+    where: { productId },
     orderBy: { countryCode: 'asc' }
   });
 
-  return NextResponse.json(configs);
+  return NextResponse.json(configs.map(c => ({ ...c, teamsWebhookUrl: decryptField(c.teamsWebhookUrl) })));
 }
 
 export async function POST(req: Request) {
@@ -33,20 +34,23 @@ export async function POST(req: Request) {
   if ('error' in auth) return auth.error;
 
   const body = await req.json().catch(() => null);
+  const productId = body?.productId?.toString().trim();
   const countryCode = body?.countryCode?.toString().trim().toUpperCase();
-  if (!countryCode) {
-    return badRequest('countryCode is required', 'COUNTRY_CODE_REQUIRED');
-  }
 
-  const country = await prisma.country.findUnique({ where: { code: countryCode } });
-  if (!country) {
-    return notFound('Country not found', 'COUNTRY_NOT_FOUND');
-  }
+  if (!productId) return badRequest('productId is required', 'PRODUCT_ID_REQUIRED');
+  if (!countryCode) return badRequest('countryCode is required', 'COUNTRY_CODE_REQUIRED');
+
+  const [product, country] = await Promise.all([
+    prisma.product.findUnique({ where: { id: productId } }),
+    prisma.country.findUnique({ where: { code: countryCode } })
+  ]);
+  if (!product) return notFound('Product not found', 'PRODUCT_NOT_FOUND');
+  if (!country) return notFound('Country not found', 'COUNTRY_NOT_FOUND');
 
   const config = await prisma.notificationConfig.upsert({
-    where: { countryCode },
+    where: { productId_countryCode: { productId, countryCode } },
     update: {
-      teamsWebhookUrl: body?.teamsWebhookUrl?.toString().trim() || null,
+      teamsWebhookUrl: encryptField(body?.teamsWebhookUrl?.toString().trim() || null),
       isActive: Boolean(body?.isActive),
       notifyTaskAssigned: body?.notifyTaskAssigned !== false,
       notifyReminder: body?.notifyReminder !== false,
@@ -54,8 +58,9 @@ export async function POST(req: Request) {
       notifyFailedStep: body?.notifyFailedStep !== false
     },
     create: {
+      productId,
       countryCode,
-      teamsWebhookUrl: body?.teamsWebhookUrl?.toString().trim() || null,
+      teamsWebhookUrl: encryptField(body?.teamsWebhookUrl?.toString().trim() || null),
       isActive: Boolean(body?.isActive),
       notifyTaskAssigned: body?.notifyTaskAssigned !== false,
       notifyReminder: body?.notifyReminder !== false,
@@ -67,14 +72,8 @@ export async function POST(req: Request) {
   await createAdminAudit({
     actorId: auth.session.user.id,
     countryCode,
-    message: `${auth.session.user.name || auth.session.user.email || 'Admin'} updated Teams notification settings for ${countryCode}.`,
-    metadata: {
-      isActive: config.isActive,
-      notifyTaskAssigned: config.notifyTaskAssigned,
-      notifyReminder: config.notifyReminder,
-      notifySignedOff: config.notifySignedOff,
-      notifyFailedStep: config.notifyFailedStep
-    }
+    message: `${auth.session.user.name || auth.session.user.email || 'Admin'} updated Teams webhook for ${product.name} / ${countryCode}.`,
+    metadata: { productId, isActive: config.isActive }
   });
 
   return NextResponse.json(config);
