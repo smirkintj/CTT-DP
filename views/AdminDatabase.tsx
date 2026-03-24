@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { AdminProductConfig, CountryConfig } from '../types';
-import { Trash2, Plus, Package, Bell, Users, Search, X, RotateCcw, UserPlus } from 'lucide-react';
+import { Trash2, Plus, Package, Bell, Users, Search, X, RotateCcw, UserPlus, Info } from 'lucide-react';
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass } from '../components/ui/formClasses';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -1114,12 +1114,12 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                                     />
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mb-3">
                                       {([
-                                        ['notifyTaskAssigned', 'Task assigned'],
-                                        ['notifyReminder', 'Reminder'],
-                                        ['notifySignedOff', 'Signed off'],
-                                        ['notifyFailedStep', 'Failed step']
-                                      ] as const).map(([field, label]) => (
-                                        <label key={field} className="inline-flex items-center gap-2">
+                                        ['notifyTaskAssigned', 'Task assigned', null],
+                                        ['notifyReminder', 'Reminder', 'Sent automatically each day when a task is due within the configured window (default: 3 days). Managed under the Notifications tab.'],
+                                        ['notifySignedOff', 'Signed off', null],
+                                        ['notifyFailedStep', 'Failed step', null]
+                                      ] as const).map(([field, label, tooltip]) => (
+                                        <label key={field} className="inline-flex items-center gap-1.5">
                                           <input
                                             type="checkbox"
                                             checked={config[field]}
@@ -1131,6 +1131,14 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                                             }
                                           />
                                           {label}
+                                          {tooltip && (
+                                            <span className="relative group inline-flex">
+                                              <Info size={12} className="text-slate-400 cursor-help" />
+                                              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-56 rounded-md bg-slate-800 px-2.5 py-1.5 text-[11px] text-slate-100 opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
+                                                {tooltip}
+                                              </span>
+                                            </span>
+                                          )}
                                         </label>
                                       ))}
                                     </div>
@@ -1178,6 +1186,10 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
 
         {activeTab === 'notifications' && (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
+                  <span className="text-amber-500 text-sm">🚧</span>
+                  <p className="text-xs font-medium text-amber-700">This section is under construction. Settings saved here are not yet active.</p>
+                </div>
                 <div className="flex items-start gap-3">
                     <Bell className="text-slate-500 mt-0.5" size={18} />
                     <div>
