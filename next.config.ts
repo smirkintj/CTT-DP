@@ -22,6 +22,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  env: {
+    // Expose Vercel build-time git metadata to the browser.
+    // Falls back to 'local' when running outside Vercel (dev / CI).
+    NEXT_PUBLIC_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'local',
+    NEXT_PUBLIC_GIT_BRANCH: process.env.VERCEL_GIT_COMMIT_REF ?? 'local',
+    NEXT_PUBLIC_APP_ENV: process.env.VERCEL_ENV ?? 'local',
+  },
   async headers() {
     return [
       {

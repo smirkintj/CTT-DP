@@ -21,12 +21,57 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div style={{
               backgroundColor: "#FEF3C7",
               color: "#92400E",
-              padding: "8px",
+              padding: "6px 12px",
               textAlign: "center",
               fontSize: "12px",
-              fontWeight: "600"
+              fontWeight: "600",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "12px",
             }}>
-              ⚠️ STAGING / PREVIEW ENVIRONMENT
+              <span>⚠️ STAGING / PREVIEW ENVIRONMENT</span>
+              <span style={{ fontWeight: 400, opacity: 0.75, display: "flex", gap: "8px" }}>
+                <span style={{
+                  background: "#92400E",
+                  color: "#FEF3C7",
+                  borderRadius: "4px",
+                  padding: "1px 6px",
+                  fontFamily: "monospace",
+                  fontSize: "11px",
+                }}>
+                  {process.env.NEXT_PUBLIC_GIT_BRANCH ?? "local"}
+                </span>
+                {process.env.NEXT_PUBLIC_COMMIT_SHA && process.env.NEXT_PUBLIC_COMMIT_SHA !== "local" ? (
+                  <a
+                    href={`https://github.com/smirkintj/CTT-DP/commit/${process.env.NEXT_PUBLIC_COMMIT_SHA}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      background: "#92400E",
+                      color: "#FEF3C7",
+                      borderRadius: "4px",
+                      padding: "1px 6px",
+                      fontFamily: "monospace",
+                      fontSize: "11px",
+                      textDecoration: "none",
+                    }}
+                  >
+                    {process.env.NEXT_PUBLIC_COMMIT_SHA}
+                  </a>
+                ) : (
+                  <span style={{
+                    background: "#92400E",
+                    color: "#FEF3C7",
+                    borderRadius: "4px",
+                    padding: "1px 6px",
+                    fontFamily: "monospace",
+                    fontSize: "11px",
+                  }}>
+                    local
+                  </span>
+                )}
+              </span>
             </div>
           )}
 

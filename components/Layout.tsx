@@ -247,6 +247,27 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                
                <div className="h-6 w-px bg-slate-200 mx-1"></div>
 
+               {/* Version chip — shows branch + commit on all envs so staging vs prod is always visible */}
+               {process.env.NEXT_PUBLIC_COMMIT_SHA && (
+                 <a
+                   href={process.env.NEXT_PUBLIC_COMMIT_SHA !== 'local'
+                     ? `https://github.com/smirkintj/CTT-DP/commit/${process.env.NEXT_PUBLIC_COMMIT_SHA}`
+                     : undefined}
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   title={`${process.env.NEXT_PUBLIC_APP_ENV ?? 'local'} · ${process.env.NEXT_PUBLIC_GIT_BRANCH ?? 'local'} · ${process.env.NEXT_PUBLIC_COMMIT_SHA}`}
+                   className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono text-slate-400 bg-slate-100 hover:bg-slate-200 hover:text-slate-600 transition-colors no-underline select-none"
+                 >
+                   <span className={`w-1.5 h-1.5 rounded-full ${
+                     process.env.NEXT_PUBLIC_APP_ENV === 'production' ? 'bg-emerald-400' :
+                     process.env.NEXT_PUBLIC_APP_ENV === 'preview' ? 'bg-amber-400' : 'bg-slate-400'
+                   }`} />
+                   {process.env.NEXT_PUBLIC_COMMIT_SHA}
+                 </a>
+               )}
+
+               <div className="h-6 w-px bg-slate-200 mx-1"></div>
+
                <div className="flex items-center gap-3">
                  <div className="text-right hidden sm:block">
                    <p className="text-sm font-medium text-slate-900">{displayName}</p>
