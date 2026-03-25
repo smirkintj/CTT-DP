@@ -299,6 +299,11 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       return;
     }
 
+    // Fire a lightweight ping so the serverless function is warm before the user
+    // interacts. Result is intentionally ignored — this only reduces cold-start
+    // latency on the first real action after the workspace loads.
+    void fetch('/api/health');
+
     const controller = new AbortController();
     let active = true;
 
