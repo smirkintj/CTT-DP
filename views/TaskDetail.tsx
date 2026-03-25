@@ -352,6 +352,14 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     if (response.status === 409) {
       const latest = await refreshTask(localTask.id, { silentOnError: true });
       if (!hasRetried && latest?.updatedAt) {
+        // Re-apply optimistic update on top of refreshed server state so the UI
+        // doesn't flicker back (e.g. a step tick disappearing while the retry fires).
+        const reOptimised = {
+          ...latest,
+          steps: (latest.steps ?? []).map((s) => s.id === stepId ? { ...s, ...updates } : s),
+        };
+        setLocalTask(reOptimised);
+        onUpdateTask(reOptimised);
         return persistStepProgress(stepId, updates, latest.updatedAt, true);
       }
       notify('Task changed by another user. Reloaded latest data.', 'error');
@@ -727,6 +735,10 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     if (response.status === 409) {
       const latest = await refreshTask(localTask.id, { silentOnError: true });
       if (!hasRetried && latest?.updatedAt) {
+        // Re-apply optimistic status on top of refreshed server state before retrying.
+        const reOptimised = { ...latest, status };
+        setLocalTask(reOptimised);
+        onUpdateTask(reOptimised);
         return persistStatus(status, stepOrder, latest.updatedAt, true);
       }
       notify('Task changed by another user. Reloaded latest data.', 'error');
