@@ -712,6 +712,9 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
              </form>
           </div>
+          <p className="mt-6 text-center text-xs text-slate-400 select-none">
+            v{process.env.NEXT_PUBLIC_APP_VERSION ?? '1.0.0'}
+          </p>
         </div>
       </div>
     );
