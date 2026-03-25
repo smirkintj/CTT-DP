@@ -715,17 +715,10 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
              </form>
           </div>
           <div className="mt-6 text-center select-none space-y-1">
-            <div className="flex items-center justify-center gap-2">
-              {process.env.NEXT_PUBLIC_APP_ENV !== 'production' && (
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-600 border border-amber-200">
-                  {process.env.NEXT_PUBLIC_APP_ENV ?? 'local'}
-                </span>
-              )}
-              <span className="text-xs text-slate-400 font-mono">
-                v{process.env.NEXT_PUBLIC_APP_VERSION ?? '1.0.0'}
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-300">© {new Date().getFullYear()} DKSH International</p>
+            <span className="text-xs text-slate-400 font-mono">
+              v{process.env.NEXT_PUBLIC_APP_VERSION ?? '1.0.0'}
+            </span>
+            <p className="text-[10px] text-slate-300">© {new Date().getFullYear()} DKSH CSSC Digital Product</p>
           </div>
         </div>
       </div>

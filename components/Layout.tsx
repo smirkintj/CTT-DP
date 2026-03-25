@@ -283,18 +283,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       <footer className="print:hidden border-t border-slate-100 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
           <span className="text-xs text-slate-400 select-none">
-            © {new Date().getFullYear()} DKSH International
+            © {new Date().getFullYear()} DKSH CSSC Digital Product
           </span>
-          <div className="flex items-center gap-2">
-            {process.env.NEXT_PUBLIC_APP_ENV !== 'production' && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-600 border border-amber-200 select-none">
-                {process.env.NEXT_PUBLIC_APP_ENV ?? 'local'}
-              </span>
-            )}
-            <span className="text-[11px] font-mono text-slate-400 select-none">
-              v{process.env.NEXT_PUBLIC_APP_VERSION ?? '1.0.0'}
-            </span>
-          </div>
+          <span className="text-[11px] font-mono text-slate-400 select-none">
+            v{process.env.NEXT_PUBLIC_APP_VERSION ?? '1.0.0'}
+          </span>
         </div>
       </footer>
 
