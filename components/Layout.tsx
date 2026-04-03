@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Role } from '../types';
-import { LogOut, LayoutGrid, UploadCloud, Bell, MessageSquare, AlertCircle, Check, Info, List, Database, BookOpen, Sparkles } from 'lucide-react';
+import { LogOut, LayoutGrid, Bell, MessageSquare, AlertCircle, Check, Info, List, Database, BookOpen, Sparkles } from 'lucide-react';
 import { AssistantDock } from './AssistantDock';
 
 interface LayoutProps {
@@ -137,29 +137,23 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                 />
                 {isAdmin ? (
                   <>
-                    <NavItem 
-                      active={currentView === 'ADMIN_TASK_MANAGEMENT'} 
-                      icon={<List size={16} />} 
-                      label="Manage Tasks" 
-                      onClick={() => onNavigate('ADMIN_TASK_MANAGEMENT')} 
-                    />
-                    <NavItem 
-                      active={currentView === 'IMPORT_WIZARD'} 
-                      icon={<UploadCloud size={16} />} 
-                      label="Import" 
-                      onClick={() => onNavigate('IMPORT_WIZARD')} 
+                    <NavItem
+                      active={currentView === 'ADMIN_TASK_MANAGEMENT' || currentView === 'IMPORT_WIZARD'}
+                      icon={<List size={16} />}
+                      label="Tasks"
+                      onClick={() => onNavigate('ADMIN_TASK_MANAGEMENT')}
                     />
                     <NavItem
                       active={currentView === 'ADMIN_JIRA_INTAKE'}
                       icon={<Sparkles size={16} />}
-                      label="Ready for UAT"
+                      label="UAT Queue"
                       onClick={() => onNavigate('ADMIN_JIRA_INTAKE')}
                     />
-                    <NavItem 
-                      active={currentView === 'ADMIN_DATABASE'} 
-                      icon={<Database size={16} />} 
-                      label="Database" 
-                      onClick={() => onNavigate('ADMIN_DATABASE')} 
+                    <NavItem
+                      active={currentView === 'ADMIN_DATABASE'}
+                      icon={<Database size={16} />}
+                      label="Config"
+                      onClick={() => onNavigate('ADMIN_DATABASE')}
                     />
                   </>
                 ) : null}
