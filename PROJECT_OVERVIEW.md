@@ -498,6 +498,7 @@ From `package.json`:
 Also:
 - `postinstall` runs `prisma generate` (important for Vercel consistency).
 - DB migrations are intentionally separate from `npm run build` so deploys do not fail just because the target DB is temporarily unreachable.
+- `/tasks/[id]` is forced dynamic so Vercel does not try to run task-detail Prisma reads during preview build compilation.
 - Dependency cleanup:
   - `recharts` removed (was unused).
 - Browser automation:

@@ -6,6 +6,8 @@ import AppRouteShell from '../../AppRouteShell';
 import ErrorLayout from './ErrorLayout';
 import { Role, User } from '../../../types';
 
+export const dynamic = 'force-dynamic';
+
 interface TaskPageProps {
   params: Promise<{ id: string }>;
 }

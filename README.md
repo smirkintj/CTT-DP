@@ -137,6 +137,7 @@ Security notes:
   - staging / UAT URL: `https://ctt-dksh-git-staging-ptrmhrdn-4569s-projects.vercel.app`
   - production is for real users; staging is for testers only
 - Build script runs `prisma generate && next build` to avoid stale Prisma client issues in CI/Vercel.
+- Task detail route `/tasks/[id]` is forced dynamic so Vercel preview builds do not try to resolve Prisma-backed task reads at build time.
 - Vercel Speed Insights is enabled in `/Users/putra/Desktop/CTT-DKSH-main/app/layout.tsx` for runtime frontend performance telemetry.
 - Middleware enforces:
   - `/admin/*` and `/import` => ADMIN only
