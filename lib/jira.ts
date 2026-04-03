@@ -43,18 +43,18 @@ export async function searchJiraIssues(input: {
 
   const statusClause = statuses.map((status) => `"${status.replace(/"/g, '\\"')}"`).join(', ');
   const jql = `project = "${input.projectKey}" AND status in (${statusClause}) ORDER BY updated DESC`;
-  const params = new URLSearchParams({
-    jql,
-    maxResults: String(input.maxResults ?? 30),
-    fields: 'summary,status,updated,priority,assignee'
-  });
-
-  const response = await fetch(`${baseUrl}/rest/api/3/search?${params.toString()}`, {
-    method: 'GET',
+  const response = await fetch(`${baseUrl}/rest/api/3/search/jql`, {
+    method: 'POST',
     headers: {
       Authorization: authHeader,
-      Accept: 'application/json'
+      Accept: 'application/json',
+      'Content-Type': 'application/json'
     },
+    body: JSON.stringify({
+      jql,
+      maxResults: input.maxResults ?? 30,
+      fields: ['summary', 'status', 'updated', 'priority', 'assignee']
+    }),
     next: { revalidate: 60 }
   });
 
