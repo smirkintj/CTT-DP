@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Role } from '../types';
-import { LogOut, LayoutGrid, UploadCloud, Bell, MessageSquare, AlertCircle, Check, Info, List, Database, BookOpen } from 'lucide-react';
+import { LogOut, LayoutGrid, UploadCloud, Bell, MessageSquare, AlertCircle, Check, Info, List, Database, BookOpen, Sparkles } from 'lucide-react';
 import { AssistantDock } from './AssistantDock';
 
 interface LayoutProps {
@@ -148,6 +148,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                       icon={<UploadCloud size={16} />} 
                       label="Import" 
                       onClick={() => onNavigate('IMPORT_WIZARD')} 
+                    />
+                    <NavItem
+                      active={currentView === 'ADMIN_JIRA_INTAKE'}
+                      icon={<Sparkles size={16} />}
+                      label="Ready for UAT"
+                      onClick={() => onNavigate('ADMIN_JIRA_INTAKE')}
                     />
                     <NavItem 
                       active={currentView === 'ADMIN_DATABASE'} 

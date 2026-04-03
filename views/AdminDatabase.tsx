@@ -59,10 +59,13 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   const [newTargetSystemUrl, setNewTargetSystemUrl] = useState('');
   const [products, setProducts] = useState<AdminProductConfig[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [jiraProjectKeyInput, setJiraProjectKeyInput] = useState('');
+  const [jiraStatusesInput, setJiraStatusesInput] = useState('');
+  const [jiraSaveState, setJiraSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [productHelpfulLinks, setProductHelpfulLinks] = useState<{ id: string; label: string; url: string }[]>([]);
   const [savedProductHelpfulLinks, setSavedProductHelpfulLinks] = useState<{ id: string; label: string; url: string }[]>([]);
   const [productHelpfulLinksSaveState, setProductHelpfulLinksSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [productLinksSubTab, setProductLinksSubTab] = useState<'modules' | 'targetSystems' | 'helpfulLinks' | 'notifications'>('modules');
+  const [productLinksSubTab, setProductLinksSubTab] = useState<'modules' | 'targetSystems' | 'helpfulLinks' | 'notifications' | 'jira'>('modules');
   const [productLinksLoading, setProductLinksLoading] = useState(false);
   const [productsLoading, setProductsLoading] = useState(true);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
@@ -186,6 +189,18 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   }, [activeTab]);
 
   const selectedProduct = products.find((product) => product.id === selectedProductId) ?? null;
+
+  useEffect(() => {
+    if (!selectedProduct) {
+      setJiraProjectKeyInput('');
+      setJiraStatusesInput('');
+      setJiraSaveState('idle');
+      return;
+    }
+    setJiraProjectKeyInput(selectedProduct.jiraProjectKey || '');
+    setJiraStatusesInput((selectedProduct.jiraPullStatuses ?? []).join(', '));
+    setJiraSaveState('idle');
+  }, [selectedProduct]);
 
   const openCreateUserDrawer = () => {
     setUserDrawerMode('create');
@@ -601,7 +616,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     })();
   };
 
-  const handleProductSubTab = (next: 'modules' | 'targetSystems' | 'helpfulLinks' | 'notifications') => {
+  const handleProductSubTab = (next: 'modules' | 'targetSystems' | 'helpfulLinks' | 'notifications' | 'jira') => {
     if (productLinksSubTab === 'helpfulLinks' && next !== 'helpfulLinks' && productHelpfulLinksDirty) {
       if (!window.confirm('You have unsaved changes to Helpful Links. Leave without saving?')) return;
     }
@@ -689,6 +704,50 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
       window.setTimeout(() => {
         setProductTeamsTestState((prev) => ({ ...prev, [countryCode]: 'idle' }));
       }, 1500);
+    })();
+  };
+
+  const saveJiraConfig = () => {
+    if (!selectedProduct) return;
+    const jiraPullStatuses = jiraStatusesInput
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    void (async () => {
+      setJiraSaveState('saving');
+      const response = await fetch('/api/admin/products', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: selectedProduct.id,
+          jiraProjectKey: jiraProjectKeyInput.trim(),
+          jiraPullStatuses
+        })
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        setJiraSaveState('error');
+        notify(data?.error || 'Failed to save Jira settings', 'error');
+        window.setTimeout(() => setJiraSaveState('idle'), 2000);
+        return;
+      }
+
+      setProducts((prev) =>
+        prev.map((product) =>
+          product.id === selectedProduct.id
+            ? {
+                ...product,
+                jiraProjectKey: data.jiraProjectKey || null,
+                jiraPullStatuses: Array.isArray(data.jiraPullStatuses) ? data.jiraPullStatuses : []
+              }
+            : product
+        )
+      );
+      setJiraSaveState('saved');
+      notify(`Jira settings saved for ${selectedProduct.name}`, 'success');
+      window.setTimeout(() => setJiraSaveState('idle'), 1500);
     })();
   };
 
@@ -877,7 +936,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                       <>
                         {/* Product sub-tab bar */}
                         <div className="flex gap-0 border-b border-slate-200 mb-4">
-                          {(['modules', 'targetSystems', 'helpfulLinks', 'notifications'] as const).map((tab) => (
+                          {(['modules', 'targetSystems', 'helpfulLinks', 'notifications', 'jira'] as const).map((tab) => (
                             <button
                               key={tab}
                               onClick={() => handleProductSubTab(tab)}
@@ -887,7 +946,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                                   : 'border-transparent text-slate-500 hover:text-slate-700'
                               }`}
                             >
-                              {tab === 'modules' ? 'Modules' : tab === 'targetSystems' ? 'Target Systems' : tab === 'helpfulLinks' ? 'Helpful Links' : 'Notifications'}
+                              {tab === 'modules' ? 'Modules' : tab === 'targetSystems' ? 'Target Systems' : tab === 'helpfulLinks' ? 'Helpful Links' : tab === 'notifications' ? 'Notifications' : 'Jira'}
                             </button>
                           ))}
                         </div>
@@ -1169,6 +1228,63 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                                   </div>
                                 );
                               })}
+                            </div>
+                          </div>
+                        )}
+                        {productLinksSubTab === 'jira' && (
+                          <div className="rounded-xl border border-slate-200 p-5 space-y-4">
+                            <div>
+                              <h3 className="text-sm font-semibold text-slate-900">Jira Intake for {selectedProduct.name}</h3>
+                              <p className="text-xs text-slate-500 mt-1">
+                                Configure the Jira project key and which statuses should be pulled into the admin intake page.
+                              </p>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-[220px,1fr]">
+                              <div>
+                                <label className="text-xs font-semibold text-slate-500 uppercase">Jira Project Key</label>
+                                <input
+                                  type="text"
+                                  className={fieldBaseClass}
+                                  placeholder="e.g. EO"
+                                  value={jiraProjectKeyInput}
+                                  onChange={(event) => setJiraProjectKeyInput(event.target.value.toUpperCase())}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs font-semibold text-slate-500 uppercase">Statuses to Pull</label>
+                                <input
+                                  type="text"
+                                  className={fieldBaseClass}
+                                  placeholder="Ready for UAT, In UAT"
+                                  value={jiraStatusesInput}
+                                  onChange={(event) => setJiraStatusesInput(event.target.value)}
+                                />
+                                <p className="mt-1 text-xs text-slate-400">
+                                  Comma-separated. Example: <span className="font-medium text-slate-500">Ready for UAT, In UAT</span>
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
+                              <p className="font-medium text-slate-800">Technical dependency</p>
+                              <p className="mt-1">
+                                Jira intake will only work when server-side env vars are configured: <code>JIRA_BASE_URL</code>, <code>JIRA_API_EMAIL</code>, and <code>JIRA_API_TOKEN</code>.
+                              </p>
+                            </div>
+
+                            <div className="flex justify-end pt-2 border-t border-slate-100">
+                              <button
+                                onClick={saveJiraConfig}
+                                disabled={jiraSaveState === 'saving'}
+                                className="bg-slate-900 text-white px-3 py-1.5 rounded-md text-xs font-medium hover:bg-slate-800 disabled:opacity-60"
+                              >
+                                {jiraSaveState === 'saving'
+                                  ? 'Saving...'
+                                  : jiraSaveState === 'saved'
+                                    ? 'Saved ✓'
+                                    : 'Save Jira Settings'}
+                              </button>
                             </div>
                           </div>
                         )}

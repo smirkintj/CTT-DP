@@ -163,8 +163,49 @@ export interface CountryConfig {
 
 export interface AdminProductConfig extends ProductSummary {
   isActive: boolean;
+  jiraProjectKey?: string | null;
+  jiraPullStatuses?: string[];
   modules: Array<{ id: string; name: string; isActive: boolean }>;
   targetSystems: Array<TargetSystemSummary & { isActive: boolean }>;
 }
 
-export type ViewState = 'LOGIN' | 'DASHBOARD_STAKEHOLDER' | 'DASHBOARD_ADMIN' | 'TASK_DETAIL' | 'IMPORT_WIZARD' | 'ADMIN_TASK_MANAGEMENT' | 'ADMIN_DATABASE' | 'INBOX' | 'KNOWLEDGE_BASE';
+export interface JiraLinkedTaskSummary {
+  id: string;
+  title: string;
+  status: Status;
+  countryCode: string;
+  productName: string;
+}
+
+export interface JiraIssue {
+  key: string;
+  summary: string;
+  status: string;
+  updatedAt: string;
+  priority?: string | null;
+  assigneeName?: string | null;
+  productId: string;
+  productName: string;
+  projectKey: string;
+  linkedTasks: JiraLinkedTaskSummary[];
+}
+
+export interface JiraIssueGroup {
+  productId: string;
+  productName: string;
+  productSlug: string;
+  projectKey: string;
+  statuses: string[];
+  issues: JiraIssue[];
+  error?: string;
+}
+
+export interface JiraTaskPrefill {
+  jiraTicket: string;
+  title: string;
+  description: string;
+  productId: string;
+  productName: string;
+}
+
+export type ViewState = 'LOGIN' | 'DASHBOARD_STAKEHOLDER' | 'DASHBOARD_ADMIN' | 'TASK_DETAIL' | 'IMPORT_WIZARD' | 'ADMIN_TASK_MANAGEMENT' | 'ADMIN_DATABASE' | 'ADMIN_JIRA_INTAKE' | 'INBOX' | 'KNOWLEDGE_BASE';

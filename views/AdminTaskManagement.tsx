@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Task, Priority, TestStep, CountryConfig, AdminProductConfig } from '../types';
+import { Task, Priority, TestStep, CountryConfig, AdminProductConfig, JiraTaskPrefill } from '../types';
 import { Badge } from '../components/Badge';
 import { Trash2, Plus, Search, Filter, X, Save, Globe } from 'lucide-react';
 import { apiFetch } from '../lib/http';
@@ -18,6 +18,8 @@ interface AdminTaskManagementProps {
   onDeleteTasks: (taskIds: string[]) => void;
   availableCountries: CountryConfig[];
   availableModules: string[];
+  jiraPrefill?: JiraTaskPrefill | null;
+  onJiraPrefillConsumed?: () => void;
 }
 
 export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({ 
@@ -28,7 +30,9 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     onAddTask,
     onDeleteTasks,
     availableCountries,
-    availableModules 
+    availableModules,
+    jiraPrefill = null,
+    onJiraPrefillConsumed
 }) => {
   const [stakeholders, setStakeholders] = useState<Array<{
     id: string;
@@ -138,6 +142,26 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       targetSystemId: firstProduct?.targetSystems[0]?.id ?? ''
     };
   };
+
+  useEffect(() => {
+    if (!jiraPrefill) return;
+    if (products.length === 0) return;
+
+    const product = products.find((item) => item.id === jiraPrefill.productId) ?? products[0];
+    setNewTask({
+      ...getDefaultTaskValues(),
+      productId: product?.id ?? jiraPrefill.productId,
+      productName: product?.name ?? jiraPrefill.productName,
+      featureModule: product?.modules[0]?.name ?? '',
+      targetSystem: product?.targetSystems[0]?.name ?? '',
+      targetSystemId: product?.targetSystems[0]?.id ?? '',
+      jiraTicket: jiraPrefill.jiraTicket,
+      title: jiraPrefill.title,
+      description: jiraPrefill.description
+    });
+    setIsModalOpen(true);
+    onJiraPrefillConsumed?.();
+  }, [jiraPrefill, products, onJiraPrefillConsumed]);
   const initialTaskDefaults = getDefaultTaskValues();
   const defaultSteps: Partial<TestStep>[] = [
     { id: '1', description: '', expectedResult: '', countryFilter: 'ALL', testData: '' }

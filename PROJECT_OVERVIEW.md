@@ -241,6 +241,8 @@ Task mutation guarantees:
   - Admin-only test email endpoint for Resend setup verification.
 - `POST /api/admin/teams-webhooks/test`
   - Admin-only Teams webhook test endpoint for per-country channel verification.
+- `GET /api/admin/jira-intake`
+  - Admin-only Jira intake endpoint with product-scoped issue visibility and linked-task detection.
 - `GET/POST /api/admin/users`
   - Admin-only user list/create (current policy: stakeholder creation only).
   - stakeholder create now requires one or more product assignments.
@@ -249,10 +251,12 @@ Task mutation guarantees:
 - admin user list/update/reset is filtered by the acting admin's product scope when restricted.
 - `GET/POST/DELETE /api/admin/products`
   - Admin-only product management.
+- `PATCH /api/admin/products`
+  - Admin-only per-product Jira configuration update (`jiraProjectKey`, `jiraPullStatuses`).
 - `GET/POST/DELETE /api/admin/target-systems`
   - Admin-only target-system management scoped by product.
 - `GET /api/admin/task-config`
-  - Admin-only aggregated product/module/target-system config for task forms.
+  - Admin-only aggregated product/module/target-system/Jira config for task forms and intake UI.
 - `POST /api/admin/users/[id]/reset-password`
   - Admin-only temp-password reset (rate-limited).
 - `POST /api/users/change-password`
@@ -315,6 +319,13 @@ Currently created events:
   - per-country webhook config is saved in Admin Database
   - admin can send a sample Teams card through `/api/admin/teams-webhooks/test`
   - this validates channel delivery independently from task events
+- Jira intake:
+  - dedicated admin `Ready for UAT` page in top navigation
+  - each product can define its Jira project key and statuses to pull
+  - intake fetch is server-side only using env-based Jira credentials
+  - admins only see products within their Jira access scope
+  - Jira issues already used by CTT are flagged via `Task.jiraTicket`
+  - admins can open the linked task or create a prefilled new task from the Jira issue
 
 ## Recent UI/Behavior Updates
 - Admin task table was compacted to fit within viewport better.
