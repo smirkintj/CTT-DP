@@ -482,6 +482,7 @@ Comment normalization:
 From `package.json`:
 - `npm run dev`
 - `npm run build` → runs `prisma generate && next build`
+- `npm run db:migrate:deploy` → runs `prisma migrate deploy` against the current `DATABASE_URL`
 - `npm run start`
 - `npm run lint`
 - `npm run audit:check-admin` (guard: admin write routes must call `createAdminAudit`)
@@ -496,6 +497,7 @@ From `package.json`:
 
 Also:
 - `postinstall` runs `prisma generate` (important for Vercel consistency).
+- DB migrations are intentionally separate from `npm run build` so deploys do not fail just because the target DB is temporarily unreachable.
 - Dependency cleanup:
   - `recharts` removed (was unused).
 - Browser automation:

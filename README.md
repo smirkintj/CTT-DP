@@ -78,8 +78,17 @@ npm run build
 npm run start
 ```
 
+Technical dependency:
+- `npm run build` now only builds the app.
+- Run DB migrations separately before deploy when schema changes are included:
+
+```bash
+npm run db:migrate:deploy
+```
+
 ## Useful Scripts
 - `npm run lint`
+- `npm run db:migrate:deploy` (runs Prisma migrations against the current `DATABASE_URL`)
 - `npm run prisma:studio`
 - `npm run clean`
 - `npm run reset:dev` (kills local dev server ports and clears `.next` cache)
