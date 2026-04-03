@@ -4,6 +4,7 @@ import { authOptions } from '../../../../lib/auth';
 import prisma from '../../../../lib/prisma';
 import { getHelpfulLinksKey } from '../../../../lib/helpfulLinks';
 import { randomUUID } from 'crypto';
+import { createAdminAudit } from '../../../../lib/adminAudit';
 
 const isValidUrl = (value: string) => {
   try {
@@ -83,6 +84,12 @@ export async function PATCH(req: Request) {
     create: { key, value: sanitised, updatedById: session.user.id },
     update: { value: sanitised, updatedById: session.user.id },
     select: { value: true }
+  });
+
+  await createAdminAudit({
+    actorId: session.user.id,
+    message: `${session.user.name || session.user.email || 'Admin'} updated helpful links for product ${productId}.`,
+    metadata: { productId, linkCount: sanitised.length }
   });
 
   return NextResponse.json(saved.value);
