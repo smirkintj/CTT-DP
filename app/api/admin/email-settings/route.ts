@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
 import prisma from '../../../../lib/prisma';
+import { createAdminAudit } from '../../../../lib/adminAudit';
 
 const SETTING_KEY = 'email.reminders';
 
@@ -59,6 +60,12 @@ export async function PATCH(req: Request) {
     where: { key: SETTING_KEY },
     create: { key: SETTING_KEY, value: updated as object, updatedById: session.user.id },
     update: { value: updated as object, updatedById: session.user.id }
+  });
+
+  await createAdminAudit({
+    actorId: session.user.id,
+    message: `${session.user.name || session.user.email || 'Admin'} updated email reminder settings.`,
+    metadata: updated
   });
 
   return NextResponse.json(updated);

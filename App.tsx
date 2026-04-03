@@ -8,11 +8,12 @@ import { StakeholderDashboard } from './views/StakeholderDashboard';
 import { AdminDashboard } from './views/AdminDashboard';
 import { AdminTaskManagement } from './views/AdminTaskManagement';
 import { AdminDatabase } from './views/AdminDatabase';
+import { AdminJiraIntake } from './views/AdminJiraIntake';
 import { TaskDetail } from './views/TaskDetail';
 import { ImportWizard } from './views/ImportWizard';
 import { InboxView } from './views/InboxView';
 import { KnowledgeBaseView } from './views/KnowledgeBaseView';
-import { User, Task, Role, ViewState, CountryConfig } from './types';
+import { User, Task, Role, ViewState, CountryConfig, JiraTaskPrefill } from './types';
 import { INITIAL_COUNTRIES, INITIAL_MODULES } from './constants';
 import { apiFetch } from './lib/http';
 import { notify } from './lib/notify';
@@ -151,6 +152,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [view, setView] = useState<ViewState>(initialView ?? 'LOGIN');
+  const [jiraTaskPrefill, setJiraTaskPrefill] = useState<JiraTaskPrefill | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialSelectedTaskId);
   const [selectedStepOrder, setSelectedStepOrder] = useState<number | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
@@ -287,6 +289,8 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       return;
     }
 
+    void fetch('/api/health'); // warm up serverless function; result ignored
+
     const userId = session.user.id;
     const cached = readCachedTasks(userId);
     if (cached) {
@@ -298,6 +302,11 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       setLoadingTasks(false);
       return;
     }
+
+    // Fire a lightweight ping so the serverless function is warm before the user
+    // interacts. Result is intentionally ignored — this only reduces cold-start
+    // latency on the first real action after the workspace loads.
+    void fetch('/api/health');
 
     const controller = new AbortController();
     let active = true;
@@ -589,6 +598,12 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     onRouteChange?.(targetView, targetView === 'TASK_DETAIL' ? selectedTaskId : null);
   };
 
+  const handleCreateTaskFromJira = (prefill: JiraTaskPrefill) => {
+    setJiraTaskPrefill(prefill);
+    setView('ADMIN_TASK_MANAGEMENT');
+    onRouteChange?.('ADMIN_TASK_MANAGEMENT');
+  };
+
   const selectedTask = selectedTaskId ? tasks.find(t => t.id === selectedTaskId) : null;
 
   // Only block with the loading screen when we know the user IS authenticated
@@ -707,6 +722,12 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
              </form>
           </div>
+          <div className="mt-6 text-center select-none space-y-1">
+            <span className="text-xs text-slate-400 font-mono">
+              v{process.env.NEXT_PUBLIC_APP_VERSION ?? '1.0.0'}
+            </span>
+            <p className="text-[10px] text-slate-300">© {new Date().getFullYear()} DKSH CSSC Digital Product</p>
+          </div>
         </div>
       </div>
     );
@@ -752,6 +773,8 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
           onDeleteTasks={handleDeleteTasks}
           availableCountries={availableCountries}
           availableModules={availableModules}
+          jiraPrefill={jiraTaskPrefill}
+          onJiraPrefillConsumed={() => setJiraTaskPrefill(null)}
         />
       )}
 
@@ -762,6 +785,14 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
            onUpdateCountries={setAvailableCountries}
            onUpdateModules={setAvailableModules}
            currentUserId={currentUser.id}
+        />
+      )}
+
+      {view === 'ADMIN_JIRA_INTAKE' && (
+        <AdminJiraIntake
+          currentUser={currentUser}
+          onOpenTask={handleOpenTaskById}
+          onCreateTask={handleCreateTaskFromJira}
         />
       )}
 

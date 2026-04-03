@@ -21,10 +21,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div style={{
               backgroundColor: "#FEF3C7",
               color: "#92400E",
-              padding: "8px",
+              padding: "6px 12px",
               textAlign: "center",
               fontSize: "12px",
-              fontWeight: "600"
+              fontWeight: "600",
             }}>
               ⚠️ STAGING / PREVIEW ENVIRONMENT
             </div>

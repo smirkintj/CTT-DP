@@ -31,6 +31,9 @@ export default function AppRouteShell({ initialView, initialTaskId = null }: App
           case 'ADMIN_DATABASE':
             router.push('/admin/database');
             return;
+          case 'ADMIN_JIRA_INTAKE':
+            router.push('/admin/jira-intake');
+            return;
           case 'IMPORT_WIZARD':
             router.push('/import');
             return;

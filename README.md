@@ -34,6 +34,9 @@ Set in `.env` (or deployment env):
 - `NEXTAUTH_URL` = app base URL (required in deployed env)
 - `RESEND_API_KEY` = Resend API key
 - `EMAIL_FROM` = sender email (must match Resend/domain policy)
+- `JIRA_BASE_URL` = Jira site base URL (example: `https://yourcompany.atlassian.net`)
+- `JIRA_API_EMAIL` = Jira integration email used for API auth
+- `JIRA_API_TOKEN` = Jira API token used for server-side intake queries
 - `CRON_SECRET` = strong random secret to secure `/api/cron/reminders`; set the same value in Vercel environment variables (staging + prod)
 - `LLM_BASE_URL` = OpenAI-compatible LLM endpoint for the in-app assistant (example: `http://localhost:11434/v1`)
 - `LLM_MODEL` = assistant model name (example: `llama3.1`)
@@ -75,8 +78,17 @@ npm run build
 npm run start
 ```
 
+Technical dependency:
+- `npm run build` now only builds the app.
+- Run DB migrations separately before deploy when schema changes are included:
+
+```bash
+npm run db:migrate:deploy
+```
+
 ## Useful Scripts
 - `npm run lint`
+- `npm run db:migrate:deploy` (runs Prisma migrations against the current `DATABASE_URL`)
 - `npm run prisma:studio`
 - `npm run clean`
 - `npm run reset:dev` (kills local dev server ports and clears `.next` cache)
@@ -125,6 +137,7 @@ Security notes:
   - staging / UAT URL: `https://ctt-dksh-git-staging-ptrmhrdn-4569s-projects.vercel.app`
   - production is for real users; staging is for testers only
 - Build script runs `prisma generate && next build` to avoid stale Prisma client issues in CI/Vercel.
+- Task detail route `/tasks/[id]` is forced dynamic so Vercel preview builds do not try to resolve Prisma-backed task reads at build time.
 - Vercel Speed Insights is enabled in `/Users/putra/Desktop/CTT-DKSH-main/app/layout.tsx` for runtime frontend performance telemetry.
 - Middleware enforces:
   - `/admin/*` and `/import` => ADMIN only
@@ -307,6 +320,12 @@ Security notes:
 - Teams webhook POC:
   - admin can save a per-country Teams webhook in Admin Database
   - admin can send a sample Teams message per country to verify channel delivery without waiting for a real task event
+- Jira intake:
+  - admin has a dedicated `Ready for UAT` top-nav page for Jira issue browsing
+  - products can store Jira project key + statuses to pull in Admin Database → Product → Jira
+  - Jira results are fetched server-side only and only for products within the admin's access scope
+  - linked CTT tasks are detected via `Task.jiraTicket`
+  - admin can open an existing linked task or create a new task prefilled from the Jira issue
 - Auth/session hydration now shows a neutral loading state to prevent brief login-page flicker on refresh.
 - Auth/session hydration loading state now includes a subtle animated progress bar + pulse indicators for clearer feedback while workspace loads.
   - QA helper: append `?debugLoading=1` to hold the loading screen for 5 seconds and validate layout/animation.
