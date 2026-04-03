@@ -1,0 +1,77 @@
+type JiraIssueResponse = {
+  key: string;
+  fields?: {
+    summary?: string | null;
+    updated?: string | null;
+    status?: { name?: string | null } | null;
+    priority?: { name?: string | null } | null;
+    assignee?: { displayName?: string | null; emailAddress?: string | null } | null;
+  };
+};
+
+export function isJiraConfigured() {
+  return Boolean(process.env.JIRA_BASE_URL && process.env.JIRA_API_EMAIL && process.env.JIRA_API_TOKEN);
+}
+
+function getAuthHeader() {
+  const email = process.env.JIRA_API_EMAIL;
+  const token = process.env.JIRA_API_TOKEN;
+  if (!email || !token) return null;
+  return `Basic ${Buffer.from(`${email}:${token}`).toString('base64')}`;
+}
+
+export async function searchJiraIssues(input: {
+  projectKey: string;
+  statuses: string[];
+  maxResults?: number;
+}): Promise<Array<{
+  key: string;
+  summary: string;
+  status: string;
+  updatedAt: string;
+  priority?: string | null;
+  assigneeName?: string | null;
+}>> {
+  const baseUrl = process.env.JIRA_BASE_URL?.replace(/\/$/, '');
+  const authHeader = getAuthHeader();
+  if (!baseUrl || !authHeader) {
+    throw new Error('JIRA_NOT_CONFIGURED');
+  }
+
+  const statuses = input.statuses.filter(Boolean);
+  if (statuses.length === 0) return [];
+
+  const statusClause = statuses.map((status) => `"${status.replace(/"/g, '\\"')}"`).join(', ');
+  const jql = `project = "${input.projectKey}" AND status in (${statusClause}) ORDER BY updated DESC`;
+  const params = new URLSearchParams({
+    jql,
+    maxResults: String(input.maxResults ?? 30),
+    fields: 'summary,status,updated,priority,assignee'
+  });
+
+  const response = await fetch(`${baseUrl}/rest/api/3/search?${params.toString()}`, {
+    method: 'GET',
+    headers: {
+      Authorization: authHeader,
+      Accept: 'application/json'
+    },
+    next: { revalidate: 60 }
+  });
+
+  if (!response.ok) {
+    const raw = await response.text().catch(() => '');
+    throw new Error(`JIRA_FETCH_FAILED:${response.status}:${raw}`);
+  }
+
+  const payload = (await response.json()) as { issues?: JiraIssueResponse[] };
+  const issues = Array.isArray(payload.issues) ? payload.issues : [];
+
+  return issues.map((issue) => ({
+    key: issue.key,
+    summary: issue.fields?.summary || issue.key,
+    status: issue.fields?.status?.name || 'Unknown',
+    updatedAt: issue.fields?.updated || '',
+    priority: issue.fields?.priority?.name || null,
+    assigneeName: issue.fields?.assignee?.displayName || issue.fields?.assignee?.emailAddress || null
+  }));
+}

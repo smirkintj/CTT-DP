@@ -86,3 +86,39 @@ export async function DELETE(req: Request) {
 
   return NextResponse.json({ success: true });
 }
+
+export async function PATCH(req: Request) {
+  const auth = await requireAdmin();
+  if ('error' in auth) return auth.error;
+
+  const body = await req.json().catch(() => null);
+  const productId = body?.productId?.toString().trim();
+  const jiraProjectKey = body?.jiraProjectKey?.toString().trim().toUpperCase() || null;
+  const jiraPullStatuses = Array.isArray(body?.jiraPullStatuses)
+    ? body.jiraPullStatuses
+        .map((value) => value?.toString().trim())
+        .filter((value): value is string => Boolean(value))
+    : [];
+
+  if (!productId) return badRequest('Product is required', 'PRODUCT_REQUIRED');
+
+  const product = await prisma.product.update({
+    where: { id: productId },
+    data: {
+      jiraProjectKey,
+      jiraPullStatuses
+    }
+  });
+
+  await createAdminAudit({
+    actorId: auth.session.user.id,
+    message: `${auth.session.user.name || auth.session.user.email || 'Admin'} updated Jira settings for ${product.name}.`,
+    metadata: {
+      productId: product.id,
+      jiraProjectKey: product.jiraProjectKey,
+      jiraPullStatuses: product.jiraPullStatuses
+    }
+  });
+
+  return NextResponse.json(product);
+}
