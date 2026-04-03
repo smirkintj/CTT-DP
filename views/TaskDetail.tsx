@@ -1265,14 +1265,19 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                     )}
                   </div>
                 ) : localTask.jiraTicket ? (
-                  <a
-                    href={getJiraUrl(localTask.jiraTicket)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline"
-                  >
-                    <LinkIcon size={12}/> {normalizeJiraTicketInput(localTask.jiraTicket)}
-                  </a>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <a
+                      href={getJiraUrl(localTask.jiraTicket)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      <LinkIcon size={12}/> {normalizeJiraTicketInput(localTask.jiraTicket)}
+                    </a>
+                    <span className="inline-flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full font-medium">
+                      <CheckCircle size={11} /> Linked
+                    </span>
+                  </div>
                 ) : (
                   <span className="text-sm text-slate-500">N/A</span>
                 )}

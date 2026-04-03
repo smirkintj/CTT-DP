@@ -90,8 +90,10 @@ model Product {
   name             String   @unique
   slug             String   @unique
   isActive         Boolean  @default(true)
-  jiraProjectKey   String?
-  jiraPullStatuses String[] @default([])
+  jiraProjectKey              String?
+  jiraPullStatuses            String[] @default([])
+  jiraInUatTransition         String?
+  jiraReadyToDeployTransition String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

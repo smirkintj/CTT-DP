@@ -20,6 +20,32 @@ function getAuthHeader() {
   return `Basic ${Buffer.from(`${email}:${token}`).toString('base64')}`;
 }
 
+export async function transitionJiraIssue(issueKey: string, targetStatusName: string): Promise<void> {
+  const baseUrl = process.env.JIRA_BASE_URL?.replace(/\/$/, '');
+  const authHeader = getAuthHeader();
+  if (!baseUrl || !authHeader) return;
+
+  try {
+    const res = await fetch(`${baseUrl}/rest/api/3/issue/${issueKey}/transitions`, {
+      headers: { Authorization: authHeader, Accept: 'application/json' }
+    });
+    if (!res.ok) return;
+
+    const payload = (await res.json()) as { transitions?: { id: string; name: string }[] };
+    const transitions = Array.isArray(payload.transitions) ? payload.transitions : [];
+    const match = transitions.find(t => t.name.toLowerCase() === targetStatusName.toLowerCase());
+    if (!match) return;
+
+    await fetch(`${baseUrl}/rest/api/3/issue/${issueKey}/transitions`, {
+      method: 'POST',
+      headers: { Authorization: authHeader, Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transition: { id: match.id } })
+    });
+  } catch {
+    // Silently swallow — Jira unavailability must never break task saves
+  }
+}
+
 export async function searchJiraIssues(input: {
   projectKey: string;
   statuses: string[];

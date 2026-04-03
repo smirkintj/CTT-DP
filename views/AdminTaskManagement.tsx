@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Task, Priority, TestStep, CountryConfig, AdminProductConfig, JiraTaskPrefill, JiraIssue, JiraIssueGroup } from '../types';
 import { Badge } from '../components/Badge';
-import { Trash2, Plus, Search, Filter, X, Save, Globe } from 'lucide-react';
+import { Trash2, Plus, Search, Filter, X, Save, Globe, CheckCircle2 } from 'lucide-react';
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
@@ -75,6 +75,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const [jiraDropdownOpen, setJiraDropdownOpen] = useState(false);
   const [jiraBrowseOpen, setJiraBrowseOpen] = useState(false);
   const [jiraLoadingIssues, setJiraLoadingIssues] = useState(false);
+  const [jiraTicketLinked, setJiraTicketLinked] = useState(false);
   const jiraDropdownRef = useRef<HTMLDivElement>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -208,6 +209,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     setSteps(defaultSteps);
     setCreateSaveState('idle');
     setCreateError(null);
+    setJiraTicketLinked(false);
   };
 
   const isCreateDirty =
@@ -1361,6 +1363,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                             autoComplete="off"
                             onChange={(e) => {
                               setNewTask({ ...newTask, jiraTicket: e.target.value });
+                              setJiraTicketLinked(false);
                               setJiraDropdownOpen(e.target.value.length > 0 && jiraIssues.length > 0);
                             }}
                             onFocus={() => {
@@ -1385,6 +1388,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                                         jiraTicket: issue.key,
                                         title: prev.title || issue.summary,
                                       }));
+                                      setJiraTicketLinked(true);
                                       setJiraDropdownOpen(false);
                                     }}
                                   >
@@ -1397,6 +1401,11 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                             );
                           })()}
                         </div>
+                        {jiraTicketLinked && (
+                          <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium shrink-0">
+                            <CheckCircle2 size={13} /> Linked
+                          </span>
+                        )}
                         {jiraLoadingIssues ? (
                           <svg className="animate-spin w-4 h-4 text-slate-400 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -1658,6 +1667,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                             jiraTicket: issue.key,
                             title: prev.title || issue.summary,
                           }));
+                          setJiraTicketLinked(true);
                           setJiraBrowseOpen(false);
                         }}
                         className={`text-left p-3 rounded-xl border-2 transition-all hover:shadow-md flex flex-col gap-1.5 ${

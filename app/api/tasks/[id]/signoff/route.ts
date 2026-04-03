@@ -7,6 +7,7 @@ import { createActivity } from '../../../../../lib/activity';
 import { sendTaskSignedOffEmail } from '../../../../../lib/email';
 import { sendTeamsMessage } from '../../../../../lib/teams';
 import { validateExpectedUpdatedAt } from '../../../../../lib/taskGuards';
+import { isJiraConfigured, transitionJiraIssue } from '../../../../../lib/jira';
 import { createTaskHistory } from '../../../../../lib/taskHistory';
 import { logPilotEvent } from '../../../../../lib/telemetry';
 
@@ -38,7 +39,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           notifyOnSignoffEmail: true
         }
       },
-      product: { select: { name: true } }
+      product: { select: { name: true, jiraReadyToDeployTransition: true } }
     }
   });
 
@@ -74,6 +75,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       updatedById: session.user.id
     }
   });
+
+  if (task.jiraTicket && isJiraConfigured()) {
+    void transitionJiraIssue(task.jiraTicket, task.product.jiraReadyToDeployTransition || 'Ready to Deploy');
+  }
 
   await createActivity({
     type: ActivityType.SIGNED_OFF,

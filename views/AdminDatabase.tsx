@@ -61,6 +61,8 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   const [selectedProductId, setSelectedProductId] = useState('');
   const [jiraProjectKeyInput, setJiraProjectKeyInput] = useState('');
   const [jiraStatusesInput, setJiraStatusesInput] = useState('');
+  const [jiraInUatTransitionInput, setJiraInUatTransitionInput] = useState('');
+  const [jiraReadyToDeployTransitionInput, setJiraReadyToDeployTransitionInput] = useState('');
   const [jiraSaveState, setJiraSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [productHelpfulLinks, setProductHelpfulLinks] = useState<{ id: string; label: string; url: string }[]>([]);
   const [savedProductHelpfulLinks, setSavedProductHelpfulLinks] = useState<{ id: string; label: string; url: string }[]>([]);
@@ -194,11 +196,15 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     if (!selectedProduct) {
       setJiraProjectKeyInput('');
       setJiraStatusesInput('');
+      setJiraInUatTransitionInput('');
+      setJiraReadyToDeployTransitionInput('');
       setJiraSaveState('idle');
       return;
     }
     setJiraProjectKeyInput(selectedProduct.jiraProjectKey || '');
     setJiraStatusesInput((selectedProduct.jiraPullStatuses ?? []).join(', '));
+    setJiraInUatTransitionInput(selectedProduct.jiraInUatTransition || '');
+    setJiraReadyToDeployTransitionInput(selectedProduct.jiraReadyToDeployTransition || '');
     setJiraSaveState('idle');
   }, [selectedProduct]);
 
@@ -722,7 +728,9 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
         body: JSON.stringify({
           productId: selectedProduct.id,
           jiraProjectKey: jiraProjectKeyInput.trim(),
-          jiraPullStatuses
+          jiraPullStatuses,
+          jiraInUatTransition: jiraInUatTransitionInput.trim(),
+          jiraReadyToDeployTransition: jiraReadyToDeployTransitionInput.trim()
         })
       });
 
@@ -740,7 +748,9 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
             ? {
                 ...product,
                 jiraProjectKey: data.jiraProjectKey || null,
-                jiraPullStatuses: Array.isArray(data.jiraPullStatuses) ? data.jiraPullStatuses : []
+                jiraPullStatuses: Array.isArray(data.jiraPullStatuses) ? data.jiraPullStatuses : [],
+                jiraInUatTransition: data.jiraInUatTransition || null,
+                jiraReadyToDeployTransition: data.jiraReadyToDeployTransition || null
               }
             : product
         )
@@ -1263,6 +1273,31 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                                 <p className="mt-1 text-xs text-slate-400">
                                   Comma-separated. Example: <span className="font-medium text-slate-500">Ready for UAT, In UAT</span>
                                 </p>
+                              </div>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <div>
+                                <label className="text-xs font-semibold text-slate-500 uppercase">→ "In UAT" Transition Name</label>
+                                <input
+                                  type="text"
+                                  className={fieldBaseClass}
+                                  placeholder="In UAT"
+                                  value={jiraInUatTransitionInput}
+                                  onChange={(event) => setJiraInUatTransitionInput(event.target.value)}
+                                />
+                                <p className="mt-1 text-xs text-slate-400">Jira transition to fire when task is marked Ready</p>
+                              </div>
+                              <div>
+                                <label className="text-xs font-semibold text-slate-500 uppercase">→ "Ready to Deploy" Transition Name</label>
+                                <input
+                                  type="text"
+                                  className={fieldBaseClass}
+                                  placeholder="Ready to Deploy"
+                                  value={jiraReadyToDeployTransitionInput}
+                                  onChange={(event) => setJiraReadyToDeployTransitionInput(event.target.value)}
+                                />
+                                <p className="mt-1 text-xs text-slate-400">Jira transition to fire when task is signed off</p>
                               </div>
                             </div>
 

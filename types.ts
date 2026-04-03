@@ -165,6 +165,8 @@ export interface AdminProductConfig extends ProductSummary {
   isActive: boolean;
   jiraProjectKey?: string | null;
   jiraPullStatuses?: string[];
+  jiraInUatTransition?: string | null;
+  jiraReadyToDeployTransition?: string | null;
   modules: Array<{ id: string; name: string; isActive: boolean }>;
   targetSystems: Array<TargetSystemSummary & { isActive: boolean }>;
 }

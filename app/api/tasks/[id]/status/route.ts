@@ -7,6 +7,7 @@ import { createActivity, toStatusLabel } from '../../../../../lib/activity';
 import { sendTaskAssignedEmail } from '../../../../../lib/email';
 import { sendTeamsMessage } from '../../../../../lib/teams';
 import { validateExpectedUpdatedAt, validateTaskTransition } from '../../../../../lib/taskGuards';
+import { isJiraConfigured, transitionJiraIssue } from '../../../../../lib/jira';
 import { createTaskHistory } from '../../../../../lib/taskHistory';
 import { badRequest, conflict, forbidden, notFound, unauthorized } from '../../../../../lib/apiError';
 import { adminCanAccessProduct } from '../../../../../lib/adminAccess';
@@ -42,7 +43,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           notifyOnAssignmentEmail: true
         }
       },
-      product: { select: { name: true } },
+      product: { select: { name: true, jiraInUatTransition: true } },
       targetSystem: { select: { baseUrl: true } }
     }
   });
@@ -95,6 +96,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       updatedById: session.user.id
     }
   });
+
+  if (task.jiraTicket && dbStatus === 'READY' && isJiraConfigured()) {
+    void transitionJiraIssue(task.jiraTicket, task.product.jiraInUatTransition || 'In UAT');
+  }
 
   if (
     previousStatus === 'DRAFT' &&

@@ -99,6 +99,8 @@ export async function PATCH(req: Request) {
         .map((value) => value?.toString().trim())
         .filter((value): value is string => Boolean(value))
     : [];
+  const jiraInUatTransition = body?.jiraInUatTransition?.toString().trim() || null;
+  const jiraReadyToDeployTransition = body?.jiraReadyToDeployTransition?.toString().trim() || null;
 
   if (!productId) return badRequest('Product is required', 'PRODUCT_REQUIRED');
 
@@ -106,7 +108,9 @@ export async function PATCH(req: Request) {
     where: { id: productId },
     data: {
       jiraProjectKey,
-      jiraPullStatuses
+      jiraPullStatuses,
+      jiraInUatTransition,
+      jiraReadyToDeployTransition
     }
   });
 
@@ -116,7 +120,9 @@ export async function PATCH(req: Request) {
     metadata: {
       productId: product.id,
       jiraProjectKey: product.jiraProjectKey,
-      jiraPullStatuses: product.jiraPullStatuses
+      jiraPullStatuses: product.jiraPullStatuses,
+      jiraInUatTransition: product.jiraInUatTransition,
+      jiraReadyToDeployTransition: product.jiraReadyToDeployTransition
     }
   });
 
