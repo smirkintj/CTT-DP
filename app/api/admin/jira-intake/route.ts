@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { forbidden, unauthorized } from '@/lib/apiError';
-import { getAdminProductScope } from '@/lib/adminAccess';
 import { isJiraConfigured, searchJiraIssues, resolveJiraCredentials } from '@/lib/jira';
 import { decryptField } from '@/lib/encrypt';
 
@@ -23,12 +22,23 @@ export async function GET() {
   if (!session?.user) return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   if (session.user.role !== 'ADMIN') return forbidden('Forbidden', 'ADMIN_REQUIRED');
 
-  const scope = await getAdminProductScope(session.user.id);
+  // For JIRA Queue, only show the admin's explicitly assigned products.
+  // If they have no product assignments, show nothing.
+  const productAccesses = await prisma.userProductAccess.findMany({
+    where: { userId: session.user.id },
+    select: { productId: true }
+  });
+  const assignedProductIds = productAccesses.map((a) => a.productId);
+
+  // If admin has no assigned products, return empty
+  if (assignedProductIds.length === 0) {
+    return NextResponse.json({ configured: false, groups: [] });
+  }
 
   const products = await prisma.product.findMany({
     where: {
       isActive: true,
-      ...(scope.restricted ? { id: { in: scope.productIds } } : {})
+      id: { in: assignedProductIds }
     },
     orderBy: { name: 'asc' },
     select: {
