@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Task, Priority, TestStep, CountryConfig, AdminProductConfig, JiraTaskPrefill, JiraIssue, JiraIssueGroup } from '../types';
 import { Badge } from '../components/Badge';
-import { Trash2, Plus, Search, Filter, X, Save, Globe, CheckCircle2 } from 'lucide-react';
+import { Trash2, Plus, Search, Filter, X, Save, Globe, CheckCircle2, ExternalLink } from 'lucide-react';
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
