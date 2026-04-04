@@ -1278,81 +1278,87 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
               <div>
                 <span className="text-xs text-slate-400 block mb-1">Jira Ticket</span>
                 {canEditTaskMeta ? (
-                  <div className="relative" ref={jiraDropdownRef}>
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <input
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
-                          value={taskEdits.jiraTicket}
-                          autoComplete="off"
-                          onChange={(e) => {
-                            setTaskEdits({ ...taskEdits, jiraTicket: e.target.value });
-                            setJiraTicketLinked(false);
-                            setJiraDropdownOpen(e.target.value.length > 0 && jiraIssues.length > 0);
-                          }}
-                          onFocus={() => {
-                            if (taskEdits.jiraTicket.length > 0 && jiraIssues.length > 0) setJiraDropdownOpen(true);
-                          }}
-                          placeholder="e.g. 3198 or EO-3198"
-                        />
-                        {jiraDropdownOpen && (() => {
-                          const q = taskEdits.jiraTicket.toLowerCase();
-                          const filtered = jiraIssues.filter(i => i.key.toLowerCase().includes(q) || i.summary.toLowerCase().includes(q)).slice(0, 6);
-                          if (filtered.length === 0) return null;
-                          return (
-                            <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white rounded-lg border border-slate-200 shadow-lg overflow-hidden">
-                              {filtered.map(issue => (
-                                <button
-                                  key={issue.key}
-                                  type="button"
-                                  className="w-full text-left px-3 py-2.5 hover:bg-brand-50 transition-colors flex items-start gap-2 border-b border-slate-50 last:border-0"
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={() => {
-                                    setTaskEdits(prev => ({ ...prev, jiraTicket: issue.key }));
-                                    setJiraTicketLinked(true);
-                                    setJiraDropdownOpen(false);
-                                  }}
-                                >
-                                  <span className="text-xs font-mono font-semibold text-brand-600 shrink-0 mt-0.5">{issue.key}</span>
-                                  <span className="text-sm text-slate-700 line-clamp-1">{issue.summary}</span>
-                                  {issue.status && <span className="ml-auto text-[10px] text-slate-400 shrink-0 mt-0.5">{issue.status}</span>}
-                                </button>
-                              ))}
-                            </div>
-                          );
-                        })()}
+                  <div className="relative space-y-1.5" ref={jiraDropdownRef}>
+                    {/* Input with inline action icons */}
+                    <div className="relative">
+                      <input
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2 pl-3 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                        style={{ paddingRight: taskEdits.jiraTicket || jiraIssues.length > 0 ? '4.5rem' : '0.75rem' }}
+                        value={taskEdits.jiraTicket}
+                        autoComplete="off"
+                        onChange={(e) => {
+                          setTaskEdits({ ...taskEdits, jiraTicket: e.target.value });
+                          setJiraTicketLinked(false);
+                          setJiraDropdownOpen(e.target.value.length > 0 && jiraIssues.length > 0);
+                        }}
+                        onFocus={() => {
+                          if (taskEdits.jiraTicket.length > 0 && jiraIssues.length > 0) setJiraDropdownOpen(true);
+                        }}
+                        placeholder="e.g. 3198 or EO-3198"
+                      />
+                      {/* Inline suffix icons */}
+                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                        {jiraLoadingIssues && (
+                          <svg className="animate-spin w-3.5 h-3.5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                          </svg>
+                        )}
+                        {taskEdits.jiraTicket && (
+                          <a
+                            href={getJiraUrl(taskEdits.jiraTicket)}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={`Open ${normalizeJiraTicketInput(taskEdits.jiraTicket)}`}
+                            className="h-7 w-7 inline-flex items-center justify-center rounded-lg text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                          >
+                            <LinkIcon size={13} />
+                          </a>
+                        )}
+                        {!jiraLoadingIssues && jiraIssues.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setJiraBrowseOpen(true)}
+                            className="h-7 px-2 rounded-lg text-[11px] font-medium text-slate-500 hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                          >
+                            Browse
+                          </button>
+                        )}
                       </div>
-                      {taskEdits.jiraTicket && (
-                        <a
-                          href={getJiraUrl(taskEdits.jiraTicket)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-blue-600 hover:text-blue-700 hover:border-slate-300 transition-colors"
-                          title={`Open ${normalizeJiraTicketInput(taskEdits.jiraTicket)}`}
-                        >
-                          <LinkIcon size={14} />
-                        </a>
-                      )}
-                      {jiraTicketLinked && (
-                        <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium shrink-0 whitespace-nowrap">
-                          <CheckCircle2 size={13} /> Linked
-                        </span>
-                      )}
-                      {jiraLoadingIssues ? (
-                        <svg className="animate-spin w-4 h-4 text-slate-400 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                        </svg>
-                      ) : jiraIssues.length > 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => setJiraBrowseOpen(true)}
-                          className="shrink-0 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:border-brand-300 hover:text-brand-600 hover:bg-brand-50 transition-colors whitespace-nowrap"
-                        >
-                          Browse
-                        </button>
-                      ) : null}
+                      {/* Typeahead dropdown */}
+                      {jiraDropdownOpen && (() => {
+                        const q = taskEdits.jiraTicket.toLowerCase();
+                        const filtered = jiraIssues.filter(i => i.key.toLowerCase().includes(q) || i.summary.toLowerCase().includes(q)).slice(0, 6);
+                        if (filtered.length === 0) return null;
+                        return (
+                          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white rounded-lg border border-slate-200 shadow-lg overflow-hidden">
+                            {filtered.map(issue => (
+                              <button
+                                key={issue.key}
+                                type="button"
+                                className="w-full text-left px-3 py-2.5 hover:bg-brand-50 transition-colors flex items-start gap-2 border-b border-slate-50 last:border-0"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => {
+                                  setTaskEdits(prev => ({ ...prev, jiraTicket: issue.key }));
+                                  setJiraTicketLinked(true);
+                                  setJiraDropdownOpen(false);
+                                }}
+                              >
+                                <span className="text-xs font-mono font-semibold text-brand-600 shrink-0 mt-0.5">{issue.key}</span>
+                                <span className="text-sm text-slate-700 line-clamp-1">{issue.summary}</span>
+                                {issue.status && <span className="ml-auto text-[10px] text-slate-400 shrink-0 mt-0.5">{issue.status}</span>}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
+                    {/* Linked badge below input */}
+                    {jiraTicketLinked && (
+                      <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                        <CheckCircle2 size={12} /> Linked to Jira
+                      </span>
+                    )}
                   </div>
                 ) : localTask.jiraTicket ? (
                   <div className="flex items-center gap-2 flex-wrap">

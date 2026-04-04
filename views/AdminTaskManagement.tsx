@@ -154,8 +154,9 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
 
   useEffect(() => {
     if (!jiraPrefill) return;
-    if (products.length === 0) return;
 
+    // Open the modal immediately — products may still be loading but productId/Name
+    // come from the prefill. Module/system fields will be populated once products load.
     const product = products.find((item) => item.id === jiraPrefill.productId) ?? products[0];
     setNewTask({
       ...getDefaultTaskValues(),
@@ -171,7 +172,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     setJiraTicketLinked(Boolean(jiraPrefill.jiraTicket));
     setIsModalOpen(true);
     onJiraPrefillConsumedRef.current?.();
-  }, [jiraPrefill, products]);
+  }, [jiraPrefill]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isModalOpen || !newTask.productId) {
