@@ -94,6 +94,9 @@ model Product {
   jiraPullStatuses            String[] @default([])
   jiraInUatTransition         String?
   jiraReadyToDeployTransition String?
+  jiraBaseUrl                 String?
+  jiraEmail                   String?
+  jiraToken                   String?   // encrypted at rest
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

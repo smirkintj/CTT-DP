@@ -8,6 +8,7 @@ import { sendTaskSignedOffEmail } from '../../../../../lib/email';
 import { sendTeamsMessage } from '../../../../../lib/teams';
 import { validateExpectedUpdatedAt } from '../../../../../lib/taskGuards';
 import { isJiraConfigured, transitionJiraIssue } from '../../../../../lib/jira';
+import { decryptField } from '../../../../../lib/encrypt';
 import { createTaskHistory } from '../../../../../lib/taskHistory';
 import { logPilotEvent } from '../../../../../lib/telemetry';
 
@@ -39,7 +40,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           notifyOnSignoffEmail: true
         }
       },
-      product: { select: { name: true, jiraReadyToDeployTransition: true } }
+      product: { select: { name: true, jiraReadyToDeployTransition: true, jiraBaseUrl: true, jiraEmail: true, jiraToken: true } }
     }
   });
 
@@ -76,8 +77,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
   });
 
-  if (task.jiraTicket && isJiraConfigured()) {
-    void transitionJiraIssue(task.jiraTicket, task.product.jiraReadyToDeployTransition || 'Ready to Deploy');
+  if (task.jiraTicket) {
+    const perProduct = task.product.jiraBaseUrl || task.product.jiraEmail || task.product.jiraToken
+      ? { baseUrl: task.product.jiraBaseUrl ?? undefined, email: task.product.jiraEmail ?? undefined, token: decryptField(task.product.jiraToken) ?? undefined }
+      : null;
+    if (isJiraConfigured(perProduct)) {
+      void transitionJiraIssue(task.jiraTicket, task.product.jiraReadyToDeployTransition || 'Ready to Deploy', perProduct);
+    }
   }
 
   await createActivity({

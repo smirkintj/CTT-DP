@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { badRequest, forbidden, unauthorized } from '@/lib/apiError';
 import { createAdminAudit } from '@/lib/adminAudit';
+import { encryptField } from '@/lib/encrypt';
 
 async function requireAdmin() {
   const session = await getServerSession(authOptions);
@@ -30,7 +31,12 @@ export async function GET() {
     orderBy: { name: 'asc' }
   });
 
-  return NextResponse.json(products);
+  // Never expose the raw encrypted token — replace with a boolean indicator
+  return NextResponse.json(products.map(p => ({
+    ...p,
+    jiraToken: undefined,
+    jiraTokenSet: Boolean(p.jiraToken)
+  })));
 }
 
 export async function POST(req: Request) {
@@ -101,6 +107,11 @@ export async function PATCH(req: Request) {
     : [];
   const jiraInUatTransition = body?.jiraInUatTransition?.toString().trim() || null;
   const jiraReadyToDeployTransition = body?.jiraReadyToDeployTransition?.toString().trim() || null;
+  const jiraBaseUrl = body?.jiraBaseUrl?.toString().trim() || null;
+  const jiraEmail = body?.jiraEmail?.toString().trim() || null;
+  // Only update token if a new value was explicitly sent (empty string = clear it)
+  const jiraTokenRaw = typeof body?.jiraToken === 'string' ? body.jiraToken.trim() : undefined;
+  const jiraToken = jiraTokenRaw !== undefined ? (encryptField(jiraTokenRaw) || null) : undefined;
 
   if (!productId) return badRequest('Product is required', 'PRODUCT_REQUIRED');
 
@@ -110,7 +121,10 @@ export async function PATCH(req: Request) {
       jiraProjectKey,
       jiraPullStatuses,
       jiraInUatTransition,
-      jiraReadyToDeployTransition
+      jiraReadyToDeployTransition,
+      jiraBaseUrl,
+      jiraEmail,
+      ...(jiraToken !== undefined ? { jiraToken } : {})
     }
   });
 
@@ -126,5 +140,5 @@ export async function PATCH(req: Request) {
     }
   });
 
-  return NextResponse.json(product);
+  return NextResponse.json({ ...product, jiraToken: undefined, jiraTokenSet: Boolean(product.jiraToken) });
 }

@@ -1,0 +1,240 @@
+<h2>Teams Notification Card Designs</h2>
+<p class="subtitle">3 design directions for Task Assigned, Task Signed Off, and Task Overdue — click a design to select it</p>
+
+<style>
+  .designs-grid { display: flex; flex-direction: column; gap: 48px; margin-top: 24px; }
+  .design-block { border: 2px solid #e2e8f0; border-radius: 16px; padding: 28px; background: #fff; cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s; }
+  .design-block:hover { border-color: #94a3b8; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+  .design-block.selected { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+  .design-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6366f1; margin-bottom: 6px; }
+  .design-name { font-size: 20px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+  .design-desc { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+  .cards-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+  /* Teams card simulation */
+  .teams-card { font-family: 'Segoe UI', system-ui, sans-serif; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.12); background: #fff; border: 1px solid #e1e4e8; }
+  .teams-card-bar { height: 4px; }
+  .teams-card-body { padding: 14px 16px 10px; }
+  .teams-card-title { font-size: 14px; font-weight: 700; color: #1a1a1a; margin-bottom: 3px; line-height: 1.3; }
+  .teams-card-subtitle { font-size: 12px; color: #555; margin-bottom: 10px; }
+  .teams-card-text { font-size: 12px; color: #333; margin-bottom: 10px; line-height: 1.5; }
+  .teams-facts { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 10px; }
+  .teams-facts td { padding: 2.5px 0; vertical-align: top; }
+  .teams-facts td:first-child { color: #888; font-weight: 600; width: 90px; padding-right: 8px; white-space: nowrap; }
+  .teams-facts td:last-child { color: #222; }
+  .teams-btn { display: inline-block; margin-top: 8px; padding: 5px 12px; border: 1px solid #0078d4; border-radius: 3px; font-size: 12px; font-weight: 600; color: #0078d4; text-decoration: none; }
+  .teams-divider { border: none; border-top: 1px solid #e8e8e8; margin: 8px 0; }
+  .teams-emoji { font-size: 22px; float: left; margin-right: 10px; margin-top: 1px; }
+  .teams-tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .teams-activity-img { width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; float: left; margin-right: 10px; flex-shrink: 0; }
+  .teams-activity-content { overflow: hidden; }
+  .teams-activity-title { font-size: 13px; font-weight: 700; color: #1a1a1a; }
+  .teams-activity-subtitle { font-size: 11.5px; color: #666; }
+  .card-label { font-size: 10px; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin-bottom: 6px; }
+  .clearfix::after { content: ''; display: table; clear: both; }
+</style>
+
+<div class="designs-grid">
+
+  <!-- OPTION A -->
+  <div class="design-block" data-choice="a" onclick="toggleSelect(this)">
+    <div class="design-label">Option A</div>
+    <div class="design-name">Clean & Structured</div>
+    <div class="design-desc">Colored top bar per event type, bold title, brief context line, then a facts table. Minimal but clear. Close to what you have now — but with colour-coded bars and better copy.</div>
+    <div class="cards-row">
+
+      <div>
+        <div class="card-label">Task Assigned</div>
+        <div class="teams-card">
+          <div class="teams-card-bar" style="background:#0078d4"></div>
+          <div class="teams-card-body">
+            <div class="teams-card-title">📋 New UAT Task Assigned</div>
+            <div class="teams-card-subtitle">You have a new task waiting for your review.</div>
+            <hr class="teams-divider">
+            <table class="teams-facts">
+              <tr><td>Task</td><td><strong>User Login Flow — Edge Cases</strong></td></tr>
+              <tr><td>Product</td><td>EasyOrder</td></tr>
+              <tr><td>Due Date</td><td>28 Mar 2026</td></tr>
+              <tr><td>Assigned By</td><td>Admin (Putra)</td></tr>
+            </table>
+            <a class="teams-btn" href="#">Open Task →</a>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card-label">Task Signed Off</div>
+        <div class="teams-card">
+          <div class="teams-card-bar" style="background:#107c10"></div>
+          <div class="teams-card-body">
+            <div class="teams-card-title">✅ Task Signed Off</div>
+            <div class="teams-card-subtitle">A stakeholder has signed off on a task.</div>
+            <hr class="teams-divider">
+            <table class="teams-facts">
+              <tr><td>Task</td><td><strong>User Login Flow — Edge Cases</strong></td></tr>
+              <tr><td>Product</td><td>EasyOrder</td></tr>
+              <tr><td>Signed Off By</td><td>Jane Doe</td></tr>
+              <tr><td>Date</td><td>24 Mar 2026, 7:43 AM</td></tr>
+            </table>
+            <a class="teams-btn" href="#">View Sign-Off →</a>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card-label">Task Overdue</div>
+        <div class="teams-card">
+          <div class="teams-card-bar" style="background:#c8102e"></div>
+          <div class="teams-card-body">
+            <div class="teams-card-title">⚠️ Task Overdue</div>
+            <div class="teams-card-subtitle">This task has passed its due date.</div>
+            <hr class="teams-divider">
+            <table class="teams-facts">
+              <tr><td>Task</td><td><strong>User Login Flow — Edge Cases</strong></td></tr>
+              <tr><td>Product</td><td>EasyOrder</td></tr>
+              <tr><td>Due Date</td><td style="color:#c8102e;font-weight:700">21 Mar 2026 (3 days ago)</td></tr>
+              <tr><td>Assigned To</td><td>Jane Doe</td></tr>
+            </table>
+            <a class="teams-btn" style="border-color:#c8102e;color:#c8102e" href="#">Open Task →</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- OPTION B -->
+  <div class="design-block" data-choice="b" onclick="toggleSelect(this)">
+    <div class="design-label">Option B</div>
+    <div class="design-name">Activity Card (Person-First)</div>
+    <div class="design-desc">Uses activityTitle/activitySubtitle pattern — shows the actor's avatar initial + name prominently, like a social notification. Great for assigned/signed-off events where the "who" matters most.</div>
+    <div class="cards-row">
+
+      <div>
+        <div class="card-label">Task Assigned</div>
+        <div class="teams-card">
+          <div class="teams-card-bar" style="background:#0078d4"></div>
+          <div class="teams-card-body">
+            <div class="teams-tag" style="background:#dbeafe;color:#1d4ed8">New Assignment</div>
+            <div class="clearfix">
+              <div class="teams-activity-img" style="background:#0078d4">PA</div>
+              <div class="teams-activity-content">
+                <div class="teams-activity-title">Putra Ahmad assigned you a task</div>
+                <div class="teams-activity-subtitle">EasyOrder · 24 Mar 2026, 7:43 AM</div>
+              </div>
+            </div>
+            <hr class="teams-divider" style="clear:both;margin-top:12px">
+            <div class="teams-card-text"><strong>User Login Flow — Edge Cases</strong><br>Due <strong>28 Mar 2026</strong></div>
+            <a class="teams-btn" href="#">Open in CTT Portal →</a>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card-label">Task Signed Off</div>
+        <div class="teams-card">
+          <div class="teams-card-bar" style="background:#107c10"></div>
+          <div class="teams-card-body">
+            <div class="teams-tag" style="background:#dcfce7;color:#166534">Signed Off</div>
+            <div class="clearfix">
+              <div class="teams-activity-img" style="background:#107c10">JD</div>
+              <div class="teams-activity-content">
+                <div class="teams-activity-title">Jane Doe signed off a task</div>
+                <div class="teams-activity-subtitle">EasyOrder · 24 Mar 2026, 7:43 AM</div>
+              </div>
+            </div>
+            <hr class="teams-divider" style="clear:both;margin-top:12px">
+            <div class="teams-card-text"><strong>User Login Flow — Edge Cases</strong><br>Task is complete and signed.</div>
+            <a class="teams-btn" style="border-color:#107c10;color:#107c10" href="#">View Sign-Off →</a>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card-label">Task Overdue</div>
+        <div class="teams-card">
+          <div class="teams-card-bar" style="background:#c8102e"></div>
+          <div class="teams-card-body">
+            <div class="teams-tag" style="background:#fee2e2;color:#991b1b">Overdue</div>
+            <div class="clearfix">
+              <div class="teams-activity-img" style="background:#c8102e">!</div>
+              <div class="teams-activity-content">
+                <div class="teams-activity-title" style="color:#c8102e">Action required — task overdue</div>
+                <div class="teams-activity-subtitle">EasyOrder · Was due 21 Mar 2026</div>
+              </div>
+            </div>
+            <hr class="teams-divider" style="clear:both;margin-top:12px">
+            <div class="teams-card-text"><strong>User Login Flow — Edge Cases</strong><br>This task is <strong style="color:#c8102e">3 days overdue</strong>. Please update or complete it.</div>
+            <a class="teams-btn" style="border-color:#c8102e;color:#c8102e" href="#">Open Task →</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- OPTION C -->
+  <div class="design-block" data-choice="c" onclick="toggleSelect(this)">
+    <div class="design-label">Option C</div>
+    <div class="design-name">Rich Context (Best of Both)</div>
+    <div class="design-desc">Combines a bold event header with a natural-language sentence + a compact facts table. Each card type has distinct copy tone — friendly for assigned, formal for signed-off, urgent for overdue. Most information-dense.</div>
+    <div class="cards-row">
+
+      <div>
+        <div class="card-label">Task Assigned</div>
+        <div class="teams-card">
+          <div class="teams-card-bar" style="background:#0078d4"></div>
+          <div class="teams-card-body">
+            <div class="teams-card-title">📋 You have been assigned a UAT task</div>
+            <div class="teams-card-text">Hi <strong>Jane Doe</strong>, <strong>Putra Ahmad</strong> has assigned you a task on <strong>EasyOrder</strong>. Please review and begin testing by the due date.</div>
+            <table class="teams-facts">
+              <tr><td>Task</td><td>User Login Flow — Edge Cases</td></tr>
+              <tr><td>Due Date</td><td><strong>28 Mar 2026</strong></td></tr>
+              <tr><td>Module</td><td>Authentication</td></tr>
+              <tr><td>Target System</td><td>UAT Environment</td></tr>
+            </table>
+            <a class="teams-btn" href="#">Open Task in CTT →</a>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card-label">Task Signed Off</div>
+        <div class="teams-card">
+          <div class="teams-card-bar" style="background:#107c10"></div>
+          <div class="teams-card-body">
+            <div class="teams-card-title">✅ UAT Task Signed Off</div>
+            <div class="teams-card-text"><strong>Jane Doe</strong> has signed off on a task in <strong>EasyOrder</strong>. This task is now complete.</div>
+            <table class="teams-facts">
+              <tr><td>Task</td><td>User Login Flow — Edge Cases</td></tr>
+              <tr><td>Product</td><td>EasyOrder</td></tr>
+              <tr><td>Signed Off</td><td><strong>24 Mar 2026, 7:43 AM</strong></td></tr>
+              <tr><td>Country</td><td>MY</td></tr>
+            </table>
+            <a class="teams-btn" style="border-color:#107c10;color:#107c10" href="#">View Full Sign-Off Report →</a>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card-label">Task Overdue</div>
+        <div class="teams-card">
+          <div class="teams-card-bar" style="background:#c8102e"></div>
+          <div class="teams-card-body">
+            <div class="teams-card-title">🚨 UAT Task is Overdue</div>
+            <div class="teams-card-text">Hi <strong>Jane Doe</strong>, your UAT task on <strong>EasyOrder</strong> was due on <strong style="color:#c8102e">21 Mar 2026</strong> and has not been completed. Please take action immediately.</div>
+            <table class="teams-facts">
+              <tr><td>Task</td><td>User Login Flow — Edge Cases</td></tr>
+              <tr><td>Was Due</td><td style="color:#c8102e;font-weight:700">21 Mar 2026 · 3 days ago</td></tr>
+              <tr><td>Module</td><td>Authentication</td></tr>
+              <tr><td>Status</td><td>In Progress</td></tr>
+            </table>
+            <a class="teams-btn" style="border-color:#c8102e;color:#c8102e" href="#">Open Task →</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,172 @@
+<style>
+  .board { display:flex; flex-direction:column; gap:24px; max-width:960px; margin:0 auto; }
+  .product-lane { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px; }
+  .lane-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .lane-title { font-size:13px; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:8px; }
+  .prefix-badge { font-size:10px; font-weight:700; background:#0f172a; color:white; padding:2px 7px; border-radius:4px; letter-spacing:.5px; }
+  .lane-count { font-size:11px; color:#64748b; }
+  .tickets { display:flex; gap:12px; flex-wrap:wrap; }
+  .ticket { background:white; border:1px solid #e2e8f0; border-radius:10px; padding:14px; width:210px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+    cursor:pointer; transition:transform .15s, box-shadow .15s; position:relative; }
+  .ticket:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,0.1); }
+  .ticket-id { font-size:10px; font-weight:700; color:#6366f1; margin-bottom:5px; }
+  .ticket-title { font-size:12px; font-weight:600; color:#0f172a; line-height:1.4; margin-bottom:8px; }
+  .ticket-meta { display:flex; gap:6px; flex-wrap:wrap; }
+  .tag { font-size:10px; padding:2px 6px; border-radius:4px; font-weight:500; }
+  .tag-ruat { background:#dcfce7; color:#15803d; }
+  .tag-inuat { background:#dbeafe; color:#1d4ed8; }
+  .tag-review { background:#fef3c7; color:#92400e; }
+  .ticket-age { position:absolute; top:10px; right:10px; font-size:9px; color:#94a3b8; }
+  .hot { border-left:3px solid #ef4444; }
+  .hot .ticket-age { color:#ef4444; font-weight:600; }
+  .autofill-preview { background:white; border:1px solid #e2e8f0; border-radius:12px; padding:20px; max-width:960px; margin:0 auto; }
+  .autofill-header { font-size:13px; font-weight:700; color:#0f172a; margin-bottom:14px; display:flex;align-items:center;gap:8px; }
+  .field-row { display:flex; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
+  .field { flex:1; min-width:150px; }
+  .field-label { font-size:10px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+  .field-value { font-size:12px; color:#0f172a; background:#f1f5f9; border-radius:6px; padding:6px 10px; border:1px solid #e2e8f0; }
+  .field-value.filled { background:#f0fdf4; border-color:#bbf7d0; color:#15803d; }
+  .jira-input-row { display:flex; gap:8px; align-items:center; margin-bottom:16px; }
+  .jira-input { flex:1; font-size:12px; background:#f8fafc; border:2px solid #6366f1; border-radius:8px; padding:8px 12px; color:#0f172a; font-weight:600; outline:none; }
+  .fetch-btn { font-size:11px; font-weight:600; background:#6366f1; color:white; border:none; border-radius:8px; padding:8px 14px; cursor:pointer; white-space:nowrap; }
+  .status-pill { font-size:10px; font-weight:600; padding:3px 8px; border-radius:20px; }
+  .divider { border:none; border-top:1px solid #e2e8f0; margin:20px 0; }
+  .section-label { font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.8px; margin-bottom:12px; }
+</style>
+
+<h2>Jira Integration — Visual Concept</h2>
+<p class="subtitle">Two parts: a floating UAT Queue board + smart autofill in task creation</p>
+
+<hr class="divider">
+
+<div class="section-label">Part 1 — UAT Queue Page (admin-only nav item)</div>
+
+<div class="board">
+
+  <div class="product-lane">
+    <div class="lane-header">
+      <div class="lane-title">
+        <span class="prefix-badge">EO-</span>
+        EasyOrder
+      </div>
+      <span class="lane-count">4 floating items</span>
+    </div>
+    <div class="tickets">
+      <div class="ticket hot">
+        <div class="ticket-age">12d ago</div>
+        <div class="ticket-id">EO-241</div>
+        <div class="ticket-title">Checkout flow redesign — cart persistence</div>
+        <div class="ticket-meta">
+          <span class="tag tag-ruat">Ready for UAT</span>
+          <span class="tag" style="background:#f1f5f9;color:#475569">High</span>
+        </div>
+      </div>
+      <div class="ticket">
+        <div class="ticket-age">5d ago</div>
+        <div class="ticket-id">EO-198</div>
+        <div class="ticket-title">SSO login — fallback auth handling</div>
+        <div class="ticket-meta">
+          <span class="tag tag-ruat">Ready for UAT</span>
+          <span class="tag" style="background:#f1f5f9;color:#475569">Medium</span>
+        </div>
+      </div>
+      <div class="ticket">
+        <div class="ticket-age">3d ago</div>
+        <div class="ticket-id">EO-255</div>
+        <div class="ticket-title">Bulk order import — CSV validation</div>
+        <div class="ticket-meta">
+          <span class="tag tag-inuat">In UAT</span>
+        </div>
+      </div>
+      <div class="ticket">
+        <div class="ticket-age">1d ago</div>
+        <div class="ticket-id">EO-260</div>
+        <div class="ticket-title">Invoice email template update</div>
+        <div class="ticket-meta">
+          <span class="tag tag-review">UAT Review</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="product-lane">
+    <div class="lane-header">
+      <div class="lane-title">
+        <span class="prefix-badge">CC-</span>
+        Connect Customer
+      </div>
+      <span class="lane-count">2 floating items</span>
+    </div>
+    <div class="tickets">
+      <div class="ticket hot">
+        <div class="ticket-age">9d ago</div>
+        <div class="ticket-id">CC-88</div>
+        <div class="ticket-title">Customer profile merge — duplicate detection</div>
+        <div class="ticket-meta">
+          <span class="tag tag-ruat">Ready for UAT</span>
+          <span class="tag" style="background:#fee2e2;color:#dc2626">Critical</span>
+        </div>
+      </div>
+      <div class="ticket">
+        <div class="ticket-age">2d ago</div>
+        <div class="ticket-id">CC-91</div>
+        <div class="ticket-title">Notification preferences — granular controls</div>
+        <div class="ticket-meta">
+          <span class="tag tag-ruat">Ready for UAT</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p style="font-size:11px;color:#94a3b8;margin:8px 0 0 4px">↑ Click a card → slide-in drawer shows full ticket details + "Create CTT Task" button. Red left border = sitting &gt;7 days.</p>
+
+<hr class="divider">
+
+<div class="section-label">Part 2 — Autofill in Create Task Modal</div>
+
+<div class="autofill-preview">
+  <div class="autofill-header">
+    <span style="background:#6366f1;color:white;padding:3px 8px;border-radius:6px;font-size:11px">Jira</span>
+    Ticket Autofill
+  </div>
+  <div class="jira-input-row">
+    <input class="jira-input" value="EO-241" readonly>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:11px;color:#15803d;font-weight:600">✓ Ready for UAT</span>
+    </div>
+  </div>
+  <div class="field-row">
+    <div class="field">
+      <div class="field-label">Title</div>
+      <div class="field-value filled">Checkout flow redesign — cart persistence</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Priority</div>
+      <div class="field-value filled">High</div>
+    </div>
+  </div>
+  <div class="field-row">
+    <div class="field">
+      <div class="field-label">Developer</div>
+      <div class="field-value filled">Ahmad Razif (from Jira assignee)</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Description</div>
+      <div class="field-value filled">Pulled from Jira description…</div>
+    </div>
+  </div>
+  <div class="field-row">
+    <div class="field">
+      <div class="field-label">Module</div>
+      <div class="field-value">← you pick this</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Countries</div>
+      <div class="field-value">← you pick this</div>
+    </div>
+  </div>
+  <p style="font-size:11px;color:#94a3b8;margin:10px 0 0">Works from UAT Queue page OR manually typing a ticket. Detects: Ready for UAT · In UAT · UAT Review. Warns if status is unexpected.</p>
+</div>

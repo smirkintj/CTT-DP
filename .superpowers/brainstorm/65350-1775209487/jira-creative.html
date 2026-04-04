@@ -1,0 +1,243 @@
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; }
+  .concepts { display: flex; flex-direction: column; gap: 32px; max-width: 980px; margin: 0 auto; }
+  .concept { border-radius: 16px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: border-color .2s; }
+  .concept.selected, .concept:hover { border-color: #6366f1; }
+  .concept-label { padding: 14px 20px; background: white; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; }
+  .concept-label h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin: 0; }
+  .concept-label p { font-size: 12px; color: #64748b; margin: 4px 0 0; }
+  .pick { font-size: 11px; font-weight: 600; color: #6366f1; background: #eef2ff; padding: 4px 10px; border-radius: 20px; }
+
+  /* OPTION A — Spotlight / Hero */
+  .spotlight { background: #0f172a; padding: 24px; min-height: 220px; }
+  .spotlight-eyebrow { font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .spotlight-hero { display: flex; gap: 16px; }
+  .hero-ticket { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid #334155; border-radius: 12px; padding: 18px; flex: 2; position: relative; overflow: hidden; }
+  .hero-ticket::before { content: ''; position: absolute; top: -30px; right: -30px; width: 100px; height: 100px; background: radial-gradient(circle, rgba(239,68,68,0.15) 0%, transparent 70%); }
+  .hero-id { font-size: 11px; font-weight: 700; color: #ef4444; margin-bottom: 6px; }
+  .hero-title { font-size: 16px; font-weight: 700; color: white; line-height: 1.3; margin-bottom: 10px; }
+  .hero-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+  .hero-tag { font-size: 10px; padding: 3px 8px; border-radius: 20px; font-weight: 600; background: rgba(255,255,255,0.08); color: #94a3b8; }
+  .hero-age { font-size: 10px; color: #ef4444; font-weight: 700; }
+  .side-tickets { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .mini-ticket { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; transition: background .15s; }
+  .mini-ticket:hover { background: #263348; }
+  .mini-id { font-size: 10px; color: #6366f1; font-weight: 700; margin-bottom: 3px; }
+  .mini-title { font-size: 11px; color: #cbd5e1; font-weight: 500; line-height: 1.3; }
+  .mini-bar { height: 2px; background: #334155; border-radius: 2px; margin-top: 8px; }
+  .mini-bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #6366f1, #8b5cf6); }
+
+  /* OPTION B — Dense Ticker */
+  .ticker { background: #fafafa; padding: 0; }
+  .ticker-product { border-bottom: 1px solid #f1f5f9; }
+  .ticker-product-header { display: flex; align-items: center; gap: 10px; padding: 10px 20px; background: white; }
+  .product-dot { width: 8px; height: 8px; border-radius: 50%; background: #6366f1; flex-shrink: 0; }
+  .product-name { font-size: 12px; font-weight: 700; color: #0f172a; }
+  .product-prefix { font-size: 10px; color: #94a3b8; font-weight: 600; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+  .ticker-row { display: flex; align-items: center; gap: 0; padding: 9px 20px 9px 38px; border-bottom: 1px solid #f8fafc; position: relative; transition: background .1s; }
+  .ticker-row:hover { background: #f8fafc; }
+  .urgency-bar { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); width: 4px; height: 24px; border-radius: 2px; }
+  .u-hot { background: #ef4444; }
+  .u-warm { background: #f59e0b; }
+  .u-cool { background: #22c55e; }
+  .ticker-id { font-size: 11px; font-weight: 700; color: #6366f1; width: 70px; flex-shrink: 0; }
+  .ticker-title { font-size: 12px; color: #1e293b; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ticker-status { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; margin-left: 10px; }
+  .s-ruat { background: #dcfce7; color: #15803d; }
+  .s-inuat { background: #dbeafe; color: #1d4ed8; }
+  .ticker-age { font-size: 10px; color: #94a3b8; width: 48px; text-align: right; flex-shrink: 0; }
+
+  /* OPTION C — Mosaic */
+  .mosaic { background: white; padding: 20px; }
+  .mosaic-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto; gap: 12px; }
+  .m-card { border-radius: 12px; padding: 16px; cursor: pointer; transition: transform .15s, box-shadow .15s; }
+  .m-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+  .m-large { grid-column: span 2; background: #0f172a; color: white; }
+  .m-tall { grid-row: span 2; background: linear-gradient(160deg, #4f46e5, #7c3aed); color: white; }
+  .m-normal { background: #f8fafc; border: 1px solid #e2e8f0; }
+  .m-warm { background: linear-gradient(135deg, #fff7ed, #ffedd5); border: 1px solid #fed7aa; }
+  .m-id { font-size: 10px; font-weight: 800; opacity: .6; margin-bottom: 6px; letter-spacing: .5px; }
+  .m-title { font-size: 13px; font-weight: 600; line-height: 1.35; }
+  .m-title-light { color: white; }
+  .m-title-dark { color: #0f172a; }
+  .m-footer { display: flex; gap: 6px; align-items: center; margin-top: 10px; }
+  .m-age { font-size: 10px; font-weight: 600; }
+  .m-age-light { color: rgba(255,255,255,0.5); }
+  .m-age-dark { color: #94a3b8; }
+  .m-badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: 600; }
+  .mb-light { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.8); }
+  .mb-dark { background: #e2e8f0; color: #475569; }
+  .mb-warn { background: #fed7aa; color: #92400e; }
+</style>
+
+<h2>UAT Queue — 3 Design Directions</h2>
+<p class="subtitle">Pick a direction (or mix). Part 2 browse modal shown below.</p>
+
+<div class="concepts">
+
+  <!-- OPTION A -->
+  <div class="concept" data-choice="a" onclick="toggleSelect(this)">
+    <div class="spotlight">
+      <div class="spotlight-eyebrow">⚡ Highest urgency leads</div>
+      <div class="spotlight-hero">
+        <div class="hero-ticket">
+          <div class="hero-id">EO-241 · 12 days</div>
+          <div class="hero-title">Checkout flow redesign — cart persistence</div>
+          <div class="hero-meta">
+            <span class="hero-tag">Ready for UAT</span>
+            <span class="hero-tag">High</span>
+            <span class="hero-tag" style="color:#ef4444">⚠ overdue</span>
+          </div>
+        </div>
+        <div class="side-tickets">
+          <div class="mini-ticket">
+            <div class="mini-id">CC-88</div>
+            <div class="mini-title">Customer profile merge</div>
+            <div class="mini-bar"><div class="mini-bar-fill" style="width:75%"></div></div>
+          </div>
+          <div class="mini-ticket">
+            <div class="mini-id">EO-198</div>
+            <div class="mini-title">SSO login fallback</div>
+            <div class="mini-bar"><div class="mini-bar-fill" style="width:40%"></div></div>
+          </div>
+          <div class="mini-ticket" style="opacity:.5">
+            <div class="mini-id">EO-255</div>
+            <div class="mini-title">Bulk CSV import</div>
+            <div class="mini-bar"><div class="mini-bar-fill" style="width:15%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="concept-label">
+      <div><h3>A — Dark Spotlight</h3><p>Urgent ticket takes center stage. Side bar shows others ranked by age. High urgency = high drama.</p></div>
+      <span class="pick">Select A</span>
+    </div>
+  </div>
+
+  <!-- OPTION B -->
+  <div class="concept" data-choice="b" onclick="toggleSelect(this)">
+    <div class="ticker">
+      <div class="ticker-product">
+        <div class="ticker-product-header">
+          <div class="product-dot" style="background:#6366f1"></div>
+          <span class="product-name">EasyOrder</span>
+          <span class="product-prefix">EO-</span>
+          <span style="font-size:10px;color:#94a3b8;margin-left:auto">3 items</span>
+        </div>
+        <div class="ticker-row">
+          <div class="urgency-bar u-hot"></div>
+          <span class="ticker-id">EO-241</span>
+          <span class="ticker-title">Checkout flow redesign — cart persistence</span>
+          <span class="ticker-status s-ruat">Ready for UAT</span>
+          <span class="ticker-age">12d</span>
+        </div>
+        <div class="ticker-row">
+          <div class="urgency-bar u-warm"></div>
+          <span class="ticker-id">EO-198</span>
+          <span class="ticker-title">SSO login — fallback auth handling</span>
+          <span class="ticker-status s-ruat">Ready for UAT</span>
+          <span class="ticker-age">5d</span>
+        </div>
+        <div class="ticker-row">
+          <div class="urgency-bar u-cool"></div>
+          <span class="ticker-id">EO-255</span>
+          <span class="ticker-title">Bulk order import — CSV validation</span>
+          <span class="ticker-status s-inuat">In UAT</span>
+          <span class="ticker-age">3d</span>
+        </div>
+      </div>
+      <div class="ticker-product">
+        <div class="ticker-product-header">
+          <div class="product-dot" style="background:#8b5cf6"></div>
+          <span class="product-name">Connect Customer</span>
+          <span class="product-prefix">CC-</span>
+          <span style="font-size:10px;color:#94a3b8;margin-left:auto">2 items</span>
+        </div>
+        <div class="ticker-row">
+          <div class="urgency-bar u-hot"></div>
+          <span class="ticker-id">CC-88</span>
+          <span class="ticker-title">Customer profile merge — duplicate detection</span>
+          <span class="ticker-status s-ruat">Ready for UAT</span>
+          <span class="ticker-age">9d</span>
+        </div>
+        <div class="ticker-row">
+          <div class="urgency-bar u-cool"></div>
+          <span class="ticker-id">CC-91</span>
+          <span class="ticker-title">Notification preferences — granular controls</span>
+          <span class="ticker-status s-ruat">Ready for UAT</span>
+          <span class="ticker-age">2d</span>
+        </div>
+      </div>
+    </div>
+    <div class="concept-label">
+      <div><h3>B — Linear-style Dense List</h3><p>Ultra-clean rows grouped by product. Coloured urgency bar on the left. Age visible at a glance. Feels fast, keyboard-friendly.</p></div>
+      <span class="pick">Select B</span>
+    </div>
+  </div>
+
+  <!-- OPTION C -->
+  <div class="concept" data-choice="c" onclick="toggleSelect(this)">
+    <div class="mosaic">
+      <div class="mosaic-grid">
+        <div class="m-card m-large">
+          <div class="m-id" style="color:rgba(255,255,255,0.4)">EO-241 · CRITICAL AGE</div>
+          <div class="m-title m-title-light">Checkout flow redesign — cart persistence</div>
+          <div class="m-footer"><span class="m-age m-age-light">12 days</span><span class="m-badge mb-light">Ready for UAT</span></div>
+        </div>
+        <div class="m-card m-tall">
+          <div class="m-id" style="color:rgba(255,255,255,0.4)">CC-88</div>
+          <div class="m-title m-title-light">Customer profile merge — duplicate detection</div>
+          <div class="m-footer" style="margin-top:auto"><span class="m-age m-age-light">9d</span><span class="m-badge mb-light">Critical</span></div>
+        </div>
+        <div class="m-card m-warm">
+          <div class="m-id" style="color:#92400e">EO-198</div>
+          <div class="m-title m-title-dark">SSO login — fallback auth</div>
+          <div class="m-footer"><span class="m-age m-age-dark">5d</span><span class="m-badge mb-warn">High</span></div>
+        </div>
+        <div class="m-card m-normal">
+          <div class="m-id" style="color:#6366f1">EO-255</div>
+          <div class="m-title m-title-dark">Bulk CSV import validation</div>
+          <div class="m-footer"><span class="m-age m-age-dark">3d</span><span class="m-badge mb-dark">In UAT</span></div>
+        </div>
+        <div class="m-card m-normal">
+          <div class="m-id" style="color:#6366f1">CC-91</div>
+          <div class="m-title m-title-dark">Notification preferences</div>
+          <div class="m-footer"><span class="m-age m-age-dark">2d</span><span class="m-badge mb-dark">Ready</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="concept-label">
+      <div><h3>C — Mosaic / Editorial Grid</h3><p>Cards sized by urgency + age. Oldest/critical = bigger real estate. Like a newspaper front page — your eye goes to what matters most.</p></div>
+      <span class="pick">Select C</span>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:32px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;max-width:980px;margin-left:auto;margin-right:auto;">
+  <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px">Part 2 — "Browse Ready for UAT" modal (works with any Part 1 choice)</div>
+  <div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <span style="font-size:13px;font-weight:700;color:#0f172a">Ready for UAT — EasyOrder</span>
+      <input style="font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;outline:none;color:#0f172a" placeholder="Search tickets…" readonly>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:#f0fdf4;border:1px solid #bbf7d0;cursor:pointer">
+        <span style="font-size:11px;font-weight:700;color:#6366f1;width:60px">EO-241</span>
+        <span style="font-size:12px;color:#0f172a;flex:1">Checkout flow redesign — cart persistence</span>
+        <span style="font-size:10px;color:#15803d;font-weight:600">Ready for UAT</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:#f8fafc;border:1px solid #e2e8f0;cursor:pointer">
+        <span style="font-size:11px;font-weight:700;color:#6366f1;width:60px">EO-198</span>
+        <span style="font-size:12px;color:#0f172a;flex:1">SSO login — fallback auth handling</span>
+        <span style="font-size:10px;color:#15803d;font-weight:600">Ready for UAT</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:#f8fafc;border:1px solid #e2e8f0;cursor:pointer;opacity:.6">
+        <span style="font-size:11px;font-weight:700;color:#6366f1;width:60px">EO-255</span>
+        <span style="font-size:12px;color:#0f172a;flex:1">Bulk order import — CSV validation</span>
+        <span style="font-size:10px;color:#1d4ed8;font-weight:600">CTT task exists ✓</span>
+      </div>
+    </div>
+    <p style="font-size:11px;color:#94a3b8;margin:10px 0 0">Click a row → autofills the Create Task form. Already-linked tickets shown greyed out.</p>
+  </div>
+</div>

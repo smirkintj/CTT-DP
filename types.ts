@@ -168,6 +168,9 @@ export interface AdminProductConfig extends ProductSummary {
   jiraPullStatuses?: string[];
   jiraInUatTransition?: string | null;
   jiraReadyToDeployTransition?: string | null;
+  jiraBaseUrl?: string | null;
+  jiraEmail?: string | null;
+  jiraTokenSet?: boolean; // true if a token is stored (never expose the actual value)
   modules: Array<{ id: string; name: string; isActive: boolean }>;
   targetSystems: Array<TargetSystemSummary & { isActive: boolean }>;
 }
