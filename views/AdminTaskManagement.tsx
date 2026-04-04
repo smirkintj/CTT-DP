@@ -7,7 +7,7 @@ import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { isValidDueDate, isValidJiraTicket, normalizeJiraTicketInput } from '../lib/taskValidation';
+import { isValidDueDate, isValidJiraTicket, normalizeEodTicketInput, normalizeJiraTicketInput } from '../lib/taskValidation';
 
 interface AdminTaskManagementProps {
   tasks: Task[];
@@ -127,6 +127,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     productId: '',
     productName: '',
     jiraTicket: '',
+    eodTicket: '',
     featureModule: '',
     priority: Priority.MEDIUM,
     dueDate: '',
@@ -917,6 +918,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
           productId: newTask.productId,
           jiraTicket: normalizedJira || undefined,
           jiraTicketVerified: jiraTicketLinked && Boolean(normalizedJira),
+          eodTicket: normalizeEodTicketInput(newTask.eodTicket) || undefined,
           featureModule: newTask.featureModule,
           module: newTask.featureModule,
           targetSystemId: newTask.targetSystemId,
@@ -1428,7 +1430,33 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                         ) : null}
                       </div>
                    </div>
-                   
+
+                   <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">EOD Ticket (Optional)</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          className={fieldBaseClass}
+                          style={{ paddingRight: newTask.eodTicket ? '2.5rem' : undefined }}
+                          placeholder="e.g. 42 or EOD-42"
+                          value={newTask.eodTicket || ''}
+                          autoComplete="off"
+                          onChange={(e) => setNewTask({ ...newTask, eodTicket: e.target.value })}
+                        />
+                        {newTask.eodTicket && (
+                          <a
+                            href={`https://dkshdigital.atlassian.net/browse/${normalizeEodTicketInput(newTask.eodTicket)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={`Open ${normalizeEodTicketInput(newTask.eodTicket)}`}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded-lg text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                          >
+                            <ExternalLink size={13} />
+                          </a>
+                        )}
+                      </div>
+                   </div>
+
                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
                          <label className="block text-sm font-medium text-slate-700 mb-1">Module</label>

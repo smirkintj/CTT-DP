@@ -166,6 +166,7 @@ model Task {
   description String?
   jiraTicket          String?
   jiraTicketVerified  Boolean  @default(false)
+  eodTicket           String?
   crNumber            String?
   developer   String?
   status      TaskStatus

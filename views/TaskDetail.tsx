@@ -9,7 +9,7 @@ import { ArrowLeft, Send, CheckCircle, CheckCircle2, XCircle, AlertCircle, Chevr
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { ApiError } from '../lib/http';
-import { isValidJiraTicket, normalizeJiraTicketInput } from '../lib/taskValidation';
+import { isValidJiraTicket, normalizeEodTicketInput, normalizeJiraTicketInput } from '../lib/taskValidation';
 import { resolveMentionUserIds } from '../lib/mentions';
 
 interface TaskDetailProps {
@@ -178,6 +178,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     title: task.title ?? '',
     description: task.description ?? '',
     jiraTicket: task.jiraTicket ?? '',
+    eodTicket: task.eodTicket ?? '',
     crNumber: task.crNumber ?? '',
     developer: task.developer ?? '',
     dueDate: toDateInputValue(task.dueDate),
@@ -789,6 +790,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
           description: taskEdits.description,
           jiraTicket: normalizedTicket,
           jiraTicketVerified: jiraTicketLinked && Boolean(normalizedTicket),
+          eodTicket: normalizeEodTicketInput(taskEdits.eodTicket) || null,
           crNumber: taskEdits.crNumber,
           developer: taskEdits.developer,
           dueDate: fromDateInputValue(taskEdits.dueDate),
@@ -818,6 +820,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
         title: safeUpdated.title ?? '',
         description: safeUpdated.description ?? '',
         jiraTicket: safeUpdated.jiraTicket ?? '',
+        eodTicket: safeUpdated.eodTicket ?? '',
         crNumber: safeUpdated.crNumber ?? '',
         developer: safeUpdated.developer ?? '',
         dueDate: toDateInputValue(safeUpdated.dueDate),
@@ -979,6 +982,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       title: safe.title ?? '',
       description: safe.description ?? '',
       jiraTicket: safe.jiraTicket ?? '',
+      eodTicket: safe.eodTicket ?? '',
       crNumber: safe.crNumber ?? '',
       developer: safe.developer ?? '',
       dueDate: toDateInputValue(safe.dueDate),
@@ -1376,6 +1380,43 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                       </span>
                     )}
                   </div>
+                ) : (
+                  <span className="text-sm text-slate-500">N/A</span>
+                )}
+              </div>
+              <div>
+                <span className="text-xs text-slate-400 block mb-1">EOD Ticket</span>
+                {canEditTaskMeta ? (
+                  <div className="relative">
+                    <input
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2 pl-3 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                      style={{ paddingRight: taskEdits.eodTicket ? '2.25rem' : '0.75rem' }}
+                      value={taskEdits.eodTicket}
+                      autoComplete="off"
+                      placeholder="e.g. 42 or EOD-42"
+                      onChange={(e) => setTaskEdits({ ...taskEdits, eodTicket: e.target.value })}
+                    />
+                    {taskEdits.eodTicket && (
+                      <a
+                        href={`https://dkshdigital.atlassian.net/browse/${normalizeEodTicketInput(taskEdits.eodTicket)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={`Open ${normalizeEodTicketInput(taskEdits.eodTicket)}`}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded-lg text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                      >
+                        <LinkIcon size={13} />
+                      </a>
+                    )}
+                  </div>
+                ) : localTask.eodTicket ? (
+                  <a
+                    href={`https://dkshdigital.atlassian.net/browse/${normalizeEodTicketInput(localTask.eodTicket)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline"
+                  >
+                    <LinkIcon size={12} /> {normalizeEodTicketInput(localTask.eodTicket)}
+                  </a>
                 ) : (
                   <span className="text-sm text-slate-500">N/A</span>
                 )}
