@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ExternalLink, Loader2, Plus, Search, Sparkles } from 'lucide-react';
 import { JiraIssueGroup, JiraTaskPrefill, User } from '../types';
 import { apiFetch, ApiError } from '../lib/http';
-import { ConfirmDialog } from '../components/ConfirmDialog';
 
 interface AdminJiraIntakeProps {
   currentUser: User;
@@ -34,6 +33,19 @@ const priorityClassMap: Record<string, string> = {
 };
 const getPriorityClass = (priority?: string | null) =>
   priority ? (priorityClassMap[priority.toLowerCase()] ?? 'bg-white/5 text-slate-300 border border-white/10') : 'bg-white/5 text-slate-300 border border-white/10';
+
+const taskStatusClassMap: Record<string, string> = {
+  Draft: 'bg-slate-500/15 text-slate-300 border border-slate-400/20',
+  Ready: 'bg-sky-500/15 text-sky-200 border border-sky-400/20',
+  Pending: 'bg-amber-500/15 text-amber-200 border border-amber-400/20',
+  'In Progress': 'bg-indigo-500/15 text-indigo-200 border border-indigo-400/20',
+  Passed: 'bg-emerald-500/15 text-emerald-200 border border-emerald-400/20',
+  Failed: 'bg-rose-500/15 text-rose-200 border border-rose-400/20',
+  Blocked: 'bg-orange-500/15 text-orange-200 border border-orange-400/20',
+  Deployed: 'bg-teal-500/15 text-teal-200 border border-teal-400/20',
+};
+const getTaskStatusClass = (status: string) =>
+  taskStatusClassMap[status] ?? 'bg-white/5 text-slate-300 border border-white/10';
 
 // Per-card orbit colours cycling through 4 accents
 const CARD_ACCENTS = [
@@ -183,58 +195,60 @@ function IssueCard({
 
         {/* Content */}
         <div className="relative z-10 flex h-full flex-col">
-          <div className={`text-[11px] font-black tracking-[0.2em] ${acc.id}`}>{issue.key}</div>
+          {/* Header row: key + linked badge */}
+          <div className="flex items-center justify-between gap-2">
+            <div className={`text-[11px] font-black tracking-[0.2em] ${acc.id}`}>{issue.key}</div>
+            {issue.linkedTasks.length > 0 && (
+              <span className="rounded-full border border-amber-300/25 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
+                {issue.linkedTasks.length} linked
+              </span>
+            )}
+          </div>
           <h4 className="mt-2 text-sm font-semibold leading-snug text-slate-100">{issue.summary}</h4>
 
+          {/* Jira status + priority pills */}
           <div className="mt-3 flex flex-wrap gap-1.5">
             <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">{issue.status}</span>
             {issue.priority && (
               <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${getPriorityClass(issue.priority)}`}>{issue.priority}</span>
             )}
-            {issue.linkedTasks.length > 0 && (
-              <span className="rounded-full border border-amber-300/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200">Linked</span>
-            )}
           </div>
 
+          {/* Jira meta */}
           <div className="mt-3 space-y-1 text-xs text-slate-400">
             <p>Updated: {formatDate(issue.updatedAt)}</p>
             <p>Assignee: {issue.assigneeName || 'Unassigned'}</p>
           </div>
 
-          {issue.linkedTasks.length > 0 && (
-            <div className="mt-3 space-y-1">
-              {issue.linkedTasks.slice(0, 2).map((t) => (
+          {/* Linked CTT tasks — replaces CTA when linked */}
+          {issue.linkedTasks.length > 0 ? (
+            <div className="mt-4 flex flex-col gap-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">CTT Tasks</p>
+              {issue.linkedTasks.map((t) => (
                 <button
                   key={t.id}
                   type="button"
                   onClick={() => onOpenTask(t.id)}
-                  className="flex w-full items-center justify-between rounded-xl border border-white/8 bg-white/4 px-3 py-1.5 text-left text-xs text-slate-300 transition hover:border-white/20 hover:bg-white/8"
+                  className="group flex w-full items-center gap-2 rounded-xl border border-white/8 bg-white/4 px-3 py-2 text-left transition hover:border-white/20 hover:bg-white/8"
                 >
-                  <span className="truncate">{t.title}</span>
-                  <span className="ml-2 shrink-0 text-slate-500">{t.countryCode}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-slate-200 group-hover:text-white">{t.title}</span>
+                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${getTaskStatusClass(t.status)}`}>{t.status}</span>
+                  <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">{t.countryCode}</span>
+                  <ExternalLink size={10} className="shrink-0 text-slate-600 group-hover:text-slate-400" />
                 </button>
               ))}
             </div>
-          )}
-
-          <div className="mt-auto flex flex-wrap gap-2 pt-4">
-            {issue.linkedTasks.length > 0 && (
+          ) : (
+            <div className="mt-auto pt-4">
               <button
                 type="button"
-                onClick={() => onOpenTask(issue.linkedTasks[0].id)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/10"
+                onClick={() => onCreateTask(issue)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-slate-100"
               >
-                Open <ExternalLink size={11} />
+                Create Task <Plus size={11} />
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => onCreateTask(issue)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-slate-100"
-            >
-              Create Task <Plus size={11} />
-            </button>
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </article>
@@ -254,9 +268,6 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
   const [pageError, setPageError] = useState<string | null>(null);
   const [groups, setGroups] = useState<JiraIssueGroup[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean; title: string; message: string; confirmLabel: string; onConfirm: () => void;
-  }>({ open: false, title: '', message: '', confirmLabel: 'Confirm', onConfirm: () => {} });
 
   useEffect(() => { injectStyles(); }, []);
 
@@ -293,17 +304,7 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
     ? currentUser.productAccesses.map((p) => p.name).join(' · ')
     : 'All products';
 
-  const handleCreateFromIssue = (issue: JiraIssueGroup['issues'][number], force = false) => {
-    if (!force && issue.linkedTasks.length > 0) {
-      setConfirmDialog({
-        open: true,
-        title: 'Create Another Task?',
-        message: `A CTT task already exists for ${issue.key}. Create another anyway?`,
-        confirmLabel: 'Create Anyway',
-        onConfirm: () => handleCreateFromIssue(issue, true),
-      });
-      return;
-    }
+  const handleCreateFromIssue = (issue: JiraIssueGroup['issues'][number]) => {
     onCreateTask({ jiraTicket: issue.key, title: issue.summary, description: `Imported from Jira ${issue.key}`, productId: issue.productId, productName: issue.productName });
   };
 
@@ -435,14 +436,6 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
         )}
       </div>
 
-      <ConfirmDialog
-        open={confirmDialog.open}
-        title={confirmDialog.title}
-        message={confirmDialog.message}
-        confirmLabel={confirmDialog.confirmLabel}
-        onConfirm={confirmDialog.onConfirm}
-        onCancel={() => setConfirmDialog((prev) => ({ ...prev, open: false }))}
-      />
     </div>
   );
 };
