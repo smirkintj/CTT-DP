@@ -6,7 +6,7 @@ import { mapTaskToUi } from './_mappers';
 import { ActivityType, TaskHistoryAction, TaskPriority, TaskStatus, UserRole } from '@prisma/client';
 import { createTaskHistory } from '../../../lib/taskHistory';
 import { badRequest, forbidden, internalError, unauthorized } from '../../../lib/apiError';
-import { isValidDueDate, isValidJiraTicket } from '../../../lib/taskValidation';
+import { isValidDueDate, isValidEodTicket, isValidJiraTicket } from '../../../lib/taskValidation';
 import { taskRelationIncludeList, taskRelationIncludeSafe } from './_query';
 import { randomUUID } from 'crypto';
 import { logPilotEvent } from '../../../lib/telemetry';
@@ -132,6 +132,8 @@ export async function POST(req: Request) {
   const moduleName = body?.module?.toString().trim() || body?.featureModule?.toString().trim() || 'General';
   const targetSystemId = body?.targetSystemId?.toString().trim() || null;
   const jiraTicket = body?.jiraTicket?.toString().trim() || null;
+  const jiraTicketVerified = typeof body?.jiraTicketVerified === 'boolean' ? body.jiraTicketVerified : false;
+  const eodTicket = body?.eodTicket?.toString().trim() || null;
   const crNumber = body?.crNumber?.toString().trim() || null;
   const developer = body?.developer?.toString().trim() || null;
   const dueDateRaw = body?.dueDate as string | undefined;
@@ -157,6 +159,9 @@ export async function POST(req: Request) {
   }
   if (!isValidJiraTicket(body?.jiraTicket)) {
     return badRequest('Invalid Jira ticket format', 'TASK_JIRA_INVALID');
+  }
+  if (!isValidEodTicket(body?.eodTicket)) {
+    return badRequest('Invalid EOD ticket format', 'TASK_EOD_INVALID');
   }
   if (!isValidDueDate(dueDateRaw)) {
     return badRequest('Invalid due date', 'TASK_DUE_DATE_INVALID');
@@ -269,6 +274,8 @@ export async function POST(req: Request) {
         title,
         description,
         jiraTicket,
+        jiraTicketVerified,
+        eodTicket,
         crNumber,
         developer,
         productId,
@@ -296,6 +303,7 @@ export async function POST(req: Request) {
         title,
         description,
         jiraTicket,
+        eodTicket,
         crNumber,
         developer,
         productId,

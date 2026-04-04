@@ -3,8 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { forbidden, unauthorized } from '@/lib/apiError';
-import { getAdminProductScope } from '@/lib/adminAccess';
-import { isJiraConfigured, searchJiraIssues } from '@/lib/jira';
+import { isJiraConfigured, searchJiraIssues, resolveJiraCredentials } from '@/lib/jira';
+import { decryptField } from '@/lib/encrypt';
 
 const statusMap: Record<string, string> = {
   DRAFT: 'Draft',
@@ -22,12 +22,23 @@ export async function GET() {
   if (!session?.user) return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   if (session.user.role !== 'ADMIN') return forbidden('Forbidden', 'ADMIN_REQUIRED');
 
-  const scope = await getAdminProductScope(session.user.id);
+  // For JIRA Queue, only show the admin's explicitly assigned products.
+  // If they have no product assignments, show nothing.
+  const productAccesses = await prisma.userProductAccess.findMany({
+    where: { userId: session.user.id },
+    select: { productId: true }
+  });
+  const assignedProductIds = productAccesses.map((a) => a.productId);
+
+  // If admin has no assigned products, return empty
+  if (assignedProductIds.length === 0) {
+    return NextResponse.json({ configured: false, groups: [] });
+  }
 
   const products = await prisma.product.findMany({
     where: {
       isActive: true,
-      ...(scope.restricted ? { id: { in: scope.productIds } } : {})
+      id: { in: assignedProductIds }
     },
     orderBy: { name: 'asc' },
     select: {
@@ -35,35 +46,34 @@ export async function GET() {
       name: true,
       slug: true,
       jiraProjectKey: true,
-      jiraPullStatuses: true
+      jiraPullStatuses: true,
+      jiraBaseUrl: true,
+      jiraEmail: true,
+      jiraToken: true
     }
   });
 
-  if (!isJiraConfigured()) {
-    return NextResponse.json({
-      configured: false,
-      error: 'Jira integration is not configured yet.',
-      groups: products.map((product) => ({
-        productId: product.id,
-        productName: product.name,
-        productSlug: product.slug,
-        projectKey: product.jiraProjectKey || '',
-        statuses: product.jiraPullStatuses,
-        issues: []
-      }))
-    });
-  }
-
   const groups = await Promise.all(
     products.map(async (product) => {
-      if (!product.jiraProjectKey || product.jiraPullStatuses.length === 0) {
+      const perProduct = product.jiraBaseUrl || product.jiraEmail || product.jiraToken
+        ? {
+            baseUrl: product.jiraBaseUrl ?? undefined,
+            email: product.jiraEmail ?? undefined,
+            token: decryptField(product.jiraToken) ?? undefined
+          }
+        : null;
+
+      const creds = resolveJiraCredentials(perProduct);
+
+      if (!creds || !product.jiraProjectKey || product.jiraPullStatuses.length === 0) {
         return {
           productId: product.id,
           productName: product.name,
           productSlug: product.slug,
           projectKey: product.jiraProjectKey || '',
           statuses: product.jiraPullStatuses,
-          issues: []
+          issues: [],
+          ...(!creds ? { error: 'Jira credentials not configured for this product' } : {})
         };
       }
 
@@ -73,7 +83,7 @@ export async function GET() {
           projectKey: product.jiraProjectKey,
           statuses: product.jiraPullStatuses,
           maxResults: 30
-        });
+        }, perProduct);
       } catch (error) {
         return {
           productId: product.id,
@@ -142,8 +152,9 @@ export async function GET() {
     })
   );
 
+  const anyConfigured = groups.some(g => !('error' in g) || (g as { error?: string }).error !== 'Jira credentials not configured for this product');
   return NextResponse.json({
-    configured: true,
+    configured: anyConfigured,
     groups
   });
 }

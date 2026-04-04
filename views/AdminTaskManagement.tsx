@@ -2,12 +2,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Task, Priority, TestStep, CountryConfig, AdminProductConfig, JiraTaskPrefill, JiraIssue, JiraIssueGroup } from '../types';
 import { Badge } from '../components/Badge';
-import { Trash2, Plus, Search, Filter, X, Save, Globe } from 'lucide-react';
+import { Trash2, Plus, Search, Filter, X, Save, Globe, CheckCircle2, ExternalLink } from 'lucide-react';
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { isValidDueDate, isValidJiraTicket, normalizeJiraTicketInput } from '../lib/taskValidation';
+import { isValidDueDate, isValidJiraTicket, normalizeEodTicketInput, normalizeJiraTicketInput } from '../lib/taskValidation';
 
 interface AdminTaskManagementProps {
   tasks: Task[];
@@ -75,6 +75,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const [jiraDropdownOpen, setJiraDropdownOpen] = useState(false);
   const [jiraBrowseOpen, setJiraBrowseOpen] = useState(false);
   const [jiraLoadingIssues, setJiraLoadingIssues] = useState(false);
+  const [jiraTicketLinked, setJiraTicketLinked] = useState(false);
   const jiraDropdownRef = useRef<HTMLDivElement>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -126,6 +127,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     productId: '',
     productName: '',
     jiraTicket: '',
+    eodTicket: '',
     featureModule: '',
     priority: Priority.MEDIUM,
     dueDate: '',
@@ -148,10 +150,14 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     };
   };
 
+  const onJiraPrefillConsumedRef = useRef(onJiraPrefillConsumed);
+  onJiraPrefillConsumedRef.current = onJiraPrefillConsumed;
+
   useEffect(() => {
     if (!jiraPrefill) return;
-    if (products.length === 0) return;
 
+    // Open the modal immediately — products may still be loading but productId/Name
+    // come from the prefill. Module/system fields will be populated once products load.
     const product = products.find((item) => item.id === jiraPrefill.productId) ?? products[0];
     setNewTask({
       ...getDefaultTaskValues(),
@@ -164,9 +170,10 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       title: jiraPrefill.title,
       description: jiraPrefill.description
     });
+    setJiraTicketLinked(Boolean(jiraPrefill.jiraTicket));
     setIsModalOpen(true);
-    onJiraPrefillConsumed?.();
-  }, [jiraPrefill, products, onJiraPrefillConsumed]);
+    onJiraPrefillConsumedRef.current?.();
+  }, [jiraPrefill]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isModalOpen || !newTask.productId) {
@@ -208,6 +215,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     setSteps(defaultSteps);
     setCreateSaveState('idle');
     setCreateError(null);
+    setJiraTicketLinked(false);
   };
 
   const isCreateDirty =
@@ -909,6 +917,8 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
           description: newTask.description,
           productId: newTask.productId,
           jiraTicket: normalizedJira || undefined,
+          jiraTicketVerified: jiraTicketLinked && Boolean(normalizedJira),
+          eodTicket: normalizeEodTicketInput(newTask.eodTicket) || undefined,
           featureModule: newTask.featureModule,
           module: newTask.featureModule,
           targetSystemId: newTask.targetSystemId,
@@ -1361,6 +1371,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                             autoComplete="off"
                             onChange={(e) => {
                               setNewTask({ ...newTask, jiraTicket: e.target.value });
+                              setJiraTicketLinked(false);
                               setJiraDropdownOpen(e.target.value.length > 0 && jiraIssues.length > 0);
                             }}
                             onFocus={() => {
@@ -1385,6 +1396,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                                         jiraTicket: issue.key,
                                         title: prev.title || issue.summary,
                                       }));
+                                      setJiraTicketLinked(true);
                                       setJiraDropdownOpen(false);
                                     }}
                                   >
@@ -1397,6 +1409,11 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                             );
                           })()}
                         </div>
+                        {jiraTicketLinked && (
+                          <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium shrink-0">
+                            <CheckCircle2 size={13} /> Linked
+                          </span>
+                        )}
                         {jiraLoadingIssues ? (
                           <svg className="animate-spin w-4 h-4 text-slate-400 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -1413,7 +1430,33 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                         ) : null}
                       </div>
                    </div>
-                   
+
+                   <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">EOD Ticket (Optional)</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          className={fieldBaseClass}
+                          style={{ paddingRight: newTask.eodTicket ? '2.5rem' : undefined }}
+                          placeholder="e.g. 42 or EOD-42"
+                          value={newTask.eodTicket || ''}
+                          autoComplete="off"
+                          onChange={(e) => setNewTask({ ...newTask, eodTicket: e.target.value })}
+                        />
+                        {newTask.eodTicket && (
+                          <a
+                            href={`https://dkshdigital.atlassian.net/browse/${normalizeEodTicketInput(newTask.eodTicket)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={`Open ${normalizeEodTicketInput(newTask.eodTicket)}`}
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded-lg text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                          >
+                            <ExternalLink size={13} />
+                          </a>
+                        )}
+                      </div>
+                   </div>
+
                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
                          <label className="block text-sm font-medium text-slate-700 mb-1">Module</label>
@@ -1658,6 +1701,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                             jiraTicket: issue.key,
                             title: prev.title || issue.summary,
                           }));
+                          setJiraTicketLinked(true);
                           setJiraBrowseOpen(false);
                         }}
                         className={`text-left p-3 rounded-xl border-2 transition-all hover:shadow-md flex flex-col gap-1.5 ${

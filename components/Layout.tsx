@@ -146,7 +146,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                     <NavItem
                       active={currentView === 'ADMIN_JIRA_INTAKE'}
                       icon={<Sparkles size={16} />}
-                      label="UAT Queue"
+                      label="JIRA Queue"
                       onClick={() => onNavigate('ADMIN_JIRA_INTAKE')}
                     />
                     <NavItem

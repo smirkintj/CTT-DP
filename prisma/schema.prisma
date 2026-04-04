@@ -90,8 +90,13 @@ model Product {
   name             String   @unique
   slug             String   @unique
   isActive         Boolean  @default(true)
-  jiraProjectKey   String?
-  jiraPullStatuses String[] @default([])
+  jiraProjectKey              String?
+  jiraPullStatuses            String[] @default([])
+  jiraInUatTransition         String?
+  jiraReadyToDeployTransition String?
+  jiraBaseUrl                 String?
+  jiraEmail                   String?
+  jiraToken                   String?   // encrypted at rest
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -159,8 +164,10 @@ model Task {
   taskGroupId String?
   title       String
   description String?
-  jiraTicket  String?
-  crNumber    String?
+  jiraTicket          String?
+  jiraTicketVerified  Boolean  @default(false)
+  eodTicket           String?
+  crNumber            String?
   developer   String?
   status      TaskStatus
   priority    TaskPriority

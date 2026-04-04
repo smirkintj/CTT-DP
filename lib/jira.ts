@@ -9,22 +9,67 @@ type JiraIssueResponse = {
   };
 };
 
-export function isJiraConfigured() {
-  return Boolean(process.env.JIRA_BASE_URL && process.env.JIRA_API_EMAIL && process.env.JIRA_API_TOKEN);
+export type JiraCredentials = {
+  baseUrl: string;
+  email: string;
+  token: string;
+};
+
+/** Resolves credentials: per-product overrides global env vars */
+export function resolveJiraCredentials(perProduct?: Partial<JiraCredentials> | null): JiraCredentials | null {
+  const baseUrl = (perProduct?.baseUrl || process.env.JIRA_BASE_URL || '').replace(/\/$/, '');
+  const email = perProduct?.email || process.env.JIRA_API_EMAIL || '';
+  const token = perProduct?.token || process.env.JIRA_API_TOKEN || '';
+  if (!baseUrl || !email || !token) return null;
+  return { baseUrl, email, token };
 }
 
-function getAuthHeader() {
-  const email = process.env.JIRA_API_EMAIL;
-  const token = process.env.JIRA_API_TOKEN;
-  if (!email || !token) return null;
-  return `Basic ${Buffer.from(`${email}:${token}`).toString('base64')}`;
+function makeAuthHeader(creds: JiraCredentials) {
+  return `Basic ${Buffer.from(`${creds.email}:${creds.token}`).toString('base64')}`;
 }
 
-export async function searchJiraIssues(input: {
-  projectKey: string;
-  statuses: string[];
-  maxResults?: number;
-}): Promise<Array<{
+export function isJiraConfigured(perProduct?: Partial<JiraCredentials> | null) {
+  return resolveJiraCredentials(perProduct) !== null;
+}
+
+export async function transitionJiraIssue(
+  issueKey: string,
+  targetStatusName: string,
+  perProduct?: Partial<JiraCredentials> | null
+): Promise<void> {
+  const creds = resolveJiraCredentials(perProduct);
+  if (!creds) return;
+  const authHeader = makeAuthHeader(creds);
+
+  try {
+    const res = await fetch(`${creds.baseUrl}/rest/api/3/issue/${issueKey}/transitions`, {
+      headers: { Authorization: authHeader, Accept: 'application/json' }
+    });
+    if (!res.ok) return;
+
+    const payload = (await res.json()) as { transitions?: { id: string; name: string }[] };
+    const transitions = Array.isArray(payload.transitions) ? payload.transitions : [];
+    const match = transitions.find(t => t.name.toLowerCase() === targetStatusName.toLowerCase());
+    if (!match) return;
+
+    await fetch(`${creds.baseUrl}/rest/api/3/issue/${issueKey}/transitions`, {
+      method: 'POST',
+      headers: { Authorization: authHeader, Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transition: { id: match.id } })
+    });
+  } catch {
+    // Silently swallow — Jira unavailability must never break task saves
+  }
+}
+
+export async function searchJiraIssues(
+  input: {
+    projectKey: string;
+    statuses: string[];
+    maxResults?: number;
+  },
+  perProduct?: Partial<JiraCredentials> | null
+): Promise<Array<{
   key: string;
   summary: string;
   status: string;
@@ -32,18 +77,16 @@ export async function searchJiraIssues(input: {
   priority?: string | null;
   assigneeName?: string | null;
 }>> {
-  const baseUrl = process.env.JIRA_BASE_URL?.replace(/\/$/, '');
-  const authHeader = getAuthHeader();
-  if (!baseUrl || !authHeader) {
-    throw new Error('JIRA_NOT_CONFIGURED');
-  }
+  const creds = resolveJiraCredentials(perProduct);
+  if (!creds) throw new Error('JIRA_NOT_CONFIGURED');
+  const authHeader = makeAuthHeader(creds);
 
   const statuses = input.statuses.filter(Boolean);
   if (statuses.length === 0) return [];
 
   const statusClause = statuses.map((status) => `"${status.replace(/"/g, '\\"')}"`).join(', ');
   const jql = `project = "${input.projectKey}" AND status in (${statusClause}) ORDER BY updated DESC`;
-  const response = await fetch(`${baseUrl}/rest/api/3/search/jql`, {
+  const response = await fetch(`${creds.baseUrl}/rest/api/3/search/jql`, {
     method: 'POST',
     headers: {
       Authorization: authHeader,

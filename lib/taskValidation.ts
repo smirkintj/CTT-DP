@@ -25,6 +25,32 @@ export function isValidJiraTicket(value: unknown): boolean {
   return JIRA_TICKET_REGEX.test(candidate);
 }
 
+const EOD_TICKET_REGEX = /^(EOD-\d+|\d+)$/i;
+
+function extractEodCandidate(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  const fromBrowseUrl = trimmed.match(/\/browse\/([^/?#]+)/i)?.[1];
+  return (fromBrowseUrl || trimmed).toUpperCase();
+}
+
+export function normalizeEodTicketInput(value: unknown): string {
+  if (value === null || typeof value === 'undefined') return '';
+  if (typeof value !== 'string') return '';
+  const candidate = extractEodCandidate(value);
+  if (!candidate) return '';
+  if (/^\d+$/.test(candidate)) return `EOD-${candidate}`;
+  return candidate;
+}
+
+export function isValidEodTicket(value: unknown): boolean {
+  if (value === null || typeof value === 'undefined') return true;
+  if (typeof value !== 'string') return false;
+  const candidate = extractEodCandidate(value);
+  if (!candidate) return true;
+  return EOD_TICKET_REGEX.test(candidate);
+}
+
 export function isValidDueDate(value: unknown): boolean {
   if (value === null || typeof value === 'undefined' || value === '') return true;
   if (typeof value !== 'string') return false;

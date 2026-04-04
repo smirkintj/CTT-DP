@@ -1,0 +1,119 @@
+<h2>Hybrid Design — B Avatar + C Rich Context</h2>
+<p class="subtitle">Actor initials avatar at top, natural-language sentence, compact facts table. Click to confirm.</p>
+
+<style>
+  .cards-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 24px; }
+  .card-wrap { cursor: pointer; border-radius: 12px; border: 2px solid #e2e8f0; padding: 12px; transition: border-color 0.2s, box-shadow 0.2s; }
+  .card-wrap:hover { border-color: #94a3b8; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+  .card-wrap.selected { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+  .card-label { font-size: 10px; font-weight: 700; text-align: center; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin-bottom: 8px; }
+
+  /* Teams card */
+  .tc { font-family: 'Segoe UI', system-ui, sans-serif; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.12); background: #fff; border: 1px solid #e1e4e8; }
+  .tc-bar { height: 4px; }
+  .tc-body { padding: 14px 16px 12px; }
+  .tc-tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+  .tc-actor { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .tc-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .tc-actor-name { font-size: 13px; font-weight: 700; color: #1a1a1a; line-height: 1.2; }
+  .tc-actor-sub { font-size: 11px; color: #666; }
+  .tc-divider { border: none; border-top: 1px solid #ebebeb; margin: 10px 0; }
+  .tc-sentence { font-size: 12px; color: #333; line-height: 1.5; margin-bottom: 10px; }
+  .tc-facts { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 10px; }
+  .tc-facts td { padding: 3px 0; vertical-align: top; }
+  .tc-facts td:first-child { color: #888; font-weight: 600; width: 90px; padding-right: 8px; white-space: nowrap; }
+  .tc-facts td:last-child { color: #222; }
+  .tc-url { font-size: 11px; color: #0078d4; word-break: break-all; }
+  .tc-btn { display: inline-block; margin-top: 6px; padding: 5px 12px; border: 1px solid #0078d4; border-radius: 3px; font-size: 12px; font-weight: 600; color: #0078d4; text-decoration: none; }
+</style>
+
+<div class="cards-row">
+
+  <!-- Task Assigned -->
+  <div class="card-wrap" data-choice="assigned" onclick="toggleSelect(this)">
+    <div class="card-label">Task Assigned</div>
+    <div class="tc">
+      <div class="tc-bar" style="background:#0078d4"></div>
+      <div class="tc-body">
+        <span class="tc-tag" style="background:#dbeafe;color:#1d4ed8">New Assignment</span>
+        <div class="tc-actor">
+          <div class="tc-avatar" style="background:#0078d4">PA</div>
+          <div>
+            <div class="tc-actor-name">Putra Ahmad assigned you a task</div>
+            <div class="tc-actor-sub">EasyOrder &nbsp;·&nbsp; 24 Mar 2026, 7:43 AM</div>
+          </div>
+        </div>
+        <hr class="tc-divider">
+        <div class="tc-sentence">Hi <strong>Jane Doe</strong>, you have a new UAT task on <strong>EasyOrder</strong>. Please review and begin testing by the due date.</div>
+        <table class="tc-facts">
+          <tr><td>Task</td><td><strong>User Login Flow — Edge Cases</strong></td></tr>
+          <tr><td>Due Date</td><td><strong>28 Mar 2026</strong></td></tr>
+          <tr><td>Module</td><td>Authentication</td></tr>
+          <tr>
+            <td>Test URL</td>
+            <td><a href="#" class="tc-url">https://uat.easyorder.dksh.com/auth/login</a></td>
+          </tr>
+        </table>
+        <a class="tc-btn" href="#">Open Task in CTT →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Signed Off -->
+  <div class="card-wrap" data-choice="signedoff" onclick="toggleSelect(this)">
+    <div class="card-label">Task Signed Off</div>
+    <div class="tc">
+      <div class="tc-bar" style="background:#107c10"></div>
+      <div class="tc-body">
+        <span class="tc-tag" style="background:#dcfce7;color:#166534">Signed Off</span>
+        <div class="tc-actor">
+          <div class="tc-avatar" style="background:#107c10">JD</div>
+          <div>
+            <div class="tc-actor-name">Jane Doe signed off a task</div>
+            <div class="tc-actor-sub">EasyOrder &nbsp;·&nbsp; 24 Mar 2026, 7:43 AM</div>
+          </div>
+        </div>
+        <hr class="tc-divider">
+        <div class="tc-sentence"><strong>Jane Doe</strong> has signed off on a UAT task in <strong>EasyOrder</strong>. This task is now complete.</div>
+        <table class="tc-facts">
+          <tr><td>Task</td><td><strong>User Login Flow — Edge Cases</strong></td></tr>
+          <tr><td>Product</td><td>EasyOrder</td></tr>
+          <tr><td>Module</td><td>Authentication</td></tr>
+          <tr><td>Signed Off By</td><td><strong>Jane Doe</strong></td></tr>
+          <tr><td>Date</td><td>24 Mar 2026, 7:43 AM</td></tr>
+        </table>
+        <a class="tc-btn" style="border-color:#107c10;color:#107c10" href="#">View Sign-Off Report →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Overdue -->
+  <div class="card-wrap" data-choice="overdue" onclick="toggleSelect(this)">
+    <div class="card-label">Task Overdue</div>
+    <div class="tc">
+      <div class="tc-bar" style="background:#c8102e"></div>
+      <div class="tc-body">
+        <span class="tc-tag" style="background:#fee2e2;color:#991b1b">Overdue</span>
+        <div class="tc-actor">
+          <div class="tc-avatar" style="background:#c8102e">!</div>
+          <div>
+            <div class="tc-actor-name" style="color:#c8102e">Action required — task overdue</div>
+            <div class="tc-actor-sub">EasyOrder &nbsp;·&nbsp; Was due 21 Mar 2026</div>
+          </div>
+        </div>
+        <hr class="tc-divider">
+        <div class="tc-sentence">Hi <strong>Jane Doe</strong>, your UAT task on <strong>EasyOrder</strong> was due on <strong style="color:#c8102e">21 Mar 2026</strong> and has not been completed. Please take action immediately.</div>
+        <table class="tc-facts">
+          <tr><td>Task</td><td><strong>User Login Flow — Edge Cases</strong></td></tr>
+          <tr><td>Was Due</td><td style="color:#c8102e;font-weight:700">21 Mar 2026 &nbsp;·&nbsp; 3 days ago</td></tr>
+          <tr><td>Module</td><td>Authentication</td></tr>
+          <tr><td>Status</td><td>In Progress</td></tr>
+        </table>
+        <a class="tc-btn" style="border-color:#c8102e;color:#c8102e" href="#">Open Task →</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:32px;text-align:center">Happy with this direction? Click the cards above and let me know — or share any tweaks you'd like.</p>

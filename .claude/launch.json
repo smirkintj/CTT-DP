@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "preview-static",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", ".claude/preview", "-p", "4321", "--no-clipboard"],
+      "port": 4321
+    },
+    {
+      "name": "ctt-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
+      "autoPort": true
+    }
+  ]
+}

@@ -61,6 +61,13 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
   const [selectedProductId, setSelectedProductId] = useState('');
   const [jiraProjectKeyInput, setJiraProjectKeyInput] = useState('');
   const [jiraStatusesInput, setJiraStatusesInput] = useState('');
+  const [jiraInUatTransitionInput, setJiraInUatTransitionInput] = useState('');
+  const [jiraReadyToDeployTransitionInput, setJiraReadyToDeployTransitionInput] = useState('');
+  const [jiraBaseUrlInput, setJiraBaseUrlInput] = useState('');
+  const [jiraEmailInput, setJiraEmailInput] = useState('');
+  const [jiraTokenInput, setJiraTokenInput] = useState('');
+  const [jiraTokenSet, setJiraTokenSet] = useState(false);
+  const [jiraTokenEditing, setJiraTokenEditing] = useState(false);
   const [jiraSaveState, setJiraSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [productHelpfulLinks, setProductHelpfulLinks] = useState<{ id: string; label: string; url: string }[]>([]);
   const [savedProductHelpfulLinks, setSavedProductHelpfulLinks] = useState<{ id: string; label: string; url: string }[]>([]);
@@ -194,11 +201,25 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
     if (!selectedProduct) {
       setJiraProjectKeyInput('');
       setJiraStatusesInput('');
+      setJiraInUatTransitionInput('');
+      setJiraReadyToDeployTransitionInput('');
+      setJiraBaseUrlInput('');
+      setJiraEmailInput('');
+      setJiraTokenInput('');
+      setJiraTokenSet(false);
+      setJiraTokenEditing(false);
       setJiraSaveState('idle');
       return;
     }
     setJiraProjectKeyInput(selectedProduct.jiraProjectKey || '');
     setJiraStatusesInput((selectedProduct.jiraPullStatuses ?? []).join(', '));
+    setJiraInUatTransitionInput(selectedProduct.jiraInUatTransition || '');
+    setJiraReadyToDeployTransitionInput(selectedProduct.jiraReadyToDeployTransition || '');
+    setJiraBaseUrlInput(selectedProduct.jiraBaseUrl || '');
+    setJiraEmailInput(selectedProduct.jiraEmail || '');
+    setJiraTokenInput('');
+    setJiraTokenSet(selectedProduct.jiraTokenSet ?? false);
+    setJiraTokenEditing(false);
     setJiraSaveState('idle');
   }, [selectedProduct]);
 
@@ -722,7 +743,12 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
         body: JSON.stringify({
           productId: selectedProduct.id,
           jiraProjectKey: jiraProjectKeyInput.trim(),
-          jiraPullStatuses
+          jiraPullStatuses,
+          jiraInUatTransition: jiraInUatTransitionInput.trim(),
+          jiraReadyToDeployTransition: jiraReadyToDeployTransitionInput.trim(),
+          jiraBaseUrl: jiraBaseUrlInput.trim(),
+          jiraEmail: jiraEmailInput.trim(),
+          ...(jiraTokenEditing ? { jiraToken: jiraTokenInput.trim() } : {})
         })
       });
 
@@ -740,11 +766,19 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
             ? {
                 ...product,
                 jiraProjectKey: data.jiraProjectKey || null,
-                jiraPullStatuses: Array.isArray(data.jiraPullStatuses) ? data.jiraPullStatuses : []
+                jiraPullStatuses: Array.isArray(data.jiraPullStatuses) ? data.jiraPullStatuses : [],
+                jiraInUatTransition: data.jiraInUatTransition || null,
+                jiraReadyToDeployTransition: data.jiraReadyToDeployTransition || null,
+                jiraBaseUrl: data.jiraBaseUrl || null,
+                jiraEmail: data.jiraEmail || null,
+                jiraTokenSet: data.jiraTokenSet ?? false
               }
             : product
         )
       );
+      setJiraTokenSet(data.jiraTokenSet ?? false);
+      setJiraTokenInput('');
+      setJiraTokenEditing(false);
       setJiraSaveState('saved');
       notify(`Jira settings saved for ${selectedProduct.name}`, 'success');
       window.setTimeout(() => setJiraSaveState('idle'), 1500);
@@ -1266,11 +1300,77 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                               </div>
                             </div>
 
-                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
-                              <p className="font-medium text-slate-800">Technical dependency</p>
-                              <p className="mt-1">
-                                Jira intake will only work when server-side env vars are configured: <code>JIRA_BASE_URL</code>, <code>JIRA_API_EMAIL</code>, and <code>JIRA_API_TOKEN</code>.
-                              </p>
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <div>
+                                <label className="text-xs font-semibold text-slate-500 uppercase">→ "In UAT" Transition Name</label>
+                                <input
+                                  type="text"
+                                  className={fieldBaseClass}
+                                  placeholder="In UAT"
+                                  value={jiraInUatTransitionInput}
+                                  onChange={(event) => setJiraInUatTransitionInput(event.target.value)}
+                                />
+                                <p className="mt-1 text-xs text-slate-400">Jira transition to fire when task is marked Ready</p>
+                              </div>
+                              <div>
+                                <label className="text-xs font-semibold text-slate-500 uppercase">→ "Ready to Deploy" Transition Name</label>
+                                <input
+                                  type="text"
+                                  className={fieldBaseClass}
+                                  placeholder="Ready to Deploy"
+                                  value={jiraReadyToDeployTransitionInput}
+                                  onChange={(event) => setJiraReadyToDeployTransitionInput(event.target.value)}
+                                />
+                                <p className="mt-1 text-xs text-slate-400">Jira transition to fire when task is signed off</p>
+                              </div>
+                            </div>
+
+                            <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 space-y-3">
+                              <p className="text-xs font-semibold text-blue-800">Per-product Jira Credentials</p>
+                              <p className="text-xs text-blue-600">Override the global Jira API credentials for this product. Leave blank to use the server-side env vars instead.</p>
+                              <div>
+                                <label className="text-xs font-semibold text-slate-500 uppercase">Jira Base URL</label>
+                                <input
+                                  type="url"
+                                  className={fieldBaseClass}
+                                  placeholder="https://yourcompany.atlassian.net"
+                                  value={jiraBaseUrlInput}
+                                  onChange={(event) => setJiraBaseUrlInput(event.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs font-semibold text-slate-500 uppercase">Jira API Email</label>
+                                <input
+                                  type="email"
+                                  className={fieldBaseClass}
+                                  placeholder="you@company.com"
+                                  value={jiraEmailInput}
+                                  onChange={(event) => setJiraEmailInput(event.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs font-semibold text-slate-500 uppercase">Jira API Token</label>
+                                {jiraTokenSet && !jiraTokenEditing ? (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="flex-1 text-xs text-slate-500 font-mono bg-slate-100 rounded-lg px-3 py-2">••••••••••••••••</span>
+                                    <button type="button" onClick={() => setJiraTokenEditing(true)} className="text-xs text-blue-600 hover:underline shrink-0">Replace</button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <input
+                                      type="password"
+                                      className={`${fieldBaseClass} flex-1`}
+                                      placeholder="Paste API token"
+                                      value={jiraTokenInput}
+                                      onChange={(event) => setJiraTokenInput(event.target.value)}
+                                      autoComplete="new-password"
+                                    />
+                                    {jiraTokenSet && (
+                                      <button type="button" onClick={() => { setJiraTokenEditing(false); setJiraTokenInput(''); }} className="text-xs text-slate-400 hover:text-slate-600 shrink-0">Cancel</button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </div>
 
                             <div className="flex justify-end pt-2 border-t border-slate-100">

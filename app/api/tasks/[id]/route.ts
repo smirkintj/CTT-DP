@@ -8,7 +8,7 @@ import { ActivityType, TaskHistoryAction, UserRole } from '@prisma/client';
 import { validateExpectedUpdatedAt } from '../../../../lib/taskGuards';
 import { createTaskHistory } from '../../../../lib/taskHistory';
 import { badRequest, conflict, forbidden, internalError, notFound, unauthorized } from '../../../../lib/apiError';
-import { isValidDueDate, isValidJiraTicket } from '../../../../lib/taskValidation';
+import { isValidDueDate, isValidEodTicket, isValidJiraTicket } from '../../../../lib/taskValidation';
 import { taskRelationIncludeFull, taskRelationIncludeSafe } from '../_query';
 import { randomUUID } from 'crypto';
 import { logPilotEvent } from '../../../../lib/telemetry';
@@ -192,6 +192,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!isValidJiraTicket(body?.jiraTicket)) {
     return badRequest('Invalid Jira ticket format', 'TASK_JIRA_INVALID');
   }
+  if (!isValidEodTicket(body?.eodTicket)) {
+    return badRequest('Invalid EOD ticket format', 'TASK_EOD_INVALID');
+  }
   if (!isValidDueDate(body?.dueDate)) {
     return badRequest('Invalid due date', 'TASK_DUE_DATE_INVALID');
   }
@@ -291,6 +294,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     title: body?.title ?? undefined,
     description: body?.description ?? undefined,
     jiraTicket: body?.jiraTicket ?? undefined,
+    jiraTicketVerified: Object.prototype.hasOwnProperty.call(body ?? {}, 'jiraTicket')
+      ? (typeof body?.jiraTicketVerified === 'boolean' ? body.jiraTicketVerified : false)
+      : undefined,
+    eodTicket: body?.eodTicket ?? undefined,
     crNumber: body?.crNumber ?? undefined,
     dueDate: hasValidDueDate ? nextDueDate : undefined,
     priority: body?.priority ?? undefined,
@@ -315,6 +322,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   if (Object.prototype.hasOwnProperty.call(body ?? {}, 'jiraTicket')) {
     globalData.jiraTicket = body?.jiraTicket ?? undefined;
+    globalData.jiraTicketVerified = typeof body?.jiraTicketVerified === 'boolean' ? body.jiraTicketVerified : false;
+  }
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, 'eodTicket')) {
+    globalData.eodTicket = body?.eodTicket ?? undefined;
   }
   if (Object.prototype.hasOwnProperty.call(body ?? {}, 'crNumber')) {
     globalData.crNumber = body?.crNumber ?? undefined;
@@ -483,6 +494,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           signedOffAt: true,
           description: true,
           jiraTicket: true,
+          eodTicket: true,
           crNumber: true,
           developer: true,
           dueDate: true
@@ -512,6 +524,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             title: true,
             description: true,
             jiraTicket: true,
+            eodTicket: true,
             crNumber: true,
             developer: true,
             dueDate: true,

@@ -7,6 +7,8 @@ import { createActivity, toStatusLabel } from '../../../../../lib/activity';
 import { sendTaskAssignedEmail } from '../../../../../lib/email';
 import { sendTeamsMessage } from '../../../../../lib/teams';
 import { validateExpectedUpdatedAt, validateTaskTransition } from '../../../../../lib/taskGuards';
+import { isJiraConfigured, transitionJiraIssue } from '../../../../../lib/jira';
+import { decryptField } from '../../../../../lib/encrypt';
 import { createTaskHistory } from '../../../../../lib/taskHistory';
 import { badRequest, conflict, forbidden, notFound, unauthorized } from '../../../../../lib/apiError';
 import { adminCanAccessProduct } from '../../../../../lib/adminAccess';
@@ -42,7 +44,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           notifyOnAssignmentEmail: true
         }
       },
-      product: { select: { name: true } },
+      product: { select: { name: true, jiraInUatTransition: true, jiraBaseUrl: true, jiraEmail: true, jiraToken: true } },
       targetSystem: { select: { baseUrl: true } }
     }
   });
@@ -95,6 +97,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       updatedById: session.user.id
     }
   });
+
+  if (task.jiraTicket && dbStatus === 'READY') {
+    const perProduct = task.product.jiraBaseUrl || task.product.jiraEmail || task.product.jiraToken
+      ? { baseUrl: task.product.jiraBaseUrl ?? undefined, email: task.product.jiraEmail ?? undefined, token: decryptField(task.product.jiraToken) ?? undefined }
+      : null;
+    if (isJiraConfigured(perProduct)) {
+      void transitionJiraIssue(task.jiraTicket, task.product.jiraInUatTransition || 'In UAT', perProduct);
+    }
+  }
 
   if (
     previousStatus === 'DRAFT' &&

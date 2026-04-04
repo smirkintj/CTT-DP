@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#060b18; font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif; color:white; overflow-x:hidden; }
+
+  /* Stars */
+  .stars { position:fixed; inset:0; pointer-events:none; z-index:0; }
+  .star { position:absolute; border-radius:50%; background:white; animation:twinkle var(--d,3s) ease-in-out infinite; opacity:0; }
+  @keyframes twinkle { 0%,100%{opacity:0} 50%{opacity:var(--o,0.7)} }
+
+  /* Nebula glow blobs */
+  .nebula { position:fixed; border-radius:50%; filter:blur(80px); pointer-events:none; z-index:0; animation:drift 20s ease-in-out infinite alternate; }
+  .nebula-1 { width:400px;height:400px;background:rgba(99,102,241,0.12);top:-100px;right:-100px; }
+  .nebula-2 { width:300px;height:300px;background:rgba(139,92,246,0.1);bottom:0;left:-80px;animation-delay:-8s; }
+  .nebula-3 { width:250px;height:250px;background:rgba(239,68,68,0.07);top:40%;left:30%;animation-delay:-4s; }
+  @keyframes drift { from{transform:translate(0,0) scale(1)} to{transform:translate(30px,20px) scale(1.1)} }
+
+  /* Layout */
+  .page { position:relative; z-index:1; max-width:960px; margin:0 auto; padding:40px 24px; }
+  .page-header { margin-bottom:36px; }
+  .page-eyebrow { font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px; }
+  .page-title { font-size:24px;font-weight:700;color:white;margin-bottom:4px; }
+  .page-sub { font-size:13px;color:#64748b; }
+  .admin-scope { display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:4px 12px;font-size:11px;color:#94a3b8;margin-top:10px; }
+  .admin-dot { width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e;animation:pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* Product section */
+  .product-section { margin-bottom:32px; animation:fadeUp .5s ease both; }
+  .product-section:nth-child(2){animation-delay:.1s}
+  .product-section:nth-child(3){animation-delay:.2s}
+  @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+  .product-header { display:flex;align-items:center;gap:10px;margin-bottom:16px; }
+  .product-orb { width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;letter-spacing:.5px;flex-shrink:0; }
+  .orb-eo { background:radial-gradient(circle at 35% 35%,#818cf8,#4338ca);box-shadow:0 0 16px rgba(99,102,241,0.5); }
+  .orb-cc { background:radial-gradient(circle at 35% 35%,#a78bfa,#6d28d9);box-shadow:0 0 16px rgba(139,92,246,0.5); }
+  .product-name-group { flex:1; }
+  .product-name { font-size:13px;font-weight:700;color:white; }
+  .product-prefix { font-size:10px;color:#475569;font-weight:600;margin-top:1px; }
+  .item-count { font-size:11px;color:#475569; }
+
+  /* Ticket cards */
+  .tickets { display:flex;gap:12px;flex-wrap:wrap; }
+
+  /* SPOTLIGHT CARD — most urgent */
+  .t-hero { flex:0 0 340px;background:linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.95));border:1px solid rgba(99,102,241,0.3);border-radius:14px;padding:20px;cursor:pointer;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s; }
+  .t-hero:hover { transform:translateY(-4px);box-shadow:0 16px 40px rgba(99,102,241,0.25); }
+  .t-hero::before { content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;background:radial-gradient(circle,rgba(239,68,68,0.2),transparent 70%);animation:heroGlow 4s ease-in-out infinite alternate; }
+  @keyframes heroGlow { from{transform:scale(1)} to{transform:scale(1.4)} }
+  .t-hero .shooting-star { position:absolute;top:0;left:-100%;width:60px;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent);animation:shoot 6s linear infinite; }
+  @keyframes shoot { 0%{left:-20%;top:20%} 100%{left:120%;top:60%} }
+
+  /* STANDARD CARD */
+  .t-card { flex:0 0 180px;background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:16px;cursor:pointer;transition:transform .2s,border-color .2s,box-shadow .2s;position:relative;overflow:hidden; }
+  .t-card:hover { transform:translateY(-3px);border-color:rgba(99,102,241,0.4);box-shadow:0 8px 24px rgba(0,0,0,0.4); }
+  .t-card::after { content:'';position:absolute;inset:0;border-radius:12px;background:radial-gradient(circle at 50% 0%,rgba(99,102,241,0.08),transparent 60%); }
+
+  /* Card internals */
+  .t-id { font-size:10px;font-weight:800;color:#6366f1;margin-bottom:6px;letter-spacing:.5px; }
+  .t-title { font-size:12px;font-weight:600;color:#e2e8f0;line-height:1.4;margin-bottom:10px; }
+  .t-hero .t-title { font-size:15px;font-weight:700;color:white; }
+  .t-meta { display:flex;gap:6px;flex-wrap:wrap;align-items:center; }
+  .t-tag { font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.3px; }
+  .tag-ruat { background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.2); }
+  .tag-inuat { background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.2); }
+  .tag-age-hot { background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.2); }
+  .tag-age { background:rgba(255,255,255,0.05);color:#64748b;border:1px solid rgba(255,255,255,0.07); }
+  .tag-crit { background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.3); }
+
+  /* Orbit ring decoration on hero */
+  .orbit { position:absolute;border-radius:50%;border:1px solid rgba(99,102,241,0.12);animation:spin var(--s,20s) linear infinite; }
+  .o1 { width:200px;height:200px;top:-80px;right:-80px;--s:25s; }
+  .o2 { width:140px;height:140px;top:-50px;right:-50px;--s:18s;animation-direction:reverse; }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+  /* Browse modal preview */
+  .browse-section { margin-top:48px;padding-top:32px;border-top:1px solid rgba(255,255,255,0.06); }
+  .browse-label { font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px; }
+  .modal-shell { background:rgba(15,23,42,0.95);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px;backdrop-filter:blur(20px); }
+  .modal-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:16px; }
+  .modal-title { font-size:14px;font-weight:700;color:white; }
+  .modal-search { background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:6px 12px;font-size:12px;color:#94a3b8;width:180px;outline:none; }
+  .browse-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:10px; }
+  .b-card { background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s;aspect-ratio:1/1;display:flex;flex-direction:column;justify-content:space-between; }
+  .b-card:hover { background:rgba(99,102,241,0.12);border-color:rgba(99,102,241,0.4); }
+  .b-card.linked { opacity:.4;cursor:default; }
+  .b-id { font-size:10px;font-weight:800;color:#6366f1;margin-bottom:6px; }
+  .b-title { font-size:11px;color:#cbd5e1;line-height:1.35;flex:1; }
+  .b-foot { margin-top:8px;display:flex;flex-direction:column;gap:4px; }
+  .b-status { font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px;align-self:flex-start; }
+  .bs-ruat { background:rgba(34,197,94,0.15);color:#4ade80; }
+  .bs-linked { background:rgba(255,255,255,0.08);color:#64748b; }
+</style>
+</head>
+<body>
+
+<!-- Stars -->
+<div class="stars" id="stars"></div>
+<div class="nebula nebula-1"></div>
+<div class="nebula nebula-2"></div>
+<div class="nebula nebula-3"></div>
+
+<div class="page">
+  <div class="page-header">
+    <div class="page-eyebrow">Admin · UAT Command</div>
+    <h1 class="page-title">Ready for Testing</h1>
+    <p class="page-sub">Jira items waiting to become CTT tasks</p>
+    <div class="admin-scope">
+      <span class="admin-dot"></span>
+      Showing your assigned products only — EasyOrder &amp; Connect Customer
+    </div>
+  </div>
+
+  <!-- EasyOrder -->
+  <div class="product-section">
+    <div class="product-header">
+      <div class="product-orb orb-eo">EO</div>
+      <div class="product-name-group">
+        <div class="product-name">EasyOrder</div>
+        <div class="product-prefix">Prefix: EO-</div>
+      </div>
+      <span class="item-count">4 floating items</span>
+    </div>
+    <div class="tickets">
+      <!-- Hero / most urgent -->
+      <div class="t-hero">
+        <div class="orbit o1"></div>
+        <div class="orbit o2"></div>
+        <div class="shooting-star"></div>
+        <div class="t-id">EO-241</div>
+        <div class="t-title">Checkout flow redesign — cart persistence fix</div>
+        <div class="t-meta">
+          <span class="t-tag tag-ruat">Ready for UAT</span>
+          <span class="t-tag tag-age-hot">12d · urgent</span>
+          <span class="t-tag tag-crit">High</span>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="t-id">EO-198</div>
+        <div class="t-title">SSO login — fallback auth handling</div>
+        <div class="t-meta">
+          <span class="t-tag tag-ruat">Ready for UAT</span>
+          <span class="t-tag tag-age">5d</span>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="t-id">EO-255</div>
+        <div class="t-title">Bulk order import — CSV validation</div>
+        <div class="t-meta">
+          <span class="t-tag tag-inuat">In UAT</span>
+          <span class="t-tag tag-age">3d</span>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="t-id">EO-260</div>
+        <div class="t-title">Invoice email template update</div>
+        <div class="t-meta">
+          <span class="t-tag tag-ruat">Ready for UAT</span>
+          <span class="t-tag tag-age">1d</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connect Customer -->
+  <div class="product-section">
+    <div class="product-header">
+      <div class="product-orb orb-cc">CC</div>
+      <div class="product-name-group">
+        <div class="product-name">Connect Customer</div>
+        <div class="product-prefix">Prefix: CC-</div>
+      </div>
+      <span class="item-count">2 floating items</span>
+    </div>
+    <div class="tickets">
+      <div class="t-hero" style="border-color:rgba(139,92,246,0.3)">
+        <div class="orbit o1" style="border-color:rgba(139,92,246,0.12)"></div>
+        <div class="orbit o2" style="border-color:rgba(139,92,246,0.1)"></div>
+        <div class="shooting-star"></div>
+        <div class="t-id" style="color:#a78bfa">CC-88</div>
+        <div class="t-title">Customer profile merge — duplicate detection</div>
+        <div class="t-meta">
+          <span class="t-tag tag-ruat">Ready for UAT</span>
+          <span class="t-tag tag-age-hot">9d</span>
+          <span class="t-tag tag-crit">Critical</span>
+        </div>
+      </div>
+      <div class="t-card">
+        <div class="t-id" style="color:#a78bfa">CC-91</div>
+        <div class="t-title">Notification preferences — granular controls</div>
+        <div class="t-meta">
+          <span class="t-tag tag-ruat">Ready for UAT</span>
+          <span class="t-tag tag-age">2d</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Browse Modal Preview -->
+  <div class="browse-section">
+    <div class="browse-label">Part 2 — "Browse Ready for UAT" modal (from Create Task)</div>
+    <div class="modal-shell">
+      <div class="modal-header">
+        <span class="modal-title">Browse — EasyOrder (EO-)</span>
+        <input class="modal-search" placeholder="Search tickets…" readonly>
+      </div>
+      <div class="browse-grid">
+        <div class="b-card">
+          <div>
+            <div class="b-id">EO-241</div>
+            <div class="b-title">Checkout flow redesign — cart persistence</div>
+          </div>
+          <div class="b-foot">
+            <span class="b-status bs-ruat">Ready for UAT</span>
+          </div>
+        </div>
+        <div class="b-card">
+          <div>
+            <div class="b-id">EO-198</div>
+            <div class="b-title">SSO login — fallback auth handling</div>
+          </div>
+          <div class="b-foot">
+            <span class="b-status bs-ruat">Ready for UAT</span>
+          </div>
+        </div>
+        <div class="b-card">
+          <div>
+            <div class="b-id">EO-255</div>
+            <div class="b-title">Bulk order import — CSV validation</div>
+          </div>
+          <div class="b-foot">
+            <span class="b-status bs-ruat">Ready for UAT</span>
+          </div>
+        </div>
+        <div class="b-card linked">
+          <div>
+            <div class="b-id">EO-233</div>
+            <div class="b-title">Payment gateway timeout handling</div>
+          </div>
+          <div class="b-foot">
+            <span class="b-status bs-linked">CTT task exists ✓</span>
+          </div>
+        </div>
+        <div class="b-card">
+          <div>
+            <div class="b-id">EO-260</div>
+            <div class="b-title">Invoice email template update</div>
+          </div>
+          <div class="b-foot">
+            <span class="b-status bs-ruat">Ready for UAT</span>
+          </div>
+        </div>
+        <div class="b-card linked">
+          <div>
+            <div class="b-id">EO-201</div>
+            <div class="b-title">Product catalogue search filter</div>
+          </div>
+          <div class="b-foot">
+            <span class="b-status bs-linked">CTT task exists ✓</span>
+          </div>
+        </div>
+        <div class="b-card linked">
+          <div>
+            <div class="b-id">EO-188</div>
+            <div class="b-title">Order history pagination</div>
+          </div>
+          <div class="b-foot">
+            <span class="b-status bs-linked">CTT task exists ✓</span>
+          </div>
+        </div>
+        <div class="b-card">
+          <div>
+            <div class="b-id">EO-271</div>
+            <div class="b-title">Promo code validation edge cases</div>
+          </div>
+          <div class="b-foot">
+            <span class="b-status bs-ruat">Ready for UAT</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Generate stars
+  const container = document.getElementById('stars');
+  for (let i = 0; i < 120; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 2.5 + 0.5;
+    s.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}%; top:${Math.random()*100}%;
+      --d:${2 + Math.random()*5}s; --o:${0.3 + Math.random()*0.7};
+      animation-delay:${Math.random()*6}s;
+    `;
+    container.appendChild(s);
+  }
+</script>
+</body>
+</html>

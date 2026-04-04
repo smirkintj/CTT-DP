@@ -1,0 +1,67 @@
+<h2>Jira → CTT Integration: Which approach fits best?</h2>
+<p class="subtitle">How should "Ready for UAT" Jira items flow into CTT task creation?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:16px;border-bottom:1px solid #e2e8f0">
+      <div class="mock-nav" style="font-size:11px;margin-bottom:10px">CTT · Dashboard · Manage Tasks · <strong>UAT Queue</strong> · Import · Database</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <div style="background:#dbeafe;color:#1d4ed8;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600">EO-241 · Checkout Flow</div>
+        <div style="background:#dcfce7;color:#16a34a;padding:3px 8px;border-radius:4px;font-size:11px">Ready for UAT</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div style="background:#dbeafe;color:#1d4ed8;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600">EO-198 · Login SSO</div>
+        <div style="background:#dcfce7;color:#16a34a;padding:3px 8px;border-radius:4px;font-size:11px">Ready for UAT</div>
+      </div>
+      <button class="mock-button" style="margin-top:10px;font-size:11px">+ Create CTT Task →</button>
+    </div>
+    <div class="card-body">
+      <h3>A — Dedicated "UAT Queue" Page</h3>
+      <p>New nav item. Shows live Jira board filtered to "Ready for UAT". One-click creates a CTT task pre-filled from the Jira issue. Admin sees both queues side by side.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:16px;border-bottom:1px solid #e2e8f0">
+      <div class="mock-nav" style="font-size:11px;margin-bottom:10px">CTT · Dashboard · Manage Tasks · Import · Database</div>
+      <div style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:600;color:#0f172a;margin-bottom:6px">Create New Task</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="mock-input" placeholder="Jira ticket e.g. EO-241" style="font-size:11px;flex:1">
+          <button class="mock-button" style="font-size:11px;white-space:nowrap">Fetch from Jira →</button>
+        </div>
+        <div style="margin-top:8px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:8px;font-size:11px;color:#15803d">
+          ✓ EO-241: Checkout Flow Redesign — fetched. Fields pre-filled below.
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Jira Fetch Inside Task Creation</h3>
+      <p>No new page. In the existing Create Task modal, type a ticket number and hit "Fetch" — title, description, developer, priority auto-fill from Jira. Lightweight enhancement.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:16px;border-bottom:1px solid #e2e8f0">
+      <div style="display:flex;gap:8px;height:90px">
+        <div style="flex:1;background:white;border:1px solid #e2e8f0;border-radius:6px;padding:8px">
+          <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:6px">JIRA — READY FOR UAT</div>
+          <div style="font-size:11px;color:#0f172a;background:#f1f5f9;border-radius:4px;padding:4px 6px;margin-bottom:4px">EO-241 Checkout Flow</div>
+          <div style="font-size:11px;color:#0f172a;background:#f1f5f9;border-radius:4px;padding:4px 6px">EO-198 Login SSO</div>
+        </div>
+        <div style="display:flex;align-items:center;color:#94a3b8;font-size:18px">→</div>
+        <div style="flex:1;background:white;border:1px solid #e2e8f0;border-radius:6px;padding:8px">
+          <div style="font-size:10px;font-weight:700;color:#64748b;margin-bottom:6px">CTT — DRAFT TASKS</div>
+          <div style="font-size:11px;color:#0f172a;background:#dbeafe;border-radius:4px;padding:4px 6px;margin-bottom:4px">Checkout Flow · Draft</div>
+          <div style="font-size:11px;color:#64748b;background:#f1f5f9;border-radius:4px;padding:4px 6px">EO-198 — pending</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Side-by-side Sync Panel</h3>
+      <p>Split panel inside "Manage Tasks": left shows Jira queue, right shows CTT tasks. Drag or click to link/create. Shows sync status — which Jira items already have a CTT task.</p>
+    </div>
+  </div>
+
+</div>

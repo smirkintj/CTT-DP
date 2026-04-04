@@ -77,6 +77,8 @@ export interface Task {
   
   // New Integration & Meta Fields
   jiraTicket?: string;
+  jiraTicketVerified?: boolean;
+  eodTicket?: string | null;
   crNumber?: string; // Change Request Number (SAP)
   developer?: string;
   scope: ScopeType;
@@ -165,6 +167,11 @@ export interface AdminProductConfig extends ProductSummary {
   isActive: boolean;
   jiraProjectKey?: string | null;
   jiraPullStatuses?: string[];
+  jiraInUatTransition?: string | null;
+  jiraReadyToDeployTransition?: string | null;
+  jiraBaseUrl?: string | null;
+  jiraEmail?: string | null;
+  jiraTokenSet?: boolean; // true if a token is stored (never expose the actual value)
   modules: Array<{ id: string; name: string; isActive: boolean }>;
   targetSystems: Array<TargetSystemSummary & { isActive: boolean }>;
 }

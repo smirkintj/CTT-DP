@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Task, Status, User, Role, TestStep, Priority, AdminProductConfig } from '../types';
+import { Task, Status, User, Role, TestStep, Priority, AdminProductConfig, JiraIssue, JiraIssueGroup } from '../types';
 import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { ArrowLeft, Send, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer, Trash2, Loader2, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Database, Image as ImageIcon, Link as LinkIcon, User as UserIcon, Rocket, Globe, Calendar, Lock, PenTool, Monitor, FileText, ExternalLink, X, Printer, Trash2, Loader2, ShieldCheck } from 'lucide-react';
 import { apiFetch } from '../lib/http';
 import { notify } from '../lib/notify';
 import { ApiError } from '../lib/http';
-import { isValidJiraTicket, normalizeJiraTicketInput } from '../lib/taskValidation';
+import { isValidJiraTicket, normalizeEodTicketInput, normalizeJiraTicketInput } from '../lib/taskValidation';
 import { resolveMentionUserIds } from '../lib/mentions';
 
 interface TaskDetailProps {
@@ -178,6 +178,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     title: task.title ?? '',
     description: task.description ?? '',
     jiraTicket: task.jiraTicket ?? '',
+    eodTicket: task.eodTicket ?? '',
     crNumber: task.crNumber ?? '',
     developer: task.developer ?? '',
     dueDate: toDateInputValue(task.dueDate),
@@ -221,6 +222,14 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     [currentUser.id, task.id]
   );
   
+  // Jira typeahead state
+  const [jiraIssues, setJiraIssues] = useState<JiraIssue[]>([]);
+  const [jiraDropdownOpen, setJiraDropdownOpen] = useState(false);
+  const [jiraBrowseOpen, setJiraBrowseOpen] = useState(false);
+  const [jiraLoadingIssues, setJiraLoadingIssues] = useState(false);
+  const [jiraTicketLinked, setJiraTicketLinked] = useState(task.jiraTicketVerified ?? false);
+  const jiraDropdownRef = useRef<HTMLDivElement>(null);
+
   // Signature State
   const [signatureData, setSignatureData] = useState<string | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -780,6 +789,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
           title: trimmedTitle,
           description: taskEdits.description,
           jiraTicket: normalizedTicket,
+          jiraTicketVerified: jiraTicketLinked && Boolean(normalizedTicket),
+          eodTicket: normalizeEodTicketInput(taskEdits.eodTicket) || null,
           crNumber: taskEdits.crNumber,
           developer: taskEdits.developer,
           dueDate: fromDateInputValue(taskEdits.dueDate),
@@ -809,6 +820,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
         title: safeUpdated.title ?? '',
         description: safeUpdated.description ?? '',
         jiraTicket: safeUpdated.jiraTicket ?? '',
+        eodTicket: safeUpdated.eodTicket ?? '',
         crNumber: safeUpdated.crNumber ?? '',
         developer: safeUpdated.developer ?? '',
         dueDate: toDateInputValue(safeUpdated.dueDate),
@@ -970,6 +982,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       title: safe.title ?? '',
       description: safe.description ?? '',
       jiraTicket: safe.jiraTicket ?? '',
+      eodTicket: safe.eodTicket ?? '',
       crNumber: safe.crNumber ?? '',
       developer: safe.developer ?? '',
       dueDate: toDateInputValue(safe.dueDate),
@@ -1123,6 +1136,31 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     setConditionalReasonInputs(next);
   }, [localTask.id, localTask.steps]);
 
+  useEffect(() => {
+    if (!canEditTaskMeta || !localTask.productId) return;
+    let cancelled = false;
+    setJiraLoadingIssues(true);
+    apiFetch<{ configured: boolean; groups: JiraIssueGroup[] }>('/api/admin/jira-intake')
+      .then(data => {
+        if (cancelled) return;
+        const group = data.groups.find(g => g.productId === localTask.productId);
+        setJiraIssues(group?.issues ?? []);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setJiraLoadingIssues(false); });
+    return () => { cancelled = true; };
+  }, [canEditTaskMeta, localTask.productId]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (jiraDropdownRef.current && !jiraDropdownRef.current.contains(e.target as Node)) {
+        setJiraDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   return (
     <div className="max-w-5xl mx-auto animate-fade-in pb-20 print:p-0 print:max-w-none">
       
@@ -1244,34 +1282,140 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
               <div>
                 <span className="text-xs text-slate-400 block mb-1">Jira Ticket</span>
                 {canEditTaskMeta ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
-                      value={taskEdits.jiraTicket}
-                      onChange={(e) => setTaskEdits({ ...taskEdits, jiraTicket: e.target.value })}
-                      placeholder="e.g. 3198 or EO-3198"
-                    />
-                    {taskEdits.jiraTicket && (
-                      <a
-                        href={getJiraUrl(taskEdits.jiraTicket)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="h-9 w-9 shrink-0 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-blue-600 hover:text-blue-700 hover:border-slate-300 transition-colors"
-                        title={`Open ${normalizeJiraTicketInput(taskEdits.jiraTicket)}`}
-                        aria-label={`Open Jira ticket ${normalizeJiraTicketInput(taskEdits.jiraTicket)}`}
-                      >
-                        <LinkIcon size={14} />
-                      </a>
+                  <div className="relative space-y-1.5" ref={jiraDropdownRef}>
+                    {/* Input with inline action icons */}
+                    <div className="relative">
+                      <input
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2 pl-3 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                        style={{ paddingRight: taskEdits.jiraTicket || jiraIssues.length > 0 ? '4.5rem' : '0.75rem' }}
+                        value={taskEdits.jiraTicket}
+                        autoComplete="off"
+                        onChange={(e) => {
+                          setTaskEdits({ ...taskEdits, jiraTicket: e.target.value });
+                          setJiraTicketLinked(false);
+                          setJiraDropdownOpen(e.target.value.length > 0 && jiraIssues.length > 0);
+                        }}
+                        onFocus={() => {
+                          if (taskEdits.jiraTicket.length > 0 && jiraIssues.length > 0) setJiraDropdownOpen(true);
+                        }}
+                        placeholder="e.g. 3198 or EO-3198"
+                      />
+                      {/* Inline suffix icons */}
+                      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                        {jiraLoadingIssues && (
+                          <svg className="animate-spin w-3.5 h-3.5 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                          </svg>
+                        )}
+                        {taskEdits.jiraTicket && (
+                          <a
+                            href={getJiraUrl(taskEdits.jiraTicket)}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={`Open ${normalizeJiraTicketInput(taskEdits.jiraTicket)}`}
+                            className="h-7 w-7 inline-flex items-center justify-center rounded-lg text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                          >
+                            <LinkIcon size={13} />
+                          </a>
+                        )}
+                        {!jiraLoadingIssues && jiraIssues.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setJiraBrowseOpen(true)}
+                            className="h-7 px-2 rounded-lg text-[11px] font-medium text-slate-500 hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                          >
+                            Browse
+                          </button>
+                        )}
+                      </div>
+                      {/* Typeahead dropdown */}
+                      {jiraDropdownOpen && (() => {
+                        const q = taskEdits.jiraTicket.toLowerCase();
+                        const filtered = jiraIssues.filter(i => i.key.toLowerCase().includes(q) || i.summary.toLowerCase().includes(q)).slice(0, 6);
+                        if (filtered.length === 0) return null;
+                        return (
+                          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white rounded-lg border border-slate-200 shadow-lg overflow-hidden">
+                            {filtered.map(issue => (
+                              <button
+                                key={issue.key}
+                                type="button"
+                                className="w-full text-left px-3 py-2.5 hover:bg-brand-50 transition-colors flex items-start gap-2 border-b border-slate-50 last:border-0"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => {
+                                  setTaskEdits(prev => ({ ...prev, jiraTicket: issue.key }));
+                                  setJiraTicketLinked(true);
+                                  setJiraDropdownOpen(false);
+                                }}
+                              >
+                                <span className="text-xs font-mono font-semibold text-brand-600 shrink-0 mt-0.5">{issue.key}</span>
+                                <span className="text-sm text-slate-700 line-clamp-1">{issue.summary}</span>
+                                {issue.status && <span className="ml-auto text-[10px] text-slate-400 shrink-0 mt-0.5">{issue.status}</span>}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    {/* Linked badge below input */}
+                    {jiraTicketLinked && (
+                      <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                        <CheckCircle2 size={12} /> Linked to Jira
+                      </span>
                     )}
                   </div>
                 ) : localTask.jiraTicket ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <a
+                      href={getJiraUrl(localTask.jiraTicket)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      <LinkIcon size={12}/> {normalizeJiraTicketInput(localTask.jiraTicket)}
+                    </a>
+                    {localTask.jiraTicketVerified && (
+                      <span className="inline-flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full font-medium">
+                        <CheckCircle size={11} /> Linked
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-sm text-slate-500">N/A</span>
+                )}
+              </div>
+              <div>
+                <span className="text-xs text-slate-400 block mb-1">EOD Ticket</span>
+                {canEditTaskMeta ? (
+                  <div className="relative">
+                    <input
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2 pl-3 text-sm text-slate-800 focus:bg-white focus:border-slate-300 focus:ring-0 transition-colors"
+                      style={{ paddingRight: taskEdits.eodTicket ? '2.25rem' : '0.75rem' }}
+                      value={taskEdits.eodTicket}
+                      autoComplete="off"
+                      placeholder="e.g. 42 or EOD-42"
+                      onChange={(e) => setTaskEdits({ ...taskEdits, eodTicket: e.target.value })}
+                    />
+                    {taskEdits.eodTicket && (
+                      <a
+                        href={`https://dkshdigital.atlassian.net/browse/${normalizeEodTicketInput(taskEdits.eodTicket)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={`Open ${normalizeEodTicketInput(taskEdits.eodTicket)}`}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 inline-flex items-center justify-center rounded-lg text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                      >
+                        <LinkIcon size={13} />
+                      </a>
+                    )}
+                  </div>
+                ) : localTask.eodTicket ? (
                   <a
-                    href={getJiraUrl(localTask.jiraTicket)}
+                    href={`https://dkshdigital.atlassian.net/browse/${normalizeEodTicketInput(localTask.eodTicket)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:underline"
                   >
-                    <LinkIcon size={12}/> {normalizeJiraTicketInput(localTask.jiraTicket)}
+                    <LinkIcon size={12} /> {normalizeEodTicketInput(localTask.eodTicket)}
                   </a>
                 ) : (
                   <span className="text-sm text-slate-500">N/A</span>
@@ -2046,6 +2190,56 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
           await action();
         }}
       />
+
+      {/* Jira Browse Modal */}
+      {jiraBrowseOpen && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/60 flex items-center justify-center p-4 print:hidden" onClick={() => setJiraBrowseOpen(false)}>
+          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Browse Jira Tickets</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{jiraIssues.length} ticket{jiraIssues.length !== 1 ? 's' : ''} available</p>
+              </div>
+              <button type="button" onClick={() => setJiraBrowseOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-4 max-h-[60vh] overflow-y-auto">
+              {jiraIssues.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-8">No tickets available</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {jiraIssues.map(issue => {
+                    const isSelected = taskEdits.jiraTicket === issue.key;
+                    return (
+                      <button
+                        key={issue.key}
+                        type="button"
+                        onClick={() => {
+                          setTaskEdits(prev => ({ ...prev, jiraTicket: issue.key }));
+                          setJiraTicketLinked(true);
+                          setJiraBrowseOpen(false);
+                        }}
+                        className={`text-left p-3 rounded-xl border-2 transition-all hover:shadow-md flex flex-col gap-1.5 ${
+                          isSelected ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white hover:border-brand-300'
+                        }`}
+                      >
+                        <span className="text-xs font-mono font-bold text-brand-600">{issue.key}</span>
+                        <span className="text-sm font-medium text-slate-800 line-clamp-2 leading-snug">{issue.summary}</span>
+                        <div className="flex items-center gap-1.5 mt-auto flex-wrap">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">{issue.status}</span>
+                          {issue.priority && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium">{issue.priority}</span>}
+                        </div>
+                        {issue.assigneeName && <span className="text-[10px] text-slate-400 truncate">{issue.assigneeName}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Deployment Modal */}
       {deploymentModalOpen && (
