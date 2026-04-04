@@ -1,0 +1,1 @@
+ALTER TABLE "Task" ADD COLUMN "jiraTicketVerified" BOOLEAN NOT NULL DEFAULT false;

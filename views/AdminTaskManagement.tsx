@@ -911,6 +911,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
           description: newTask.description,
           productId: newTask.productId,
           jiraTicket: normalizedJira || undefined,
+          jiraTicketVerified: jiraTicketLinked && Boolean(normalizedJira),
           featureModule: newTask.featureModule,
           module: newTask.featureModule,
           targetSystemId: newTask.targetSystemId,

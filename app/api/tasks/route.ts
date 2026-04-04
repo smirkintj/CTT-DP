@@ -132,6 +132,7 @@ export async function POST(req: Request) {
   const moduleName = body?.module?.toString().trim() || body?.featureModule?.toString().trim() || 'General';
   const targetSystemId = body?.targetSystemId?.toString().trim() || null;
   const jiraTicket = body?.jiraTicket?.toString().trim() || null;
+  const jiraTicketVerified = typeof body?.jiraTicketVerified === 'boolean' ? body.jiraTicketVerified : false;
   const crNumber = body?.crNumber?.toString().trim() || null;
   const developer = body?.developer?.toString().trim() || null;
   const dueDateRaw = body?.dueDate as string | undefined;
@@ -269,6 +270,7 @@ export async function POST(req: Request) {
         title,
         description,
         jiraTicket,
+        jiraTicketVerified,
         crNumber,
         developer,
         productId,

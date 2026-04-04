@@ -291,6 +291,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     title: body?.title ?? undefined,
     description: body?.description ?? undefined,
     jiraTicket: body?.jiraTicket ?? undefined,
+    jiraTicketVerified: Object.prototype.hasOwnProperty.call(body ?? {}, 'jiraTicket')
+      ? (typeof body?.jiraTicketVerified === 'boolean' ? body.jiraTicketVerified : false)
+      : undefined,
     crNumber: body?.crNumber ?? undefined,
     dueDate: hasValidDueDate ? nextDueDate : undefined,
     priority: body?.priority ?? undefined,
@@ -315,6 +318,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   if (Object.prototype.hasOwnProperty.call(body ?? {}, 'jiraTicket')) {
     globalData.jiraTicket = body?.jiraTicket ?? undefined;
+    globalData.jiraTicketVerified = typeof body?.jiraTicketVerified === 'boolean' ? body.jiraTicketVerified : false;
   }
   if (Object.prototype.hasOwnProperty.call(body ?? {}, 'crNumber')) {
     globalData.crNumber = body?.crNumber ?? undefined;

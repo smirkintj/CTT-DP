@@ -161,8 +161,9 @@ model Task {
   taskGroupId String?
   title       String
   description String?
-  jiraTicket  String?
-  crNumber    String?
+  jiraTicket          String?
+  jiraTicketVerified  Boolean  @default(false)
+  crNumber            String?
   developer   String?
   status      TaskStatus
   priority    TaskPriority

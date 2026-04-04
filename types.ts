@@ -77,6 +77,7 @@ export interface Task {
   
   // New Integration & Meta Fields
   jiraTicket?: string;
+  jiraTicketVerified?: boolean;
   crNumber?: string; // Change Request Number (SAP)
   developer?: string;
   scope: ScopeType;
