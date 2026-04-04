@@ -149,6 +149,9 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     };
   };
 
+  const onJiraPrefillConsumedRef = useRef(onJiraPrefillConsumed);
+  onJiraPrefillConsumedRef.current = onJiraPrefillConsumed;
+
   useEffect(() => {
     if (!jiraPrefill) return;
     if (products.length === 0) return;
@@ -165,9 +168,10 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
       title: jiraPrefill.title,
       description: jiraPrefill.description
     });
+    setJiraTicketLinked(Boolean(jiraPrefill.jiraTicket));
     setIsModalOpen(true);
-    onJiraPrefillConsumed?.();
-  }, [jiraPrefill, products, onJiraPrefillConsumed]);
+    onJiraPrefillConsumedRef.current?.();
+  }, [jiraPrefill, products]);
 
   useEffect(() => {
     if (!isModalOpen || !newTask.productId) {

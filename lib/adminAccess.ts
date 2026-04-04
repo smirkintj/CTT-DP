@@ -6,12 +6,20 @@ export type AdminProductScope = {
 };
 
 export async function getAdminProductScope(userId: string): Promise<AdminProductScope> {
-  const accesses = await prisma.userProductAccess.findMany({
-    where: { userId },
-    select: { productId: true }
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      role: true,
+      productAccesses: { select: { productId: true } }
+    }
   });
 
-  const productIds = accesses.map((access) => access.productId);
+  // Admins are never restricted — they can access all products
+  if (!user || user.role === 'ADMIN') {
+    return { restricted: false, productIds: [] };
+  }
+
+  const productIds = user.productAccesses.map((a) => a.productId);
   return {
     restricted: productIds.length > 0,
     productIds
