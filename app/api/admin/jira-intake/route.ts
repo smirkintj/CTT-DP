@@ -3,7 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { forbidden, unauthorized } from '@/lib/apiError';
-import { isJiraConfigured, searchJiraIssues, resolveJiraCredentials } from '@/lib/jira';
+import { isJiraConfigured, searchJiraIssues, resolveJiraCredentials, fetchJiraIssueComments } from '@/lib/jira';
+import { extractAdfText, isSitCompleteComment } from '@/lib/sitDetection';
 import { decryptField } from '@/lib/encrypt';
 
 const statusMap: Record<string, string> = {
@@ -108,6 +109,7 @@ export async function GET() {
               jiraTicket: true,
               status: true,
               countryCode: true,
+              sitSignedOffAt: true,
               product: { select: { name: true } }
             },
             orderBy: [{ updatedAt: 'desc' }]
@@ -120,6 +122,7 @@ export async function GET() {
         status: string;
         countryCode: string;
         productName: string;
+        sitSignedOffAt: string | null;
       }>>();
 
       for (const task of linkedTasks) {
@@ -131,9 +134,30 @@ export async function GET() {
           title: task.title,
           status: statusMap[task.status] || task.status,
           countryCode: task.countryCode,
-          productName: task.product.name
+          productName: task.product.name,
+          sitSignedOffAt: task.sitSignedOffAt ? task.sitSignedOffAt.toISOString() : null
         });
       }
+
+      // For issues that have linked tasks, check Jira comments for SIT sign-off
+      const linkedKeys = issues.filter((i) => (linkedTaskMap.get(i.key) ?? []).length > 0).map((i) => i.key);
+      const sitMap = new Map<string, { comment: string; author: string; date: string }>();
+
+      await Promise.all(
+        linkedKeys.map(async (key) => {
+          const tasks = linkedTaskMap.get(key) ?? [];
+          // Skip if already acknowledged by all linked tasks
+          if (tasks.every((t) => t.sitSignedOffAt)) return;
+          const comments = await fetchJiraIssueComments(key, perProduct);
+          for (const c of comments) {
+            const text = extractAdfText(c.body);
+            if (isSitCompleteComment(text)) {
+              sitMap.set(key, { comment: text.trim().slice(0, 300), author: c.authorName, date: c.created });
+              break; // first match is enough
+            }
+          }
+        })
+      );
 
       return {
         productId: product.id,
@@ -141,13 +165,20 @@ export async function GET() {
         productSlug: product.slug,
         projectKey: product.jiraProjectKey,
         statuses: product.jiraPullStatuses,
-        issues: issues.map((issue) => ({
-          ...issue,
-          productId: product.id,
-          productName: product.name,
-          projectKey: product.jiraProjectKey!,
-          linkedTasks: linkedTaskMap.get(issue.key) || []
-        }))
+        issues: issues.map((issue) => {
+          const sit = sitMap.get(issue.key);
+          return {
+            ...issue,
+            productId: product.id,
+            productName: product.name,
+            projectKey: product.jiraProjectKey!,
+            linkedTasks: linkedTaskMap.get(issue.key) || [],
+            sitComplete: !!sit,
+            sitComment: sit?.comment ?? null,
+            sitAuthor: sit?.author ?? null,
+            sitDate: sit?.date ?? null
+          };
+        })
       };
     })
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ExternalLink, Loader2, Plus, Search, Sparkles } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, Plus, Search, Sparkles } from 'lucide-react';
 import { JiraIssueGroup, JiraTaskPrefill, User } from '../types';
 import { apiFetch, ApiError } from '../lib/http';
 
@@ -9,6 +9,7 @@ interface AdminJiraIntakeProps {
   currentUser: User;
   onOpenTask: (taskId: string) => void;
   onCreateTask: (prefill: JiraTaskPrefill) => void;
+  onSitPendingCount?: (count: number) => void;
 }
 
 type JiraIntakeResponse = {
@@ -161,12 +162,14 @@ function IssueCard({
   animDelay,
   onOpenTask,
   onCreateTask,
+  onAcknowledgeSit,
 }: {
   issue: JiraIssueGroup['issues'][number];
   accentIdx: number;
   animDelay: number;
   onOpenTask: (id: string) => void;
   onCreateTask: (issue: JiraIssueGroup['issues'][number]) => void;
+  onAcknowledgeSit: (issue: JiraIssueGroup['issues'][number]) => void;
 }) {
   const acc = CARD_ACCENTS[accentIdx % CARD_ACCENTS.length];
   return (
@@ -220,6 +223,37 @@ function IssueCard({
             <p>Assignee: {issue.assigneeName || 'Unassigned'}</p>
           </div>
 
+          {/* SIT sign-off detection */}
+          {issue.sitComplete && (
+            <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-emerald-300">
+                    <CheckCircle2 size={11} /> SIT Sign-off Detected
+                  </p>
+                  {issue.sitComment && (
+                    <p className="mt-1 line-clamp-2 text-[11px] text-emerald-100/70">"{issue.sitComment}"</p>
+                  )}
+                  {issue.sitAuthor && (
+                    <p className="mt-0.5 text-[10px] text-emerald-200/50">— {issue.sitAuthor}{issue.sitDate ? `, ${new Date(issue.sitDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}` : ''}</p>
+                  )}
+                </div>
+              </div>
+              {issue.linkedTasks.some((t) => !t.sitSignedOffAt) && (
+                <button
+                  type="button"
+                  onClick={() => onAcknowledgeSit(issue)}
+                  className="mt-2 w-full rounded-lg bg-emerald-400/20 px-3 py-1.5 text-[11px] font-semibold text-emerald-200 transition hover:bg-emerald-400/30"
+                >
+                  Acknowledge SIT ✓
+                </button>
+              )}
+              {issue.linkedTasks.length > 0 && issue.linkedTasks.every((t) => t.sitSignedOffAt) && (
+                <p className="mt-2 text-center text-[10px] text-emerald-300/60">All tasks acknowledged</p>
+              )}
+            </div>
+          )}
+
           {/* Linked CTT tasks — replaces CTA when linked */}
           {issue.linkedTasks.length > 0 ? (
             <div className="mt-4 flex flex-col gap-1.5">
@@ -262,7 +296,7 @@ const ORB_CLASSES = [
   'from-teal-400 to-cyan-700 shadow-[0_0_24px_rgba(20,184,166,0.4)]',
 ];
 
-export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, onOpenTask, onCreateTask }) => {
+export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, onOpenTask, onCreateTask, onSitPendingCount }) => {
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -278,8 +312,17 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
       try {
         const data = await apiFetch<JiraIntakeResponse>('/api/admin/jira-intake');
         setConfigured(data.configured);
-        setGroups(Array.isArray(data.groups) ? data.groups : []);
+        const loadedGroups = Array.isArray(data.groups) ? data.groups : [];
+        setGroups(loadedGroups);
         if (!data.configured && data.error) setPageError(data.error);
+        // Count issues with unacknowledged SIT sign-offs
+        const pending = loadedGroups.reduce((acc, g) => {
+          if (!('issues' in g)) return acc;
+          return acc + (g as { issues: Array<{ sitComplete?: boolean; linkedTasks: Array<{ sitSignedOffAt?: string | null }> }> }).issues.filter(
+            (i) => i.sitComplete && (i.linkedTasks ?? []).some((t) => !t.sitSignedOffAt)
+          ).length;
+        }, 0);
+        onSitPendingCount?.(pending);
       } catch (error) {
         setPageError(error instanceof ApiError ? error.message : 'Failed to load Jira intake');
       } finally {
@@ -306,6 +349,33 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
 
   const handleCreateFromIssue = (issue: JiraIssueGroup['issues'][number]) => {
     onCreateTask({ jiraTicket: issue.key, title: issue.summary, description: `Imported from Jira ${issue.key}`, productId: issue.productId, productName: issue.productName });
+  };
+
+  const handleAcknowledgeSit = async (issue: JiraIssueGroup['issues'][number]) => {
+    try {
+      await apiFetch('/api/admin/sit-acknowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jiraTicket: issue.key, sitComment: issue.sitComment })
+      });
+      // Optimistically update: mark all linked tasks as signed off
+      setGroups((prev) =>
+        prev.map((g) => ({
+          ...g,
+          issues: g.issues.map((i) =>
+            i.key !== issue.key ? i : {
+              ...i,
+              linkedTasks: i.linkedTasks.map((t) => ({
+                ...t,
+                sitSignedOffAt: t.sitSignedOffAt ?? new Date().toISOString()
+              }))
+            }
+          )
+        }))
+      );
+    } catch {
+      // silently ignore — user can retry on next load
+    }
   };
 
   // Track global card index for accent cycling
@@ -424,6 +494,7 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
                             animDelay={idx * 60}
                             onOpenTask={onOpenTask}
                             onCreateTask={handleCreateFromIssue}
+                            onAcknowledgeSit={handleAcknowledgeSit}
                           />
                         );
                       })}

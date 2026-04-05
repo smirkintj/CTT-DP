@@ -183,6 +183,8 @@ model Task {
   signedOffAt DateTime?
   signedOffById String?
   signatureData String?
+  sitSignedOffAt DateTime?
+  sitComment     String?
 
   country      Country       @relation(fields: [countryCode], references: [code])
   product      Product       @relation(fields: [productId], references: [id])

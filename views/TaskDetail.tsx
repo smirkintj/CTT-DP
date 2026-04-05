@@ -1462,6 +1462,18 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
                   </span>
                 )}
               </div>
+              {localTask.sitSignedOffAt && (
+                <div>
+                  <span className="text-xs text-slate-400 block mb-1">SIT Sign-off</span>
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
+                    <CheckCircle size={11} />
+                    {new Date(localTask.sitSignedOffAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                  </span>
+                  {localTask.sitComment && (
+                    <p className="mt-1 text-xs text-slate-400 line-clamp-2" title={localTask.sitComment}>"{localTask.sitComment}"</p>
+                  )}
+                </div>
+              )}
               <div>
                 <span className="text-xs text-slate-400 block mb-1">Priority</span>
                 {canEditTaskMeta ? (

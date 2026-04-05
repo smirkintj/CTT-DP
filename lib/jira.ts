@@ -62,6 +62,30 @@ export async function transitionJiraIssue(
   }
 }
 
+export async function fetchJiraIssueComments(
+  issueKey: string,
+  perProduct?: Partial<JiraCredentials> | null
+): Promise<Array<{ id: string; body: unknown; authorName: string; created: string }>> {
+  const creds = resolveJiraCredentials(perProduct);
+  if (!creds) return [];
+  try {
+    const res = await fetch(
+      `${creds.baseUrl}/rest/api/3/issue/${issueKey}/comment?maxResults=20&orderBy=-created`,
+      { headers: { Authorization: makeAuthHeader(creds), Accept: 'application/json' } }
+    );
+    if (!res.ok) return [];
+    const payload = (await res.json()) as { comments?: Array<{ id: string; body: unknown; author?: { displayName?: string }; created: string }> };
+    return (payload.comments ?? []).map((c) => ({
+      id: c.id,
+      body: c.body,
+      authorName: c.author?.displayName ?? 'Unknown',
+      created: c.created
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export async function searchJiraIssues(
   input: {
     projectKey: string;

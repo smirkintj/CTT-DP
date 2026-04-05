@@ -11,9 +11,10 @@ interface LayoutProps {
   onLogout: () => void;
   onNavigate: (view: any) => void;
   currentView: string;
+  jiraQueueBadge?: number;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout, onNavigate, currentView }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout, onNavigate, currentView, jiraQueueBadge }) => {
   const router = useRouter();
   const isAdmin = currentUser.role === Role.ADMIN;
   const [showNotifications, setShowNotifications] = useState(false);
@@ -148,6 +149,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                       icon={<Sparkles size={16} />}
                       label="JIRA Queue"
                       onClick={() => onNavigate('ADMIN_JIRA_INTAKE')}
+                      badge={jiraQueueBadge}
                     />
                     <NavItem
                       active={currentView === 'ADMIN_DATABASE'}
@@ -296,16 +298,21 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   );
 };
 
-const NavItem: React.FC<{ active: boolean; icon: React.ReactNode; label: string; onClick: () => void }> = ({ active, icon, label, onClick }) => (
-  <button 
+const NavItem: React.FC<{ active: boolean; icon: React.ReactNode; label: string; onClick: () => void; badge?: number }> = ({ active, icon, label, onClick, badge }) => (
+  <button
     onClick={onClick}
-    className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
-      active 
-        ? 'bg-slate-100 text-brand-600' 
+    className={`relative flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+      active
+        ? 'bg-slate-100 text-brand-600'
         : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
     }`}
   >
     {icon}
     {label}
+    {badge != null && badge > 0 && (
+      <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white">
+        {badge}
+      </span>
+    )}
   </button>
 );

@@ -79,6 +79,8 @@ export interface Task {
   jiraTicket?: string;
   jiraTicketVerified?: boolean;
   eodTicket?: string | null;
+  sitSignedOffAt?: string | null;
+  sitComment?: string | null;
   crNumber?: string; // Change Request Number (SAP)
   developer?: string;
   scope: ScopeType;
@@ -182,6 +184,7 @@ export interface JiraLinkedTaskSummary {
   status: Status;
   countryCode: string;
   productName: string;
+  sitSignedOffAt?: string | null;
 }
 
 export interface JiraIssue {
@@ -195,6 +198,10 @@ export interface JiraIssue {
   productName: string;
   projectKey: string;
   linkedTasks: JiraLinkedTaskSummary[];
+  sitComplete: boolean;
+  sitComment: string | null;
+  sitAuthor: string | null;
+  sitDate: string | null;
 }
 
 export interface JiraIssueGroup {
