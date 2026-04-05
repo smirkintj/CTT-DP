@@ -109,7 +109,7 @@ export async function searchJiraIssues(
   if (statuses.length === 0) return [];
 
   const statusClause = statuses.map((status) => `"${status.replace(/"/g, '\\"')}"`).join(', ');
-  const jql = `project = "${input.projectKey}" AND status in (${statusClause}) ORDER BY updated DESC`;
+  const jql = `project = "${input.projectKey}" AND status in (${statusClause}) AND issuetype not in ("Bug", "Defect", "Sub-task", "Subtask") ORDER BY updated DESC`;
   const response = await fetch(`${creds.baseUrl}/rest/api/3/search/jql`, {
     method: 'POST',
     headers: {
