@@ -176,7 +176,10 @@ function IssueCard({
     <article
       className="relative flex flex-col overflow-hidden rounded-[20px] p-[1px] transition-transform duration-200 hover:-translate-y-1"
       style={{
-        flex: '1 1 240px',
+        display: 'inline-block',
+        width: '100%',
+        marginBottom: '1rem',
+        breakInside: 'avoid',
         background: `linear-gradient(135deg, ${acc.border}, rgba(255,255,255,0.04))`,
         animation: `ji-fadein 0.45s ease both`,
         animationDelay: `${animDelay}ms`,
@@ -482,7 +485,7 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
                   ) : group.issues.length === 0 ? (
                     <div className="rounded-2xl border border-white/8 bg-white/4 p-5 text-sm text-slate-400">No items returned for this product.</div>
                   ) : (
-                    <div className="flex flex-wrap items-start gap-4">
+                    <div style={{ columns: '280px', columnGap: '1rem' }}>
                       {group.issues.map((issue) => {
                         const idx = globalCardIdx++;
                         return (
