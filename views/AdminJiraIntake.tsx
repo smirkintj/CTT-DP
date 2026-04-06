@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ExternalLink, Loader2, Plus, Search, Sparkles } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, Plus, Search, Sparkles } from 'lucide-react';
 import { JiraIssueGroup, JiraTaskPrefill, User } from '../types';
 import { apiFetch, ApiError } from '../lib/http';
 
@@ -9,6 +9,7 @@ interface AdminJiraIntakeProps {
   currentUser: User;
   onOpenTask: (taskId: string) => void;
   onCreateTask: (prefill: JiraTaskPrefill) => void;
+  onSitPendingCount?: (count: number) => void;
 }
 
 type JiraIntakeResponse = {
@@ -159,22 +160,30 @@ function IssueCard({
   issue,
   accentIdx,
   animDelay,
+  isAcknowledged,
   onOpenTask,
   onCreateTask,
+  onAcknowledgeSit,
 }: {
   issue: JiraIssueGroup['issues'][number];
   accentIdx: number;
   animDelay: number;
+  isAcknowledged: boolean;
   onOpenTask: (id: string) => void;
   onCreateTask: (issue: JiraIssueGroup['issues'][number]) => void;
+  onAcknowledgeSit: (issue: JiraIssueGroup['issues'][number]) => void;
 }) {
   const acc = CARD_ACCENTS[accentIdx % CARD_ACCENTS.length];
+  const allLinkedAcknowledged = issue.linkedTasks.length > 0 && issue.linkedTasks.every((t) => t.sitSignedOffAt);
+  const sitDone = isAcknowledged || allLinkedAcknowledged;
   return (
     <article
       className="relative flex flex-col overflow-hidden rounded-[20px] p-[1px] transition-transform duration-200 hover:-translate-y-1"
       style={{
-        flex: '1 1 240px',
-        minHeight: 220,
+        display: 'inline-block',
+        width: '100%',
+        marginBottom: '1rem',
+        breakInside: 'avoid',
         background: `linear-gradient(135deg, ${acc.border}, rgba(255,255,255,0.04))`,
         animation: `ji-fadein 0.45s ease both`,
         animationDelay: `${animDelay}ms`,
@@ -195,9 +204,18 @@ function IssueCard({
 
         {/* Content */}
         <div className="relative z-10 flex h-full flex-col">
-          {/* Header row: key + linked badge */}
+          {/* Header row: key pill + linked badge */}
           <div className="flex items-center justify-between gap-2">
-            <div className={`text-[11px] font-black tracking-[0.2em] ${acc.id}`}>{issue.key}</div>
+            <a
+              href={issue.jiraBaseUrl ? `${issue.jiraBaseUrl}/browse/${issue.key}` : '#'}
+              target="_blank"
+              rel="noreferrer"
+              className={`group inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/6 px-2.5 py-1 transition hover:border-white/25 hover:bg-white/12 ${acc.id}`}
+              title={`Open ${issue.key} in Jira`}
+            >
+              <span className="text-[11px] font-black tracking-[0.18em]">{issue.key}</span>
+              <ExternalLink size={9} className="opacity-40 transition group-hover:opacity-80" />
+            </a>
             {issue.linkedTasks.length > 0 && (
               <span className="rounded-full border border-amber-300/25 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
                 {issue.linkedTasks.length} linked
@@ -219,6 +237,53 @@ function IssueCard({
             <p>Updated: {formatDate(issue.updatedAt)}</p>
             <p>Assignee: {issue.assigneeName || 'Unassigned'}</p>
           </div>
+
+          {/* SIT sign-off detection */}
+          {issue.sitComplete && (() => {
+            const commentUrl = issue.jiraBaseUrl && issue.sitCommentId
+              ? `${issue.jiraBaseUrl}/browse/${issue.key}?focusedCommentId=${issue.sitCommentId}`
+              : issue.jiraBaseUrl ? `${issue.jiraBaseUrl}/browse/${issue.key}` : null;
+            return (
+              <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3">
+                <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-emerald-300">
+                  <CheckCircle2 size={11} /> SIT Sign-off Detected
+                </p>
+                {/* Clickable comment excerpt — same external-link pattern as ticket key */}
+                {issue.sitComment && (
+                  commentUrl ? (
+                    <a
+                      href={commentUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group mt-2 flex items-start gap-1.5 rounded-lg border border-emerald-400/10 bg-emerald-400/5 px-2.5 py-2 transition hover:border-emerald-400/25 hover:bg-emerald-400/10"
+                    >
+                      <span className="min-w-0 flex-1 line-clamp-3 text-[11px] leading-relaxed text-emerald-100/70">"{issue.sitComment}"</span>
+                      <ExternalLink size={9} className="mt-0.5 shrink-0 text-emerald-300/40 transition group-hover:text-emerald-300/80" />
+                    </a>
+                  ) : (
+                    <p className="mt-2 line-clamp-3 text-[11px] leading-relaxed text-emerald-100/70">"{issue.sitComment}"</p>
+                  )
+                )}
+                {issue.sitAuthor && (
+                  <p className="mt-1.5 text-[10px] text-emerald-200/40">
+                    — {issue.sitAuthor}{issue.sitDate ? `, ${new Date(issue.sitDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}` : ''}
+                  </p>
+                )}
+                {!sitDone && (
+                  <button
+                    type="button"
+                    onClick={() => onAcknowledgeSit(issue)}
+                    className="mt-2.5 w-full rounded-lg bg-emerald-400/20 px-3 py-1.5 text-[11px] font-semibold text-emerald-200 transition hover:bg-emerald-400/30"
+                  >
+                    Acknowledge SIT ✓
+                  </button>
+                )}
+                {sitDone && (
+                  <p className="mt-2 text-center text-[10px] text-emerald-300/60">✓ Acknowledged</p>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Linked CTT tasks — replaces CTA when linked */}
           {issue.linkedTasks.length > 0 ? (
@@ -262,12 +327,13 @@ const ORB_CLASSES = [
   'from-teal-400 to-cyan-700 shadow-[0_0_24px_rgba(20,184,166,0.4)]',
 ];
 
-export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, onOpenTask, onCreateTask }) => {
+export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, onOpenTask, onCreateTask, onSitPendingCount }) => {
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [groups, setGroups] = useState<JiraIssueGroup[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [localAcknowledged, setLocalAcknowledged] = useState<Set<string>>(new Set());
 
   useEffect(() => { injectStyles(); }, []);
 
@@ -278,8 +344,17 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
       try {
         const data = await apiFetch<JiraIntakeResponse>('/api/admin/jira-intake');
         setConfigured(data.configured);
-        setGroups(Array.isArray(data.groups) ? data.groups : []);
+        const loadedGroups = Array.isArray(data.groups) ? data.groups : [];
+        setGroups(loadedGroups);
         if (!data.configured && data.error) setPageError(data.error);
+        // Count issues with unacknowledged SIT sign-offs (includes tickets with no linked tasks)
+        const pending = loadedGroups.reduce((acc, g) => {
+          if (!('issues' in g)) return acc;
+          return acc + (g as { issues: Array<{ sitComplete?: boolean; key: string; linkedTasks: Array<{ sitSignedOffAt?: string | null }> }> }).issues.filter(
+            (i) => i.sitComplete && !(i.linkedTasks ?? []).every((t) => t.sitSignedOffAt)
+          ).length;
+        }, 0);
+        onSitPendingCount?.(pending);
       } catch (error) {
         setPageError(error instanceof ApiError ? error.message : 'Failed to load Jira intake');
       } finally {
@@ -306,6 +381,36 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
 
   const handleCreateFromIssue = (issue: JiraIssueGroup['issues'][number]) => {
     onCreateTask({ jiraTicket: issue.key, title: issue.summary, description: `Imported from Jira ${issue.key}`, productId: issue.productId, productName: issue.productName });
+  };
+
+  const handleAcknowledgeSit = async (issue: JiraIssueGroup['issues'][number]) => {
+    // Optimistically mark as acknowledged immediately
+    setLocalAcknowledged((prev) => new Set([...prev, issue.key]));
+    // Badge count will resync on next full reload; no inline decrement needed
+    try {
+      await apiFetch('/api/admin/sit-acknowledge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jiraTicket: issue.key, sitComment: issue.sitComment })
+      });
+      // Also update linked tasks in state so they persist across badge recalculation
+      setGroups((prev) =>
+        prev.map((g) => ({
+          ...g,
+          issues: g.issues.map((i) =>
+            i.key !== issue.key ? i : {
+              ...i,
+              linkedTasks: i.linkedTasks.map((t) => ({
+                ...t,
+                sitSignedOffAt: t.sitSignedOffAt ?? new Date().toISOString()
+              }))
+            }
+          )
+        }))
+      );
+    } catch {
+      // silently ignore — acknowledged locally, will resync on next reload
+    }
   };
 
   // Track global card index for accent cycling
@@ -413,7 +518,7 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
                   ) : group.issues.length === 0 ? (
                     <div className="rounded-2xl border border-white/8 bg-white/4 p-5 text-sm text-slate-400">No items returned for this product.</div>
                   ) : (
-                    <div className="flex flex-wrap gap-4">
+                    <div style={{ columns: '280px', columnGap: '1rem' }}>
                       {group.issues.map((issue) => {
                         const idx = globalCardIdx++;
                         return (
@@ -422,8 +527,10 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
                             issue={issue}
                             accentIdx={idx}
                             animDelay={idx * 60}
+                            isAcknowledged={localAcknowledged.has(issue.key)}
                             onOpenTask={onOpenTask}
                             onCreateTask={handleCreateFromIssue}
+                            onAcknowledgeSit={handleAcknowledgeSit}
                           />
                         );
                       })}

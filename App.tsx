@@ -153,6 +153,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [view, setView] = useState<ViewState>(initialView ?? 'LOGIN');
   const [jiraTaskPrefill, setJiraTaskPrefill] = useState<JiraTaskPrefill | null>(null);
+  const [jiraQueueBadge, setJiraQueueBadge] = useState(0);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialSelectedTaskId);
   const [selectedStepOrder, setSelectedStepOrder] = useState<number | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
@@ -735,11 +736,12 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
   return (
     <>
-    <Layout 
-      currentUser={currentUser} 
-      onLogout={handleLogout} 
-      currentView={view} 
+    <Layout
+      currentUser={currentUser}
+      onLogout={handleLogout}
+      currentView={view}
       onNavigate={handleNavigation}
+      jiraQueueBadge={jiraQueueBadge}
     >
       {view === 'DASHBOARD_STAKEHOLDER' && (
         <StakeholderDashboard 
@@ -793,6 +795,7 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
           currentUser={currentUser}
           onOpenTask={handleOpenTaskById}
           onCreateTask={handleCreateTaskFromJira}
+          onSitPendingCount={setJiraQueueBadge}
         />
       )}
 

@@ -62,6 +62,37 @@ export async function transitionJiraIssue(
   }
 }
 
+export async function fetchJiraIssueComments(
+  issueKey: string,
+  perProduct?: Partial<JiraCredentials> | null
+): Promise<Array<{ id: string; body: unknown; authorName: string; created: string }>> {
+  const creds = resolveJiraCredentials(perProduct);
+  if (!creds) return [];
+  try {
+    const res = await fetch(
+      `${creds.baseUrl}/rest/api/3/issue/${issueKey}/comment?maxResults=100`,
+      {
+        headers: { Authorization: makeAuthHeader(creds), Accept: 'application/json' },
+        cache: 'no-store'
+      }
+    );
+    if (!res.ok) {
+      console.error(`[jira] fetchComments ${issueKey} → HTTP ${res.status}`);
+      return [];
+    }
+    const payload = (await res.json()) as { comments?: Array<{ id: string; body: unknown; author?: { displayName?: string }; created: string }> };
+    return (payload.comments ?? []).map((c) => ({
+      id: c.id,
+      body: c.body,
+      authorName: c.author?.displayName ?? 'Unknown',
+      created: c.created
+    }));
+  } catch (err) {
+    console.error(`[jira] fetchComments ${issueKey} threw:`, err);
+    return [];
+  }
+}
+
 export async function searchJiraIssues(
   input: {
     projectKey: string;
@@ -85,7 +116,7 @@ export async function searchJiraIssues(
   if (statuses.length === 0) return [];
 
   const statusClause = statuses.map((status) => `"${status.replace(/"/g, '\\"')}"`).join(', ');
-  const jql = `project = "${input.projectKey}" AND status in (${statusClause}) ORDER BY updated DESC`;
+  const jql = `project = "${input.projectKey}" AND status in (${statusClause}) AND issuetype not in ("Bug", "Defect", "Sub-task", "Subtask") ORDER BY updated DESC`;
   const response = await fetch(`${creds.baseUrl}/rest/api/3/search/jql`, {
     method: 'POST',
     headers: {

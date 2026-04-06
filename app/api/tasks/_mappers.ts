@@ -63,6 +63,8 @@ export function mapTaskToUi(task: any): TaskDTO {
     targetSystemUrl: task.targetSystem?.baseUrl ?? null,
     jiraTicket: task.jiraTicket ?? null,
     eodTicket: task.eodTicket ?? null,
+    sitSignedOffAt: toIso(task.sitSignedOffAt) || null,
+    sitComment: task.sitComment ?? null,
     crNumber: task.crNumber ?? null,
     developer: task.developer ?? null,
     dueDate: toIso(task.dueDate),

@@ -37,6 +37,8 @@ export interface TaskDTO {
   targetSystemUrl?: string | null;
   jiraTicket?: string | null;
   eodTicket?: string | null;
+  sitSignedOffAt?: string | null;
+  sitComment?: string | null;
   crNumber?: string | null;
   developer?: string | null;
   dueDate: string;

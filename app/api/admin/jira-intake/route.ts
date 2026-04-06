@@ -3,7 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { forbidden, unauthorized } from '@/lib/apiError';
-import { isJiraConfigured, searchJiraIssues, resolveJiraCredentials } from '@/lib/jira';
+import { isJiraConfigured, searchJiraIssues, resolveJiraCredentials, fetchJiraIssueComments } from '@/lib/jira';
+import { extractAdfText, isSitCompleteComment } from '@/lib/sitDetection';
 import { decryptField } from '@/lib/encrypt';
 
 const statusMap: Record<string, string> = {
@@ -108,6 +109,8 @@ export async function GET() {
               jiraTicket: true,
               status: true,
               countryCode: true,
+              sitSignedOffAt: true,
+              sitComment: true,
               product: { select: { name: true } }
             },
             orderBy: [{ updatedAt: 'desc' }]
@@ -120,6 +123,8 @@ export async function GET() {
         status: string;
         countryCode: string;
         productName: string;
+        sitSignedOffAt: string | null;
+        sitComment: string | null;
       }>>();
 
       for (const task of linkedTasks) {
@@ -131,9 +136,51 @@ export async function GET() {
           title: task.title,
           status: statusMap[task.status] || task.status,
           countryCode: task.countryCode,
-          productName: task.product.name
+          productName: task.product.name,
+          sitSignedOffAt: task.sitSignedOffAt ? task.sitSignedOffAt.toISOString() : null,
+          sitComment: task.sitComment ?? null
         });
       }
+
+      // Check ALL issues for SIT sign-off comments (not just linked ones)
+      // Skip only if every linked task has already been acknowledged
+      const sitMap = new Map<string, { comment: string; commentId: string; author: string; date: string }>();
+
+      // Process comment fetches with limited concurrency (max 5) to avoid Jira rate limiting
+      const CONCURRENCY = 5;
+      const issueQueue = [...issues];
+      const workers = Array.from({ length: Math.min(CONCURRENCY, issueQueue.length) }, async () => {
+        while (issueQueue.length > 0) {
+          const issue = issueQueue.shift();
+          if (!issue) break;
+          const tasks = linkedTaskMap.get(issue.key) ?? [];
+          // If all linked tasks already acknowledged, reconstruct sitMap from stored data
+          // (no need to re-fetch Jira comments)
+          if (tasks.length > 0 && tasks.every((t) => t.sitSignedOffAt)) {
+            const stored = tasks.find(t => t.sitComment) ?? tasks[0];
+            sitMap.set(issue.key, {
+              comment: stored.sitComment ?? 'SIT sign-off acknowledged',
+              commentId: '',
+              author: '',
+              date: stored.sitSignedOffAt!
+            });
+            continue;
+          }
+          const comments = await fetchJiraIssueComments(issue.key, perProduct);
+          // Sort newest-first since Jira API returns oldest-first
+          const sorted = [...comments].sort(
+            (a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()
+          );
+          for (const c of sorted) {
+            const text = extractAdfText(c.body);
+            if (isSitCompleteComment(text)) {
+              sitMap.set(issue.key, { comment: text.trim().slice(0, 300), commentId: c.id, author: c.authorName, date: c.created });
+              break;
+            }
+          }
+        }
+      });
+      await Promise.all(workers);
 
       return {
         productId: product.id,
@@ -141,13 +188,22 @@ export async function GET() {
         productSlug: product.slug,
         projectKey: product.jiraProjectKey,
         statuses: product.jiraPullStatuses,
-        issues: issues.map((issue) => ({
-          ...issue,
-          productId: product.id,
-          productName: product.name,
-          projectKey: product.jiraProjectKey!,
-          linkedTasks: linkedTaskMap.get(issue.key) || []
-        }))
+        issues: issues.map((issue) => {
+          const sit = sitMap.get(issue.key);
+          return {
+            ...issue,
+            productId: product.id,
+            productName: product.name,
+            projectKey: product.jiraProjectKey!,
+            jiraBaseUrl: creds.baseUrl,
+            linkedTasks: linkedTaskMap.get(issue.key) || [],
+            sitComplete: !!sit,
+            sitComment: sit?.comment ?? null,
+            sitCommentId: sit?.commentId ?? null,
+            sitAuthor: sit?.author ?? null,
+            sitDate: sit?.date ?? null
+          };
+        })
       };
     })
   );
