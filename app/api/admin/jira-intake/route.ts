@@ -110,6 +110,7 @@ export async function GET() {
               status: true,
               countryCode: true,
               sitSignedOffAt: true,
+              sitComment: true,
               product: { select: { name: true } }
             },
             orderBy: [{ updatedAt: 'desc' }]
@@ -123,6 +124,7 @@ export async function GET() {
         countryCode: string;
         productName: string;
         sitSignedOffAt: string | null;
+        sitComment: string | null;
       }>>();
 
       for (const task of linkedTasks) {
@@ -135,7 +137,8 @@ export async function GET() {
           status: statusMap[task.status] || task.status,
           countryCode: task.countryCode,
           productName: task.product.name,
-          sitSignedOffAt: task.sitSignedOffAt ? task.sitSignedOffAt.toISOString() : null
+          sitSignedOffAt: task.sitSignedOffAt ? task.sitSignedOffAt.toISOString() : null,
+          sitComment: task.sitComment ?? null
         });
       }
 
@@ -151,8 +154,17 @@ export async function GET() {
           const issue = issueQueue.shift();
           if (!issue) break;
           const tasks = linkedTaskMap.get(issue.key) ?? [];
-          // Skip if all linked tasks already acknowledged
-          if (tasks.length > 0 && tasks.every((t) => t.sitSignedOffAt)) continue;
+          // If all linked tasks already acknowledged, reconstruct sitMap from stored data
+          // (no need to re-fetch Jira comments)
+          if (tasks.length > 0 && tasks.every((t) => t.sitSignedOffAt)) {
+            const stored = tasks.find(t => t.sitComment) ?? tasks[0];
+            sitMap.set(issue.key, {
+              comment: stored.sitComment ?? 'SIT sign-off acknowledged',
+              author: '',
+              date: stored.sitSignedOffAt!
+            });
+            continue;
+          }
           const comments = await fetchJiraIssueComments(issue.key, perProduct);
           // Sort newest-first since Jira API returns oldest-first
           const sorted = [...comments].sort(
