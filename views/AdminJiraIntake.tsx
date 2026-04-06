@@ -202,7 +202,15 @@ function IssueCard({
         <div className="relative z-10 flex h-full flex-col">
           {/* Header row: key + linked badge */}
           <div className="flex items-center justify-between gap-2">
-            <div className={`text-[11px] font-black tracking-[0.2em] ${acc.id}`}>{issue.key}</div>
+            <a
+              href={issue.jiraBaseUrl ? `${issue.jiraBaseUrl}/browse/${issue.key}` : '#'}
+              target="_blank"
+              rel="noreferrer"
+              className={`text-[11px] font-black tracking-[0.2em] hover:underline ${acc.id}`}
+              title={`Open ${issue.key} in Jira`}
+            >
+              {issue.key}
+            </a>
             {issue.linkedTasks.length > 0 && (
               <span className="rounded-full border border-amber-300/25 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
                 {issue.linkedTasks.length} linked

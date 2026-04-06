@@ -172,6 +172,7 @@ export async function GET() {
             productId: product.id,
             productName: product.name,
             projectKey: product.jiraProjectKey!,
+            jiraBaseUrl: creds.baseUrl,
             linkedTasks: linkedTaskMap.get(issue.key) || [],
             sitComplete: !!sit,
             sitComment: sit?.comment ?? null,

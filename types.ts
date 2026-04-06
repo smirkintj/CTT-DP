@@ -197,6 +197,7 @@ export interface JiraIssue {
   productId: string;
   productName: string;
   projectKey: string;
+  jiraBaseUrl?: string;
   linkedTasks: JiraLinkedTaskSummary[];
   sitComplete: boolean;
   sitComment: string | null;
