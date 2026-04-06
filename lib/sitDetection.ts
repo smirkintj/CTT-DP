@@ -5,9 +5,12 @@
  * Target phrase family: "SIT for this user story is completed"
  */
 
-/** Extract plain text from Jira ADF (Atlassian Document Format) body */
+/** Extract plain text from Jira ADF (Atlassian Document Format) body, or plain string */
 export function extractAdfText(node: unknown): string {
-  if (!node || typeof node !== 'object') return '';
+  if (!node) return '';
+  // Plain string body (older Jira / some configs)
+  if (typeof node === 'string') return node;
+  if (typeof node !== 'object') return '';
   const n = node as Record<string, unknown>;
   if (n.type === 'text' && typeof n.text === 'string') return n.text;
   if (Array.isArray(n.content)) {
