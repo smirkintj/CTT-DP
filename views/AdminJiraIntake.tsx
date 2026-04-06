@@ -204,16 +204,17 @@ function IssueCard({
 
         {/* Content */}
         <div className="relative z-10 flex h-full flex-col">
-          {/* Header row: key + linked badge */}
+          {/* Header row: key pill + linked badge */}
           <div className="flex items-center justify-between gap-2">
             <a
               href={issue.jiraBaseUrl ? `${issue.jiraBaseUrl}/browse/${issue.key}` : '#'}
               target="_blank"
               rel="noreferrer"
-              className={`text-[11px] font-black tracking-[0.2em] hover:underline ${acc.id}`}
+              className={`group inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/6 px-2.5 py-1 transition hover:border-white/25 hover:bg-white/12 ${acc.id}`}
               title={`Open ${issue.key} in Jira`}
             >
-              {issue.key}
+              <span className="text-[11px] font-black tracking-[0.18em]">{issue.key}</span>
+              <ExternalLink size={9} className="opacity-40 transition group-hover:opacity-80" />
             </a>
             {issue.linkedTasks.length > 0 && (
               <span className="rounded-full border border-amber-300/25 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-200">
@@ -238,35 +239,51 @@ function IssueCard({
           </div>
 
           {/* SIT sign-off detection */}
-          {issue.sitComplete && (
-            <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-emerald-300">
-                    <CheckCircle2 size={11} /> SIT Sign-off Detected
+          {issue.sitComplete && (() => {
+            const commentUrl = issue.jiraBaseUrl && issue.sitCommentId
+              ? `${issue.jiraBaseUrl}/browse/${issue.key}?focusedCommentId=${issue.sitCommentId}`
+              : issue.jiraBaseUrl ? `${issue.jiraBaseUrl}/browse/${issue.key}` : null;
+            return (
+              <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3">
+                <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-emerald-300">
+                  <CheckCircle2 size={11} /> SIT Sign-off Detected
+                </p>
+                {/* Clickable comment excerpt — same external-link pattern as ticket key */}
+                {issue.sitComment && (
+                  commentUrl ? (
+                    <a
+                      href={commentUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group mt-2 flex items-start gap-1.5 rounded-lg border border-emerald-400/10 bg-emerald-400/5 px-2.5 py-2 transition hover:border-emerald-400/25 hover:bg-emerald-400/10"
+                    >
+                      <span className="min-w-0 flex-1 line-clamp-3 text-[11px] leading-relaxed text-emerald-100/70">"{issue.sitComment}"</span>
+                      <ExternalLink size={9} className="mt-0.5 shrink-0 text-emerald-300/40 transition group-hover:text-emerald-300/80" />
+                    </a>
+                  ) : (
+                    <p className="mt-2 line-clamp-3 text-[11px] leading-relaxed text-emerald-100/70">"{issue.sitComment}"</p>
+                  )
+                )}
+                {issue.sitAuthor && (
+                  <p className="mt-1.5 text-[10px] text-emerald-200/40">
+                    — {issue.sitAuthor}{issue.sitDate ? `, ${new Date(issue.sitDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}` : ''}
                   </p>
-                  {issue.sitComment && (
-                    <p className="mt-1 line-clamp-2 text-[11px] text-emerald-100/70">"{issue.sitComment}"</p>
-                  )}
-                  {issue.sitAuthor && (
-                    <p className="mt-0.5 text-[10px] text-emerald-200/50">— {issue.sitAuthor}{issue.sitDate ? `, ${new Date(issue.sitDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}` : ''}</p>
-                  )}
-                </div>
+                )}
+                {!sitDone && (
+                  <button
+                    type="button"
+                    onClick={() => onAcknowledgeSit(issue)}
+                    className="mt-2.5 w-full rounded-lg bg-emerald-400/20 px-3 py-1.5 text-[11px] font-semibold text-emerald-200 transition hover:bg-emerald-400/30"
+                  >
+                    Acknowledge SIT ✓
+                  </button>
+                )}
+                {sitDone && (
+                  <p className="mt-2 text-center text-[10px] text-emerald-300/60">✓ Acknowledged</p>
+                )}
               </div>
-              {!sitDone && (
-                <button
-                  type="button"
-                  onClick={() => onAcknowledgeSit(issue)}
-                  className="mt-2 w-full rounded-lg bg-emerald-400/20 px-3 py-1.5 text-[11px] font-semibold text-emerald-200 transition hover:bg-emerald-400/30"
-                >
-                  Acknowledge SIT ✓
-                </button>
-              )}
-              {sitDone && (
-                <p className="mt-2 text-center text-[10px] text-emerald-300/60">✓ Acknowledged</p>
-              )}
-            </div>
-          )}
+            );
+          })()}
 
           {/* Linked CTT tasks — replaces CTA when linked */}
           {issue.linkedTasks.length > 0 ? (

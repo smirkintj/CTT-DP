@@ -144,7 +144,7 @@ export async function GET() {
 
       // Check ALL issues for SIT sign-off comments (not just linked ones)
       // Skip only if every linked task has already been acknowledged
-      const sitMap = new Map<string, { comment: string; author: string; date: string }>();
+      const sitMap = new Map<string, { comment: string; commentId: string; author: string; date: string }>();
 
       // Process comment fetches with limited concurrency (max 5) to avoid Jira rate limiting
       const CONCURRENCY = 5;
@@ -160,6 +160,7 @@ export async function GET() {
             const stored = tasks.find(t => t.sitComment) ?? tasks[0];
             sitMap.set(issue.key, {
               comment: stored.sitComment ?? 'SIT sign-off acknowledged',
+              commentId: '',
               author: '',
               date: stored.sitSignedOffAt!
             });
@@ -173,7 +174,7 @@ export async function GET() {
           for (const c of sorted) {
             const text = extractAdfText(c.body);
             if (isSitCompleteComment(text)) {
-              sitMap.set(issue.key, { comment: text.trim().slice(0, 300), author: c.authorName, date: c.created });
+              sitMap.set(issue.key, { comment: text.trim().slice(0, 300), commentId: c.id, author: c.authorName, date: c.created });
               break;
             }
           }
@@ -198,6 +199,7 @@ export async function GET() {
             linkedTasks: linkedTaskMap.get(issue.key) || [],
             sitComplete: !!sit,
             sitComment: sit?.comment ?? null,
+            sitCommentId: sit?.commentId ?? null,
             sitAuthor: sit?.author ?? null,
             sitDate: sit?.date ?? null
           };

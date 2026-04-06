@@ -201,6 +201,7 @@ export interface JiraIssue {
   linkedTasks: JiraLinkedTaskSummary[];
   sitComplete: boolean;
   sitComment: string | null;
+  sitCommentId: string | null;
   sitAuthor: string | null;
   sitDate: string | null;
 }
