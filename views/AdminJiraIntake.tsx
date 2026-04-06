@@ -160,6 +160,7 @@ function IssueCard({
   issue,
   accentIdx,
   animDelay,
+  isAcknowledged,
   onOpenTask,
   onCreateTask,
   onAcknowledgeSit,
