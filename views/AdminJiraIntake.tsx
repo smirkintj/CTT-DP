@@ -167,11 +167,14 @@ function IssueCard({
   issue: JiraIssueGroup['issues'][number];
   accentIdx: number;
   animDelay: number;
+  isAcknowledged: boolean;
   onOpenTask: (id: string) => void;
   onCreateTask: (issue: JiraIssueGroup['issues'][number]) => void;
   onAcknowledgeSit: (issue: JiraIssueGroup['issues'][number]) => void;
 }) {
   const acc = CARD_ACCENTS[accentIdx % CARD_ACCENTS.length];
+  const allLinkedAcknowledged = issue.linkedTasks.length > 0 && issue.linkedTasks.every((t) => t.sitSignedOffAt);
+  const sitDone = isAcknowledged || allLinkedAcknowledged;
   return (
     <article
       className="relative flex flex-col overflow-hidden rounded-[20px] p-[1px] transition-transform duration-200 hover:-translate-y-1"
@@ -249,7 +252,7 @@ function IssueCard({
                   )}
                 </div>
               </div>
-              {issue.linkedTasks.some((t) => !t.sitSignedOffAt) && (
+              {!sitDone && (
                 <button
                   type="button"
                   onClick={() => onAcknowledgeSit(issue)}
@@ -258,8 +261,8 @@ function IssueCard({
                   Acknowledge SIT ✓
                 </button>
               )}
-              {issue.linkedTasks.length > 0 && issue.linkedTasks.every((t) => t.sitSignedOffAt) && (
-                <p className="mt-2 text-center text-[10px] text-emerald-300/60">All tasks acknowledged</p>
+              {sitDone && (
+                <p className="mt-2 text-center text-[10px] text-emerald-300/60">✓ Acknowledged</p>
               )}
             </div>
           )}
@@ -312,6 +315,7 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
   const [pageError, setPageError] = useState<string | null>(null);
   const [groups, setGroups] = useState<JiraIssueGroup[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [localAcknowledged, setLocalAcknowledged] = useState<Set<string>>(new Set());
 
   useEffect(() => { injectStyles(); }, []);
 
@@ -325,11 +329,11 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
         const loadedGroups = Array.isArray(data.groups) ? data.groups : [];
         setGroups(loadedGroups);
         if (!data.configured && data.error) setPageError(data.error);
-        // Count issues with unacknowledged SIT sign-offs
+        // Count issues with unacknowledged SIT sign-offs (includes tickets with no linked tasks)
         const pending = loadedGroups.reduce((acc, g) => {
           if (!('issues' in g)) return acc;
-          return acc + (g as { issues: Array<{ sitComplete?: boolean; linkedTasks: Array<{ sitSignedOffAt?: string | null }> }> }).issues.filter(
-            (i) => i.sitComplete && (i.linkedTasks ?? []).some((t) => !t.sitSignedOffAt)
+          return acc + (g as { issues: Array<{ sitComplete?: boolean; key: string; linkedTasks: Array<{ sitSignedOffAt?: string | null }> }> }).issues.filter(
+            (i) => i.sitComplete && !(i.linkedTasks ?? []).every((t) => t.sitSignedOffAt)
           ).length;
         }, 0);
         onSitPendingCount?.(pending);
@@ -362,13 +366,16 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
   };
 
   const handleAcknowledgeSit = async (issue: JiraIssueGroup['issues'][number]) => {
+    // Optimistically mark as acknowledged immediately
+    setLocalAcknowledged((prev) => new Set([...prev, issue.key]));
+    // Badge count will resync on next full reload; no inline decrement needed
     try {
       await apiFetch('/api/admin/sit-acknowledge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jiraTicket: issue.key, sitComment: issue.sitComment })
       });
-      // Optimistically update: mark all linked tasks as signed off
+      // Also update linked tasks in state so they persist across badge recalculation
       setGroups((prev) =>
         prev.map((g) => ({
           ...g,
@@ -384,7 +391,7 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
         }))
       );
     } catch {
-      // silently ignore — user can retry on next load
+      // silently ignore — acknowledged locally, will resync on next reload
     }
   };
 
@@ -502,6 +509,7 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
                             issue={issue}
                             accentIdx={idx}
                             animDelay={idx * 60}
+                            isAcknowledged={localAcknowledged.has(issue.key)}
                             onOpenTask={onOpenTask}
                             onCreateTask={handleCreateFromIssue}
                             onAcknowledgeSit={handleAcknowledgeSit}
