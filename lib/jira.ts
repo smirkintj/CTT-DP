@@ -70,10 +70,16 @@ export async function fetchJiraIssueComments(
   if (!creds) return [];
   try {
     const res = await fetch(
-      `${creds.baseUrl}/rest/api/3/issue/${issueKey}/comment?maxResults=20&orderBy=-created`,
-      { headers: { Authorization: makeAuthHeader(creds), Accept: 'application/json' } }
+      `${creds.baseUrl}/rest/api/3/issue/${issueKey}/comment?maxResults=100`,
+      {
+        headers: { Authorization: makeAuthHeader(creds), Accept: 'application/json' },
+        cache: 'no-store'
+      }
     );
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.error(`[jira] fetchComments ${issueKey} → HTTP ${res.status}`);
+      return [];
+    }
     const payload = (await res.json()) as { comments?: Array<{ id: string; body: unknown; author?: { displayName?: string }; created: string }> };
     return (payload.comments ?? []).map((c) => ({
       id: c.id,
@@ -81,7 +87,8 @@ export async function fetchJiraIssueComments(
       authorName: c.author?.displayName ?? 'Unknown',
       created: c.created
     }));
-  } catch {
+  } catch (err) {
+    console.error(`[jira] fetchComments ${issueKey} threw:`, err);
     return [];
   }
 }

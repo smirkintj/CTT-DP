@@ -139,25 +139,35 @@ export async function GET() {
         });
       }
 
-      // For issues that have linked tasks, check Jira comments for SIT sign-off
-      const linkedKeys = issues.filter((i) => (linkedTaskMap.get(i.key) ?? []).length > 0).map((i) => i.key);
+      // Check ALL issues for SIT sign-off comments (not just linked ones)
+      // Skip only if every linked task has already been acknowledged
       const sitMap = new Map<string, { comment: string; author: string; date: string }>();
 
-      await Promise.all(
-        linkedKeys.map(async (key) => {
-          const tasks = linkedTaskMap.get(key) ?? [];
-          // Skip if already acknowledged by all linked tasks
-          if (tasks.every((t) => t.sitSignedOffAt)) return;
-          const comments = await fetchJiraIssueComments(key, perProduct);
-          for (const c of comments) {
+      // Process comment fetches with limited concurrency (max 5) to avoid Jira rate limiting
+      const CONCURRENCY = 5;
+      const issueQueue = [...issues];
+      const workers = Array.from({ length: Math.min(CONCURRENCY, issueQueue.length) }, async () => {
+        while (issueQueue.length > 0) {
+          const issue = issueQueue.shift();
+          if (!issue) break;
+          const tasks = linkedTaskMap.get(issue.key) ?? [];
+          // Skip if all linked tasks already acknowledged
+          if (tasks.length > 0 && tasks.every((t) => t.sitSignedOffAt)) continue;
+          const comments = await fetchJiraIssueComments(issue.key, perProduct);
+          // Sort newest-first since Jira API returns oldest-first
+          const sorted = [...comments].sort(
+            (a, b) => new Date(b.created).getTime() - new Date(a.created).getTime()
+          );
+          for (const c of sorted) {
             const text = extractAdfText(c.body);
             if (isSitCompleteComment(text)) {
-              sitMap.set(key, { comment: text.trim().slice(0, 300), author: c.authorName, date: c.created });
-              break; // first match is enough
+              sitMap.set(issue.key, { comment: text.trim().slice(0, 300), author: c.authorName, date: c.created });
+              break;
             }
           }
-        })
-      );
+        }
+      });
+      await Promise.all(workers);
 
       return {
         productId: product.id,
