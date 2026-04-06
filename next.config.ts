@@ -23,12 +23,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   env: {
-    NEXT_PUBLIC_APP_VERSION: (() => {
-      const base = process.env.npm_package_version ?? '1.0.0';
-      const sha = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
-      if (!sha) return base;
-      return `${base}+${sha}`;
-    })(),
+    NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version ?? '1.0.0',
     NEXT_PUBLIC_APP_ENV: process.env.VERCEL_ENV ?? 'local',
   },
   async headers() {
