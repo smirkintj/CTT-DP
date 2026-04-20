@@ -1,18 +1,17 @@
 import type { NextConfig } from 'next';
 import { execFileSync } from 'child_process';
 
-/** Build version: major.minor from package.json, patch = total git commit count.
- *  Auto-increments on every commit/deployment. Bump major.minor in package.json
- *  for significant releases (e.g. 1.4 → 1.5 for a big drop). */
+/** Build version: major.minor from package.json + 7-char git SHA.
+ *  Uses VERCEL_GIT_COMMIT_SHA (always injected by Vercel) so staging and prod
+ *  both show their exact deployed commit — no shallow-clone issues, no merge
+ *  commit inflation. Bump major.minor in package.json for significant releases. */
 const getAppVersion = (): string => {
   const base = process.env.npm_package_version ?? '1.4.0';
-  try {
-    const count = execFileSync('git', ['rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).trim();
-    const [major, minor] = base.split('.');
-    return `${major}.${minor}.${count}`;
-  } catch {
-    return base;
-  }
+  const [major, minor] = base.split('.');
+  const sha =
+    (process.env.VERCEL_GIT_COMMIT_SHA ?? '').slice(0, 7) ||
+    (() => { try { return execFileSync('git', ['rev-parse', '--short=7', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return 'local'; } })();
+  return `${major}.${minor} · ${sha}`;
 };
 
 const securityHeaders = [
