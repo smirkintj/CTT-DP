@@ -602,7 +602,13 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const handleCreateTaskFromJira = (prefill: JiraTaskPrefill) => {
     setJiraTaskPrefill(prefill);
     setView('ADMIN_TASK_MANAGEMENT');
-    onRouteChange?.('ADMIN_TASK_MANAGEMENT');
+    // Use history.pushState instead of router.push so we update the URL without
+    // triggering a Next.js route transition. router.push would mount a fresh
+    // AppRouteShell (with no jiraTaskPrefill) and destroy the current state tree,
+    // causing the create-task modal to immediately dismiss.
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', '/admin/tasks');
+    }
   };
 
   const selectedTask = selectedTaskId ? tasks.find(t => t.id === selectedTaskId) : null;

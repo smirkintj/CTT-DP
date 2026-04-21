@@ -1,7 +1,7 @@
 {
   "name": "ctt",
   "private": true,
-  "version": "1.4.1",
+  "version": "1.4.2",
   "type": "module",
   "scripts": {
     "clean": "rm -rf .next tsconfig.tsbuildinfo",
@@ -17,6 +17,7 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
     "db:purge-and-seed": "tsx scripts/purge-and-seed.ts",
+    "db:seed-tw-mock": "tsx scripts/seed-tw-mock-data.ts",
     "comments:backfill-step-order": "tsx scripts/backfill-comment-step-order.ts",
     "audit:check-admin": "node scripts/check-admin-audit-coverage.mjs",
     "perf:sample": "bash ./scripts/perf-baseline.sh"
