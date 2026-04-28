@@ -93,6 +93,73 @@ export async function fetchJiraIssueComments(
   }
 }
 
+export async function createJiraSubtask(
+  parentKey: string,
+  summary: string,
+  adfDescription: unknown,
+  perProduct?: Partial<JiraCredentials> | null
+): Promise<string | null> {
+  const creds = resolveJiraCredentials(perProduct);
+  if (!creds) return null;
+  try {
+    const projectKey = parentKey.split('-')[0];
+    const res = await fetch(`${creds.baseUrl}/rest/api/3/issue`, {
+      method: 'POST',
+      headers: {
+        Authorization: makeAuthHeader(creds),
+        Accept: 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        fields: {
+          project: { key: projectKey },
+          parent: { key: parentKey },
+          issuetype: { name: 'Sub-task' },
+          summary,
+          description: adfDescription
+        }
+      })
+    });
+    if (!res.ok) {
+      console.error(`[jira] createJiraSubtask ${parentKey} → HTTP ${res.status}`, await res.text().catch(() => ''));
+      return null;
+    }
+    const payload = (await res.json()) as { key?: string };
+    return payload.key ?? null;
+  } catch (err) {
+    console.error(`[jira] createJiraSubtask ${parentKey} threw:`, err);
+    return null;
+  }
+}
+
+export async function attachFileToJiraIssue(
+  issueKey: string,
+  filename: string,
+  content: Buffer,
+  mimeType: string,
+  perProduct?: Partial<JiraCredentials> | null
+): Promise<void> {
+  const creds = resolveJiraCredentials(perProduct);
+  if (!creds) return;
+  try {
+    const formData = new FormData();
+    formData.append('file', new Blob([content], { type: mimeType }), filename);
+    const res = await fetch(`${creds.baseUrl}/rest/api/2/issue/${issueKey}/attachments`, {
+      method: 'POST',
+      headers: {
+        Authorization: makeAuthHeader(creds),
+        'X-Atlassian-Token': 'no-check'
+      },
+      body: formData
+    });
+    if (!res.ok) {
+      console.error(`[jira] attachFile ${issueKey} → HTTP ${res.status}`, await res.text().catch(() => ''));
+    }
+  } catch (err) {
+    console.error(`[jira] attachFile ${issueKey} threw:`, err);
+  }
+}
+
 export async function searchJiraIssues(
   input: {
     projectKey: string;

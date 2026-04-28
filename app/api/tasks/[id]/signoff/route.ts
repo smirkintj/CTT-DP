@@ -7,10 +7,60 @@ import { createActivity } from '../../../../../lib/activity';
 import { sendTaskSignedOffEmail } from '../../../../../lib/email';
 import { sendTeamsMessage } from '../../../../../lib/teams';
 import { validateExpectedUpdatedAt } from '../../../../../lib/taskGuards';
-import { isJiraConfigured, transitionJiraIssue } from '../../../../../lib/jira';
+import { isJiraConfigured, transitionJiraIssue, createJiraSubtask, attachFileToJiraIssue } from '../../../../../lib/jira';
+import { generateSignoffReportHtml } from '../../../../../lib/signoffReport';
 import { decryptField } from '../../../../../lib/encrypt';
 import { createTaskHistory } from '../../../../../lib/taskHistory';
 import { logPilotEvent } from '../../../../../lib/telemetry';
+
+function buildSignoffAdf(params: {
+  title: string;
+  countryCode: string;
+  productName: string;
+  signerName: string;
+  signedOffAt: Date;
+  jiraTicket: string;
+}) {
+  const { title, countryCode, productName, signerName, signedOffAt, jiraTicket } = params;
+  const fmt = (d: Date) => d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
+  const infoLine = (label: string, value: string) => ({
+    type: 'paragraph',
+    content: [
+      { type: 'text', text: `${label}: `, marks: [{ type: 'strong' }] },
+      { type: 'text', text: value }
+    ]
+  });
+
+  return {
+    version: 1,
+    type: 'doc',
+    content: [
+      {
+        type: 'heading',
+        attrs: { level: 3 },
+        content: [{ type: 'text', text: 'UAT Sign-off Details' }]
+      },
+      infoLine('Task', title),
+      infoLine('Country', countryCode),
+      infoLine('Product', productName),
+      infoLine('Jira Ticket', jiraTicket),
+      infoLine('Signed Off By', signerName),
+      infoLine('Signed Off At', fmt(signedOffAt)),
+      { type: 'rule' },
+      {
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            text: 'Full sign-off report with evidence screenshots is attached to this subtask (open the .html file in a browser to view or print as PDF).',
+            marks: [{ type: 'em' }]
+          }
+        ]
+      }
+    ]
+  };
+}
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -83,6 +133,37 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       : null;
     if (isJiraConfigured(perProduct)) {
       void transitionJiraIssue(task.jiraTicket, task.product.jiraReadyToDeployTransition || 'Ready to Deploy', perProduct);
+
+      const jiraTicket = task.jiraTicket;
+      const taskId = task.id;
+      const taskTitle = task.title;
+      const countryCode = task.countryCode;
+      const signerName = session.user.name || session.user.email || 'User';
+      void (async () => {
+        try {
+          const adf = buildSignoffAdf({
+            title: taskTitle,
+            countryCode,
+            productName: task.product.name,
+            signerName,
+            signedOffAt,
+            jiraTicket
+          });
+          const subtaskKey = await createJiraSubtask(
+            jiraTicket,
+            `Sign-off Report — ${taskTitle} [${countryCode}]`,
+            adf,
+            perProduct
+          );
+          if (subtaskKey) {
+            const html = await generateSignoffReportHtml(taskId);
+            const buf = Buffer.from(html, 'utf-8');
+            await attachFileToJiraIssue(subtaskKey, `signoff-report-${taskId}.html`, buf, 'text/html', perProduct);
+          }
+        } catch (err) {
+          console.error('[signoff] subtask creation failed silently:', err);
+        }
+      })();
     }
   }
 
