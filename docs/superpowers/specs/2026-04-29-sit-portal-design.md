@@ -128,8 +128,25 @@ model SitTestCase {
 
   sitTask        SitTask        @relation(...)
   evidence       SitEvidence[]
+  defects        SitDefect[]
 
   @@index([sitTaskId, seqId])
+}
+
+model SitDefect {
+  id            String      @id @default(cuid())
+  sitTestCaseId String
+  jiraKey       String                           // e.g. "EO-456" — defect ticket
+  summary       String?                          // Pulled from Jira on link
+  status        String?                          // Jira status e.g. "Open", "In Progress"
+  priority      String?                          // Jira priority e.g. "High"
+  url           String?                          // Direct link to Jira defect ticket
+  createdAt     DateTime    @default(now())
+
+  testCase      SitTestCase @relation(...)
+
+  @@index([sitTestCaseId])
+  @@index([jiraKey])
 }
 
 model SitEvidence {
@@ -205,7 +222,8 @@ DRAFT → READY → IN_PROGRESS → SIGNED_OFF
 - "Actual Result" text field
 - PASS / FAIL / BLOCKED action buttons — auto-stamps `testerName` (from session) + `testedAt`
 - Evidence section: upload image OR paste Jam.dev URL (multiple per case)
-- Can re-record result (e.g. FAIL → re-test → PASS)
+- **Defect section** (shown when status is FAIL): CTT fetches linked issues from Jira for the parent user story (`GET /rest/api/3/issue/{jiraTicket}?fields=issuelinks`) and displays them as a selectable list. QA picks the relevant defect(s) or manually enters a Jira key. Linked defects show key, summary, status, and priority pulled from Jira. Defects persist as `SitDefect` records on the test case.
+- Can re-record result (e.g. FAIL → re-test → PASS); defect links remain unless manually removed
 
 ### Sign-Off
 - Available only when ALL test cases are PASS or CONDITIONAL (no FAIL, BLOCKED, or NOT_STARTED remaining)
@@ -251,6 +269,7 @@ All Jira calls are fire-and-forget (never block sign-off).
 Same pattern as UAT sign-off report (`lib/signoffReport.ts`). New `lib/sitSignoffReport.ts` generates an HTML report containing:
 - Task metadata (Jira ticket, sprint, product, environment, countries, signed-off by, date)
 - Test case table: TC#, Name, Category, Priority, Steps, Expected, Actual, Status, Tester, Date
+- Defects column: linked Jira defect keys per FAIL/CONDITIONAL test case (clickable links)
 - Evidence thumbnails / Jam.dev links per case
 - Signature image
 
@@ -294,6 +313,8 @@ GET  /api/admin/sit-tasks               Admin read view
 | `lib/sitSignoffReport.ts` | HTML report generator for SIT |
 | `app/api/sit-tasks/...` | All new API routes |
 | `app/api/jira/sprints/route.ts` | Fetch active sprints from Jira Board API for sprint dropdown |
+| `app/api/jira/defects/route.ts` | Fetch linked defect issues for a user story from Jira (`issuelinks`) |
+| `app/api/sit-tasks/[id]/test-cases/[tcId]/defects` | Link / unlink defect tickets to a test case |
 | `app/qa/...` | New QA portal pages |
 | `views/QaDashboard.tsx` | QA dashboard view |
 | `views/QaJiraQueue.tsx` | QA Jira intake (filtered) |
