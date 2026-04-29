@@ -1,6 +1,6 @@
 # SIT Portal — Design Spec
 **Date:** 2026-04-29  
-**Status:** Draft — awaiting QA validation before implementation
+**Status:** Ready for implementation planning
 
 ---
 
@@ -64,6 +64,7 @@ enum SitTaskStatus {
 enum SitCaseStatus {
   NOT_STARTED
   PASS
+  CONDITIONAL  // Passes with conditions/caveats — counts toward sign-off eligibility
   FAIL
   BLOCKED
 }
@@ -75,14 +76,14 @@ enum SitEvidenceType {
 
 model SitTask {
   id            String        @id @default(cuid())
-  sprintId      String                            // e.g. "Sprint 5"
+  sprintId      String                            // Jira sprint ID (fetched from Jira Board API, displayed as sprint name)
   jiraTicket    String
   title         String                            // User story name from Jira
   productId     String
   module        String?
   environment   String?                           // e.g. "Staging"
   status        SitTaskStatus @default(DRAFT)
-  assigneeId    String?                           // QA user
+  assigneeId    String?                           // QA user — self-assigned from queue (not admin-assigned)
   signedOffAt   DateTime?
   signedOffById String?
   signatureData String?
@@ -178,7 +179,7 @@ DRAFT → READY → IN_PROGRESS → SIGNED_OFF
 ## QA Portal — Pages & Views
 
 ### Dashboard (`/qa/dashboard`)
-- Sprint-grouped SIT task list (own assigned tasks only)
+- Sprint-grouped SIT task list — all SIT tasks for QA's assigned products (not just personally claimed tasks)
 - Status summary per task: X PASS / Y FAIL / Z NOT_STARTED
 - Link to Jira queue
 
@@ -207,8 +208,9 @@ DRAFT → READY → IN_PROGRESS → SIGNED_OFF
 - Can re-record result (e.g. FAIL → re-test → PASS)
 
 ### Sign-Off
-- Available when all test cases have a status (no NOT_STARTED remaining)
-- Summary shown: pass/fail counts, any blocked cases flagged
+- Available only when ALL test cases are PASS or CONDITIONAL (no FAIL, BLOCKED, or NOT_STARTED remaining)
+- If any FAIL or BLOCKED exist, sign-off button is disabled with explanation
+- Summary shown: pass/conditional/fail counts
 - Signature canvas (same component as UAT)
 - On submit: SIGNED_OFF + Jira transitions + report generation (fire-and-forget)
 
@@ -273,13 +275,13 @@ GET  /api/admin/sit-tasks               Admin read view
 
 ---
 
-## Open Questions (validate with QA before building)
+## Resolved Questions
 
-1. Can a QA tester see other QA's SIT tasks, or only their own?
-2. Should FAIL test cases block sign-off, or just warn?
-3. Is "Sprint ID" a free-text field or a dropdown of known sprints?
-4. Can a QA tester be assigned to a SIT task by admin, or do they self-assign from the Jira queue?
-5. Does sign-off require ALL test cases to be PASS, or just "all actioned" (including FAIL)?
+1. **QA task visibility** — product-scoped: QA sees all SIT tasks for their assigned products (not user-scoped)
+2. **FAIL blocks sign-off** — confirmed; sign-off button disabled if any FAIL/BLOCKED/NOT_STARTED
+3. **Sprint ID from Jira** — fetched via Jira Board API (`GET /rest/agile/1.0/board/{boardId}/sprint`), stored as Jira sprint ID, displayed as sprint name; requires `jiraBoardId` field on Product
+4. **QA self-assigns** — QA claims tasks from the Jira queue; admin does not assign
+5. **Sign-off: PASS + CONDITIONAL** — all cases must be PASS or CONDITIONAL; FAIL or BLOCKED blocks sign-off
 
 ---
 
@@ -291,6 +293,7 @@ GET  /api/admin/sit-tasks               Admin read view
 | `prisma/migrations/...` | New migration |
 | `lib/sitSignoffReport.ts` | HTML report generator for SIT |
 | `app/api/sit-tasks/...` | All new API routes |
+| `app/api/jira/sprints/route.ts` | Fetch active sprints from Jira Board API for sprint dropdown |
 | `app/qa/...` | New QA portal pages |
 | `views/QaDashboard.tsx` | QA dashboard view |
 | `views/QaJiraQueue.tsx` | QA Jira intake (filtered) |
