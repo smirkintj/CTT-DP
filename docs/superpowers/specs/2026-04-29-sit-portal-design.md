@@ -96,6 +96,7 @@ model SitTask {
   signedOffBy   User?           @relation("SitTaskSignedOffBy", ...)
   countries     SitTaskCountry[]
   testCases     SitTestCase[]
+  history       SitTaskHistory[]
 
   @@index([jiraTicket])
   @@index([productId, status])
@@ -131,6 +132,37 @@ model SitTestCase {
   defects        SitDefect[]
 
   @@index([sitTaskId, seqId])
+}
+
+enum SitHistoryAction {
+  TASK_CREATED
+  TASK_PUBLISHED           // DRAFT → READY
+  STATUS_CHANGED
+  TEST_CASE_ADDED
+  TEST_CASE_MODIFIED       // steps, expected result, name, priority, category changed
+  TEST_CASE_REMOVED
+  TEST_CASE_RESULT_RECORDED // PASS / FAIL / CONDITIONAL / BLOCKED stamped
+  DEFECT_LINKED
+  DEFECT_UNLINKED
+  EVIDENCE_ADDED
+  SCOPE_NOTE_ADDED         // freetext scope change note from QA
+  SIGNED_OFF
+}
+
+model SitTaskHistory {
+  id        String            @id @default(cuid())
+  sitTaskId String
+  actorId   String
+  action    SitHistoryAction
+  message   String                               // Human-readable summary
+  before    Json?                                // Snapshot before change
+  after     Json?                                // Snapshot after change
+  createdAt DateTime          @default(now())
+
+  sitTask   SitTask           @relation(...)
+  actor     User              @relation(...)
+
+  @@index([sitTaskId, createdAt])
 }
 
 model SitDefect {
@@ -225,6 +257,22 @@ DRAFT → READY → IN_PROGRESS → SIGNED_OFF
 - **Defect section** (shown when status is FAIL): CTT fetches linked issues from Jira for the parent user story (`GET /rest/api/3/issue/{jiraTicket}?fields=issuelinks`) and displays them as a selectable list. QA picks the relevant defect(s) or manually enters a Jira key. Linked defects show key, summary, status, and priority pulled from Jira. Defects persist as `SitDefect` records on the test case.
 - Can re-record result (e.g. FAIL → re-test → PASS); defect links remain unless manually removed
 
+### History Section (bottom of task detail)
+Chronological audit trail of all scope and execution changes, auto-generated — QA never has to write it manually:
+
+| Action | Example entry |
+|--------|--------------|
+| Test case added | "TC#4 'Verify promo code' added by Alia" |
+| Test case modified | "TC#2 steps updated by Alia — expected result changed" (shows before/after diff) |
+| Test case removed | "TC#3 'Long loading' removed by Alia" |
+| Result recorded | "TC#1 marked PASS by Alia" |
+| Result changed | "TC#2 changed FAIL → PASS by Alia after retest" |
+| Defect linked | "EO-456 linked to TC#2 by Alia" |
+| Scope note | QA can also add a freetext note ("Scope reduced — EO-3066 deferred to Sprint 6") |
+| Status changes | "Task published", "Testing started", "Signed off" |
+
+All entries show actor name + timestamp. Visible to both QA and admin.
+
 ### Sign-Off
 - Available only when ALL test cases are PASS or CONDITIONAL (no FAIL, BLOCKED, or NOT_STARTED remaining)
 - If any FAIL or BLOCKED exist, sign-off button is disabled with explanation
@@ -315,6 +363,8 @@ GET  /api/admin/sit-tasks               Admin read view
 | `app/api/jira/sprints/route.ts` | Fetch active sprints from Jira Board API for sprint dropdown |
 | `app/api/jira/defects/route.ts` | Fetch linked defect issues for a user story from Jira (`issuelinks`) |
 | `app/api/sit-tasks/[id]/test-cases/[tcId]/defects` | Link / unlink defect tickets to a test case |
+| `app/api/sit-tasks/[id]/history` | Get task history; POST scope note |
+| `lib/sitHistory.ts` | `createSitHistory()` helper — called on every mutating action |
 | `app/qa/...` | New QA portal pages |
 | `views/QaDashboard.tsx` | QA dashboard view |
 | `views/QaJiraQueue.tsx` | QA Jira intake (filtered) |
