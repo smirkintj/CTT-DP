@@ -216,3 +216,78 @@ export async function searchJiraIssues(
     assigneeName: issue.fields?.assignee?.displayName || issue.fields?.assignee?.emailAddress || null
   }));
 }
+
+/** Fetch sprint name from a Jira issue's sprint field (Agile).
+ *  Returns sprint name string or null if not found / not configured. */
+export async function fetchJiraIssueSprint(
+  issueKey: string,
+  perProduct?: Partial<JiraCredentials> | null
+): Promise<string | null> {
+  const creds = resolveJiraCredentials(perProduct);
+  if (!creds) return null;
+  try {
+    const res = await fetch(
+      `${creds.baseUrl}/rest/agile/1.0/issue/${encodeURIComponent(issueKey)}?fields=sprint`,
+      {
+        headers: {
+          Authorization: makeAuthHeader(creds),
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data?.fields?.sprint?.name as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export interface JiraLinkedIssue {
+  key: string;
+  summary: string;
+  status: string;
+  priority: string | null;
+  url: string;
+  linkType: string;
+}
+
+/** Fetch all linked issues for a Jira issue (for defect selection). */
+export async function fetchJiraIssueLinks(
+  issueKey: string,
+  perProduct?: Partial<JiraCredentials> | null
+): Promise<JiraLinkedIssue[]> {
+  const creds = resolveJiraCredentials(perProduct);
+  if (!creds) return [];
+  try {
+    const res = await fetch(
+      `${creds.baseUrl}/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=issuelinks,summary`,
+      {
+        headers: {
+          Authorization: makeAuthHeader(creds),
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const links: JiraLinkedIssue[] = [];
+    for (const link of data?.fields?.issuelinks ?? []) {
+      const linked = link.outwardIssue ?? link.inwardIssue;
+      if (!linked) continue;
+      links.push({
+        key: linked.key,
+        summary: linked.fields?.summary ?? '',
+        status: linked.fields?.status?.name ?? '',
+        priority: linked.fields?.priority?.name ?? null,
+        url: `${creds.baseUrl}/browse/${linked.key}`,
+        linkType: link.type?.name ?? '',
+      });
+    }
+    return links;
+  } catch {
+    return [];
+  }
+}
