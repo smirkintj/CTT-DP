@@ -76,7 +76,7 @@ enum SitEvidenceType {
 
 model SitTask {
   id            String        @id @default(cuid())
-  sprintId      String                            // Jira sprint ID (fetched from Jira Board API, displayed as sprint name)
+  sprintName    String                            // Sprint name fetched from Jira issue fields (fields.sprint.name) on task creation; editable free text
   jiraTicket    String
   title         String                            // User story name from Jira
   productId     String
@@ -98,7 +98,7 @@ model SitTask {
   testCases     SitTestCase[]
   history       SitTaskHistory[]
 
-  @@index([jiraTicket])
+  @@unique([jiraTicket, productId])           // One SIT task per Jira ticket per product
   @@index([productId, status])
   @@index([assigneeId, status])
 }
@@ -122,16 +122,36 @@ model SitTestCase {
   steps          String?                          // Preconditions + numbered steps (rich text)
   expectedResult String?
   testData       String?
-  actualResult   String?
-  status         SitCaseStatus  @default(NOT_STARTED)
-  testerName     String?                          // Auto-stamped from session user on action
-  testedAt       DateTime?                        // Auto-stamped on PASS/FAIL/BLOCKED action
+  actualResult              String?
+  status                    SitCaseStatus  @default(NOT_STARTED)
+  testerName                String?                          // Auto-stamped from session user on action
+  testedAt                  DateTime?                        // Auto-stamped on PASS/FAIL/BLOCKED/CONDITIONAL action
+  conditionalNote           String?                          // Required when status=CONDITIONAL; explains the condition or deferred requirement
+  adminAcknowledgedAt       DateTime?                        // Set when admin acknowledges a CONDITIONAL case
+  adminAcknowledgedById     String?
+  splitByCountry            Boolean        @default(false)   // When true, QA records per-country results instead of one global result
 
-  sitTask        SitTask        @relation(...)
+  sitTask        SitTask                  @relation(...)
   evidence       SitEvidence[]
   defects        SitDefect[]
+  countryResults SitTestCaseCountryResult[]
 
   @@index([sitTaskId, seqId])
+}
+
+model SitTestCaseCountryResult {
+  id            String        @id @default(cuid())
+  sitTestCaseId String
+  countryCode   String
+  status        SitCaseStatus @default(NOT_STARTED)
+  actualResult  String?
+  testerName    String?
+  testedAt      DateTime?
+
+  testCase      SitTestCase   @relation(...)
+  country       Country       @relation(...)
+
+  @@unique([sitTestCaseId, countryCode])
 }
 
 enum SitHistoryAction {
@@ -141,11 +161,12 @@ enum SitHistoryAction {
   TEST_CASE_ADDED
   TEST_CASE_MODIFIED       // steps, expected result, name, priority, category changed
   TEST_CASE_REMOVED
-  TEST_CASE_RESULT_RECORDED // PASS / FAIL / CONDITIONAL / BLOCKED stamped
+  TEST_CASE_RESULT_RECORDED    // PASS / FAIL / CONDITIONAL / BLOCKED stamped
+  CONDITIONAL_ACKNOWLEDGED     // Admin acknowledged a CONDITIONAL test case
   DEFECT_LINKED
   DEFECT_UNLINKED
   EVIDENCE_ADDED
-  SCOPE_NOTE_ADDED         // freetext scope change note from QA
+  SCOPE_NOTE_ADDED             // freetext scope change note from QA
   SIGNED_OFF
 }
 
@@ -253,8 +274,9 @@ DRAFT → READY → IN_PROGRESS → SIGNED_OFF
 - Expand any test case row to see full steps + expected result
 - "Actual Result" text field
 - PASS / FAIL / BLOCKED action buttons — auto-stamps `testerName` (from session) + `testedAt`
-- Evidence section: upload image OR paste Jam.dev URL (multiple per case)
-- **Defect section** (shown when status is FAIL): CTT fetches linked issues from Jira for the parent user story (`GET /rest/api/3/issue/{jiraTicket}?fields=issuelinks`) and displays them as a selectable list. QA picks the relevant defect(s) or manually enters a Jira key. Linked defects show key, summary, status, and priority pulled from Jira. Defects persist as `SitDefect` records on the test case.
+- Evidence section: upload image OR paste Jam.dev URL (multiple per case). Images stored as base64 in DB, consistent with UAT. *(Future: migrate to Vercel Blob for CDN-served files — `@vercel/blob` replaces base64 column with a URL; worth revisiting when evidence volume grows.)*
+- **Defect/condition section** (shown when status is FAIL or CONDITIONAL): CTT fetches linked issues from Jira for the parent user story (`GET /rest/api/3/issue/{jiraTicket}?fields=issuelinks`) as a selectable list. QA picks relevant defect(s) or manually enters a Jira key. For CONDITIONAL, QA must also fill `conditionalNote` explaining what the condition or deferred requirement is (required field). Linked defects show key, summary, status, and priority pulled from Jira.
+- **Per-country split** (optional): QA can toggle "split by country" on any test case — this replaces the single global result with individual PASS/FAIL/CONDITIONAL rows per country from `SitTaskCountry`.
 - Can re-record result (e.g. FAIL → re-test → PASS); defect links remain unless manually removed
 
 ### History Section (bottom of task detail)
@@ -274,11 +296,12 @@ Chronological audit trail of all scope and execution changes, auto-generated —
 All entries show actor name + timestamp. Visible to both QA and admin.
 
 ### Sign-Off
-- Available only when ALL test cases are PASS or CONDITIONAL (no FAIL, BLOCKED, or NOT_STARTED remaining)
+- Available only when ALL test cases are PASS or CONDITIONAL (no FAIL, BLOCKED, or NOT_STARTED remaining); CONDITIONAL cases must have `conditionalNote` filled
 - If any FAIL or BLOCKED exist, sign-off button is disabled with explanation
-- Summary shown: pass/conditional/fail counts
+- Summary shown: pass / conditional / fail counts
 - Signature canvas (same component as UAT)
-- On submit: SIGNED_OFF + Jira transitions + report generation (fire-and-forget)
+- On submit: SIGNED_OFF + Jira transitions (fire-and-forget) + report generation + Jira comment via subtask (same pattern as UAT)
+- **Post sign-off — CONDITIONAL acknowledgment gate:** if any CONDITIONAL cases exist, SIT shows as "Signed off — X conditional item(s) pending admin review". Admin is notified (same notification mechanism as Jira queue SIT alerts). Admin must acknowledge each conditional case in their SIT tab before the soft UAT gate fully clears. Until then, creating a UAT task for this ticket shows: "SIT signed off with X unacknowledged conditional item(s)."
 
 ---
 
@@ -292,7 +315,15 @@ All entries show actor name + timestamp. Visible to both QA and admin.
 
 ### Jira Queue (`/admin/jira-intake`)
 - SIT sign-off detection (existing) remains unchanged
-- Soft gate: if creating UAT task for a Jira ticket that has no signed-off SIT task → show amber warning banner "SIT not signed off yet — proceed with caution?"
+- Soft gate states when creating a UAT task:
+  - 🔴 No SIT task exists → "SIT not started yet — proceed with caution?"
+  - 🟡 SIT signed off but has unacknowledged CONDITIONAL items → "SIT signed off with X conditional item(s) pending your review"
+  - ✅ SIT signed off, all CONDITIONALs acknowledged → no warning
+
+### Admin SIT Tab — CONDITIONAL Acknowledgment
+- CONDITIONAL test cases shown with amber badge and `conditionalNote`
+- Admin clicks "Acknowledge" per item → sets `adminAcknowledgedAt` + logs `CONDITIONAL_ACKNOWLEDGED` history entry
+- Can add an acknowledgment comment (e.g. "Accepted — will be addressed in Sprint 6")
 
 ### User Management (existing admin database page)
 - Add QA to the role dropdown
@@ -346,9 +377,13 @@ GET  /api/admin/sit-tasks               Admin read view
 
 1. **QA task visibility** — product-scoped: QA sees all SIT tasks for their assigned products (not user-scoped)
 2. **FAIL blocks sign-off** — confirmed; sign-off button disabled if any FAIL/BLOCKED/NOT_STARTED
-3. **Sprint ID from Jira** — fetched via Jira Board API (`GET /rest/agile/1.0/board/{boardId}/sprint`), stored as Jira sprint ID, displayed as sprint name; requires `jiraBoardId` field on Product
+3. **Sprint from Jira issue** — fetched from `fields.sprint.name` on the Jira issue when QA creates the SIT task; pre-populated as editable free text (`sprintName`). No `jiraBoardId` needed — sprint data comes directly from the issue.
 4. **QA self-assigns** — QA claims tasks from the Jira queue; admin does not assign
-5. **Sign-off: PASS + CONDITIONAL** — all cases must be PASS or CONDITIONAL; FAIL or BLOCKED blocks sign-off
+5. **Sign-off: PASS + CONDITIONAL** — all cases must be PASS or CONDITIONAL (with mandatory note); FAIL or BLOCKED blocks sign-off. CONDITIONAL cases require admin acknowledgment post sign-off before soft UAT gate fully clears.
+6. **Evidence storage** — base64 in DB, consistent with UAT. Vercel Blob flagged as future improvement.
+7. **Notifications on sign-off** — Jira comment via subtask (same as UAT) + Jira SIT Done transition + admin notified via existing Jira queue alert mechanism.
+8. **Countries per test case** — one global result by default; QA can toggle `splitByCountry` per test case for per-country results via `SitTestCaseCountryResult`.
+9. **One SIT task per Jira ticket** — enforced via `@@unique([jiraTicket, productId])`.
 
 ---
 
@@ -356,7 +391,7 @@ GET  /api/admin/sit-tasks               Admin read view
 
 | File | Change |
 |------|--------|
-| `prisma/schema.prisma` | Add SitTask, SitTaskCountry, SitTestCase, SitEvidence models; add QA to UserRole; add 3 Jira fields to Product |
+| `prisma/schema.prisma` | Add SitTask, SitTaskCountry, SitTestCase, SitTestCaseCountryResult, SitEvidence, SitDefect, SitTaskHistory models; add QA to UserRole; add 3 Jira transition fields to Product |
 | `prisma/migrations/...` | New migration |
 | `lib/sitSignoffReport.ts` | HTML report generator for SIT |
 | `app/api/sit-tasks/...` | All new API routes |
