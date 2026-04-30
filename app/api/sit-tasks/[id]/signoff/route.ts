@@ -48,7 +48,7 @@ export async function POST(
 
   // Validate all test cases are PASS or CONDITIONAL
   const blocking = task.testCases.filter(
-    (tc) => ![SitCaseStatus.PASS, SitCaseStatus.CONDITIONAL].includes(tc.status as SitCaseStatus)
+    (tc) => tc.status !== SitCaseStatus.PASS && tc.status !== SitCaseStatus.CONDITIONAL
   );
   if (blocking.length > 0) {
     return badRequest(
