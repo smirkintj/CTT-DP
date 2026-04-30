@@ -19,6 +19,7 @@ export enum Priority {
 export enum Role {
   ADMIN = 'Admin',
   STAKEHOLDER = 'Stakeholder',
+  QA = 'QA',
 }
 
 export interface User {
@@ -224,4 +225,101 @@ export interface JiraTaskPrefill {
   productName: string;
 }
 
-export type ViewState = 'LOGIN' | 'DASHBOARD_STAKEHOLDER' | 'DASHBOARD_ADMIN' | 'TASK_DETAIL' | 'IMPORT_WIZARD' | 'ADMIN_TASK_MANAGEMENT' | 'ADMIN_DATABASE' | 'ADMIN_JIRA_INTAKE' | 'INBOX' | 'KNOWLEDGE_BASE';
+export type ViewState = 'LOGIN' | 'DASHBOARD_STAKEHOLDER' | 'DASHBOARD_ADMIN' | 'TASK_DETAIL' | 'IMPORT_WIZARD' | 'ADMIN_TASK_MANAGEMENT' | 'ADMIN_DATABASE' | 'ADMIN_JIRA_INTAKE' | 'INBOX' | 'KNOWLEDGE_BASE' | 'QA_DASHBOARD' | 'QA_JIRA_QUEUE' | 'QA_SIT_TASK_DETAIL';
+
+export type SitTaskStatus = 'DRAFT' | 'READY' | 'IN_PROGRESS' | 'SIGNED_OFF';
+export type SitCaseStatus = 'NOT_STARTED' | 'PASS' | 'CONDITIONAL' | 'FAIL' | 'BLOCKED';
+export type SitEvidenceType = 'IMAGE' | 'JAM_LINK';
+export type SitHistoryAction =
+  | 'TASK_CREATED' | 'TASK_PUBLISHED' | 'STATUS_CHANGED'
+  | 'TEST_CASE_ADDED' | 'TEST_CASE_MODIFIED' | 'TEST_CASE_REMOVED'
+  | 'TEST_CASE_RESULT_RECORDED' | 'CONDITIONAL_ACKNOWLEDGED'
+  | 'DEFECT_LINKED' | 'DEFECT_UNLINKED' | 'EVIDENCE_ADDED'
+  | 'SCOPE_NOTE_ADDED' | 'SIGNED_OFF';
+
+export interface SitCountryResult {
+  countryCode: string;
+  status: SitCaseStatus;
+  actualResult: string | null;
+  testerName: string | null;
+  testedAt: string | null;
+}
+
+export interface SitEvidence {
+  id: string;
+  type: SitEvidenceType;
+  url: string | null;
+  filename: string | null;
+  createdAt: string;
+}
+
+export interface SitDefect {
+  id: string;
+  jiraKey: string;
+  summary: string | null;
+  status: string | null;
+  priority: string | null;
+  url: string | null;
+}
+
+export interface SitTestCase {
+  id: string;
+  seqId: number;
+  priority: string | null;
+  category: string | null;
+  name: string;
+  description: string | null;
+  steps: string | null;
+  expectedResult: string | null;
+  testData: string | null;
+  actualResult: string | null;
+  status: SitCaseStatus;
+  testerName: string | null;
+  testedAt: string | null;
+  conditionalNote: string | null;
+  adminAcknowledgedAt: string | null;
+  splitByCountry: boolean;
+  evidence: SitEvidence[];
+  defects: SitDefect[];
+  countryResults: SitCountryResult[];
+}
+
+export interface SitTaskSummary {
+  id: string;
+  sprintName: string;
+  jiraTicket: string;
+  title: string;
+  productId: string;
+  productName: string;
+  module: string | null;
+  environment: string | null;
+  status: SitTaskStatus;
+  assigneeId: string | null;
+  assigneeName: string | null;
+  signedOffAt: string | null;
+  countryCodes: string[];
+  testCaseCount: number;
+  passCount: number;
+  failCount: number;
+  conditionalCount: number;
+  blockedCount: number;
+  notStartedCount: number;
+  hasUnacknowledgedConditionals: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SitTaskDetail extends SitTaskSummary {
+  testCases: SitTestCase[];
+  history: SitHistoryEntry[];
+}
+
+export interface SitHistoryEntry {
+  id: string;
+  action: SitHistoryAction;
+  message: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  actorName: string;
+  createdAt: string;
+}

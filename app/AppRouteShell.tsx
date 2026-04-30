@@ -50,6 +50,19 @@ export default function AppRouteShell({ initialView, initialTaskId = null }: App
           case 'KNOWLEDGE_BASE':
             router.push('/knowledge-base');
             return;
+          case 'QA_DASHBOARD':
+            router.push('/qa/dashboard');
+            return;
+          case 'QA_JIRA_QUEUE':
+            router.push('/qa/jira-queue');
+            return;
+          case 'QA_SIT_TASK_DETAIL':
+            if (taskId) {
+              router.push(`/qa/sit-tasks/${taskId}`);
+              return;
+            }
+            router.push('/qa/dashboard');
+            return;
           default: {
             const _exhaustiveCheck: never = nextView;
             router.push('/');
