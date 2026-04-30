@@ -11,6 +11,7 @@ datasource db {
 enum UserRole {
   ADMIN
   STAKEHOLDER
+  QA
 }
 
 enum TaskStatus {
@@ -83,6 +84,12 @@ model User {
   comments      Comment[]
   portalSettingsUpdated PortalSetting[]
   productAccesses UserProductAccess[]
+
+  sitTasksAssigned    SitTask[]        @relation("SitTaskAssignee")
+  sitTasksSignedOff   SitTask[]        @relation("SitTaskSignedOffBy")
+  sitTasksUpdated     SitTask[]        @relation("SitTaskUpdatedBy")
+  sitCasesAcknowledged SitTestCase[]   @relation("SitCaseAcknowledgedBy")
+  sitHistoryEntries   SitTaskHistory[] @relation("SitHistoryActor")
 }
 
 model Product {
@@ -93,8 +100,11 @@ model Product {
   jiraProjectKey              String?
   jiraPullStatuses            String[] @default([])
   jiraInUatTransition         String?
-  jiraReadyToDeployTransition String?
-  jiraBaseUrl                 String?
+  jiraReadyToDeployTransition  String?
+  jiraReadyForTestingTransition String?
+  jiraTestingTransition         String?
+  jiraSitDoneTransition         String?
+  jiraBaseUrl                   String?
   jiraEmail                   String?
   jiraToken                   String?   // encrypted at rest
   createdAt        DateTime @default(now())
@@ -105,6 +115,7 @@ model Product {
   tasks                 Task[]
   userAccesses          UserProductAccess[]
   notificationConfigs   NotificationConfig[]
+  sitTasks              SitTask[]
 }
 
 model Country {
@@ -116,6 +127,8 @@ model Country {
 
   tasks Task[]
   notificationConfigs NotificationConfig[]
+  sitTaskCountries    SitTaskCountry[]
+  sitTestCaseCountryResults SitTestCaseCountryResult[]
 }
 
 model Module {
@@ -331,4 +344,172 @@ model TaskHistory {
 
   @@index([taskId, createdAt])
   @@index([actorId, createdAt])
+}
+
+// ─── SIT Portal Enums ────────────────────────────────────────────────────────
+
+enum SitTaskStatus {
+  DRAFT
+  READY
+  IN_PROGRESS
+  SIGNED_OFF
+}
+
+enum SitCaseStatus {
+  NOT_STARTED
+  PASS
+  CONDITIONAL
+  FAIL
+  BLOCKED
+}
+
+enum SitEvidenceType {
+  IMAGE
+  JAM_LINK
+}
+
+enum SitHistoryAction {
+  TASK_CREATED
+  TASK_PUBLISHED
+  STATUS_CHANGED
+  TEST_CASE_ADDED
+  TEST_CASE_MODIFIED
+  TEST_CASE_REMOVED
+  TEST_CASE_RESULT_RECORDED
+  CONDITIONAL_ACKNOWLEDGED
+  DEFECT_LINKED
+  DEFECT_UNLINKED
+  EVIDENCE_ADDED
+  SCOPE_NOTE_ADDED
+  SIGNED_OFF
+}
+
+// ─── SIT Portal Models ────────────────────────────────────────────────────────
+
+model SitTask {
+  id            String        @id @default(cuid())
+  sprintName    String
+  jiraTicket    String
+  title         String
+  productId     String
+  module        String?
+  environment   String?
+  status        SitTaskStatus @default(DRAFT)
+  assigneeId    String?
+  signedOffAt   DateTime?
+  signedOffById String?
+  signatureData String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  updatedById   String?
+
+  product     Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  assignee    User?            @relation("SitTaskAssignee", fields: [assigneeId], references: [id])
+  signedOffBy User?            @relation("SitTaskSignedOffBy", fields: [signedOffById], references: [id])
+  updatedBy   User?            @relation("SitTaskUpdatedBy", fields: [updatedById], references: [id])
+  countries   SitTaskCountry[]
+  testCases   SitTestCase[]
+  history     SitTaskHistory[]
+
+  @@unique([jiraTicket, productId])
+  @@index([productId, status])
+  @@index([assigneeId, status])
+}
+
+model SitTaskCountry {
+  sitTaskId   String
+  countryCode String
+  sitTask     SitTask @relation(fields: [sitTaskId], references: [id], onDelete: Cascade)
+  country     Country @relation(fields: [countryCode], references: [code])
+  @@id([sitTaskId, countryCode])
+}
+
+model SitTestCase {
+  id                    String        @id @default(cuid())
+  sitTaskId             String
+  seqId                 Int
+  priority              String?
+  category              String?
+  name                  String
+  description           String?
+  steps                 String?
+  expectedResult        String?
+  testData              String?
+  actualResult          String?
+  status                SitCaseStatus @default(NOT_STARTED)
+  testerName            String?
+  testedAt              DateTime?
+  conditionalNote       String?
+  adminAcknowledgedAt   DateTime?
+  adminAcknowledgedById String?
+  splitByCountry        Boolean       @default(false)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  sitTask             SitTask                    @relation(fields: [sitTaskId], references: [id], onDelete: Cascade)
+  adminAcknowledgedBy User?                      @relation("SitCaseAcknowledgedBy", fields: [adminAcknowledgedById], references: [id])
+  evidence            SitEvidence[]
+  defects             SitDefect[]
+  countryResults      SitTestCaseCountryResult[]
+
+  @@index([sitTaskId, seqId])
+}
+
+model SitTestCaseCountryResult {
+  id            String        @id @default(cuid())
+  sitTestCaseId String
+  countryCode   String
+  status        SitCaseStatus @default(NOT_STARTED)
+  actualResult  String?
+  testerName    String?
+  testedAt      DateTime?
+
+  testCase SitTestCase @relation(fields: [sitTestCaseId], references: [id], onDelete: Cascade)
+  country  Country     @relation(fields: [countryCode], references: [code])
+
+  @@unique([sitTestCaseId, countryCode])
+}
+
+model SitEvidence {
+  id            String          @id @default(cuid())
+  sitTestCaseId String
+  type          SitEvidenceType
+  url           String?
+  imageData     String?
+  filename      String?
+  createdAt     DateTime        @default(now())
+
+  testCase SitTestCase @relation(fields: [sitTestCaseId], references: [id], onDelete: Cascade)
+}
+
+model SitDefect {
+  id            String   @id @default(cuid())
+  sitTestCaseId String
+  jiraKey       String
+  summary       String?
+  status        String?
+  priority      String?
+  url           String?
+  createdAt     DateTime @default(now())
+
+  testCase SitTestCase @relation(fields: [sitTestCaseId], references: [id], onDelete: Cascade)
+
+  @@index([sitTestCaseId])
+  @@index([jiraKey])
+}
+
+model SitTaskHistory {
+  id        String           @id @default(cuid())
+  sitTaskId String
+  actorId   String?
+  action    SitHistoryAction
+  message   String
+  before    Json?
+  after     Json?
+  createdAt DateTime         @default(now())
+
+  sitTask SitTask @relation(fields: [sitTaskId], references: [id], onDelete: Cascade)
+  actor   User?   @relation("SitHistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([sitTaskId, createdAt])
 }
