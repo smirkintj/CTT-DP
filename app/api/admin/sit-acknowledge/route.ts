@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { badRequest, forbidden, unauthorized } from '@/lib/apiError';
+import { createAdminAudit } from '@/lib/adminAudit';
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -27,6 +28,11 @@ export async function POST(req: Request) {
       sitSignedOffAt: now,
       sitComment
     }
+  });
+
+  await createAdminAudit({
+    actorId: session.user.id,
+    message: `SIT acknowledged for Jira ticket ${jiraTicket} (${result.count} task${result.count !== 1 ? 's' : ''} updated)`,
   });
 
   return NextResponse.json({ acknowledged: result.count, jiraTicket, sitSignedOffAt: now.toISOString() });
