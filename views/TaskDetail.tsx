@@ -502,7 +502,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
       author: { id: currentUser.id, name: currentUser.name, email: currentUser.email }
     };
     const newStepComment = stepOrder != null
-      ? { id: newCommentId, userId: currentUser.name, text: text.trim(), createdAt: new Date().toISOString() }
+      ? { id: newCommentId, body: text.trim(), createdAt: new Date().toISOString(), author: { id: currentUser.id, name: currentUser.name, email: currentUser.email } }
       : null;
 
     setLocalTask((prev) => {
@@ -2029,8 +2029,8 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
                                           highlightedCommentId === c.id ? 'bg-amber-50 ring-1 ring-amber-200' : ''
                                         }`}
                                       >
-                                         <span className="font-bold text-slate-800">{c.userId}</span>
-                                         <span className="text-slate-600 whitespace-pre-wrap break-words">{renderCommentBody(c.text)}</span>
+                                         <span className="font-bold text-slate-800">{c.author.name}</span>
+                                         <span className="text-slate-600 whitespace-pre-wrap break-words">{renderCommentBody(c.body)}</span>
                                          <span className="text-slate-400 ml-auto">{formatDateTimeLocal(c.createdAt)}</span>
                                       </div>
                                     ))}
