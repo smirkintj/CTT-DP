@@ -17,7 +17,7 @@ type ActivityItem = {
 };
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const currentUser = sessionToUser(session);
@@ -52,6 +52,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   useEffect(() => { setAvatarError(false); }, [currentUser?.avatarUrl]);
 
+  // While session is resolving, show a skeleton header so authenticated pages
+  // don't flash bare content before the nav appears.
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        <div className="h-16 bg-white border-b border-slate-200 animate-pulse print:hidden" />
+        <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">{children}</main>
+      </div>
+    );
+  }
+
+  // Unauthenticated — render children only (login page)
   if (!currentUser) return <>{children}</>;
 
   const isAdmin = currentUser.role === Role.ADMIN;

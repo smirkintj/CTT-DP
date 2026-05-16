@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -38,5 +39,9 @@ export default async function Page({ params }: TaskPageProps) {
 
   const mappedTask = mapTaskToUi(task) as unknown as Task;
 
-  return <TaskDetail task={mappedTask} />;
+  return (
+    <Suspense>
+      <TaskDetail task={mappedTask} />
+    </Suspense>
+  );
 }
