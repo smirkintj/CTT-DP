@@ -23,7 +23,7 @@ const TASK_CACHE_TTL_MS = 30_000;
 const TASK_CACHE_KEY_PREFIX = 'ctt_tasks_cache_v2';
 const ADMIN_META_CACHE_TTL_MS = 10 * 60 * 1000;
 const ADMIN_META_CACHE_KEY_PREFIX = 'ctt_admin_meta_cache_v1';
-const LOGIN_LOCK_MS = 30_000;
+
 
 type CachedTasksPayload = {
   fetchedAt: number;
@@ -168,15 +168,13 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [lockUntil, setLockUntil] = useState<number | null>(null);
-  const [remainingLockSeconds, setRemainingLockSeconds] = useState(0);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null);
   const emailIsValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const isLocked = !!lockUntil && Date.now() < lockUntil;
+
   const mustChangePassword = Boolean(session?.user?.mustChangePassword);
   const passwordPolicyValid = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/.test(newPasswordInput);
   const passwordChecks = {
@@ -220,46 +218,6 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
     }
   }, []);
 
-  useEffect(() => {
-    if (!email) {
-      setLockUntil(null);
-      setRemainingLockSeconds(0);
-      return;
-    }
-    const key = `ctt_login_lock_${email.toLowerCase().trim()}`;
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return;
-    const until = Number(raw);
-    if (!Number.isFinite(until) || until <= Date.now()) {
-      window.localStorage.removeItem(key);
-      return;
-    }
-    setLockUntil(until);
-  }, [email]);
-
-  useEffect(() => {
-    if (!lockUntil) {
-      setRemainingLockSeconds(0);
-      return;
-    }
-    const tick = () => {
-      const remaining = Math.max(0, Math.ceil((lockUntil - Date.now()) / 1000));
-      setRemainingLockSeconds(remaining);
-      if (remaining === 0) {
-        const key = `ctt_login_lock_${email.toLowerCase().trim()}`;
-        window.localStorage.removeItem(key);
-        setLockUntil(null);
-      }
-    };
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
-  }, [lockUntil]);
-
-  useEffect(() => {
-    if (!lockUntil || remainingLockSeconds <= 0) return;
-    setLoginError(`Too many failed attempts. Please retry in ${remainingLockSeconds}s.`);
-  }, [lockUntil, remainingLockSeconds]);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -408,36 +366,15 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       setLoginError('Please enter a valid email address.');
       return;
     }
-    if (isLocked && remainingLockSeconds > 0) {
-      setLoginError(`Too many attempts. Try again in ${remainingLockSeconds}s.`);
-      return;
-    }
-
     setLoginError(null);
     setIsLoggingIn(true);
     const result = await signIn('credentials', { email, password, redirect: false });
 
     if (!result || result.error) {
-      const keyBase = email.toLowerCase().trim();
-      const attemptsKey = `ctt_login_attempts_${keyBase}`;
-      const lockKey = `ctt_login_lock_${keyBase}`;
-      const nextAttempts = Number(window.localStorage.getItem(attemptsKey) || '0') + 1;
-      if (nextAttempts >= 3) {
-        const until = Date.now() + LOGIN_LOCK_MS;
-        window.localStorage.setItem(lockKey, String(until));
-        window.localStorage.removeItem(attemptsKey);
-        setLockUntil(until);
-        setLoginError(`Too many failed attempts. Please retry in ${Math.ceil(LOGIN_LOCK_MS / 1000)}s.`);
-      } else {
-        window.localStorage.setItem(attemptsKey, String(nextAttempts));
-        setLoginError('Invalid email or password. Please try again.');
-      }
+      setLoginError('Invalid email or password. Please try again.');
       setIsLoggingIn(false);
       return;
     }
-
-    window.localStorage.removeItem(`ctt_login_attempts_${email.toLowerCase().trim()}`);
-    window.localStorage.removeItem(`ctt_login_lock_${email.toLowerCase().trim()}`);
 
     if (typeof window !== 'undefined') {
       if (rememberMe) {
@@ -703,9 +640,9 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
                 <div>
                     <button 
                      type="submit"
-                     disabled={isLoggingIn || isLocked || !emailIsValid || !password}
+                     disabled={isLoggingIn || !emailIsValid || !password}
                      className={`w-full flex justify-center items-center gap-2 py-3 px-4 border rounded-xl shadow-sm text-sm font-semibold transition-all ${
-                       isLoggingIn || isLocked || !emailIsValid || !password
+                       isLoggingIn || !emailIsValid || !password
                          ? 'bg-slate-300 text-slate-500 border-slate-300 cursor-not-allowed'
                          : 'text-white bg-slate-900 border-transparent hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900'
                      }`}
