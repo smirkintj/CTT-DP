@@ -61,6 +61,7 @@ export interface Task {
   dueDate: string | null;
   createdAt?: string;
   steps: TestStep[];
+  comments?: Comment[];
   commentCount?: number;
   updatedAt: string;
   updatedBy?: {
