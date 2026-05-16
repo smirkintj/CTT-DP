@@ -40,17 +40,15 @@ export async function GET() {
       tasks = await prisma.task.findMany({
         where,
         include: taskRelationIncludeList,
-        orderBy: {
-          updatedAt: 'desc'
-        }
+        orderBy: { updatedAt: 'desc' },
+        take: 500
       });
     } catch {
       tasks = await prisma.task.findMany({
         where,
         include: taskRelationIncludeSafe,
-        orderBy: {
-          updatedAt: 'desc'
-        }
+        orderBy: { updatedAt: 'desc' },
+        take: 500
       });
     }
 
@@ -72,7 +70,8 @@ export async function GET() {
       // Last-resort fallback so dashboards remain usable even if relation includes fail.
       const minimalTasks = await prisma.task.findMany({
         where,
-        orderBy: { updatedAt: 'desc' }
+        orderBy: { updatedAt: 'desc' },
+        take: 500
       });
 
       const mappedMinimal = minimalTasks.map((task) =>

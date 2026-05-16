@@ -5,6 +5,8 @@ import { User, Role } from '../types';
 import { LogOut, LayoutGrid, Bell, MessageSquare, AlertCircle, Check, Info, List, Database, BookOpen, Sparkles } from 'lucide-react';
 import { AssistantDock } from './AssistantDock';
 
+type ActivityItem = { id: string; type: string; message: string; createdAt: string; taskId?: string | null; isRead: boolean };
+
 interface LayoutProps {
   children: React.ReactNode;
   currentUser: User;
@@ -12,15 +14,16 @@ interface LayoutProps {
   onNavigate: (view: any) => void;
   currentView: string;
   jiraQueueBadge?: number;
+  activities: ActivityItem[];
+  loadingActivities: boolean;
+  onActivitiesChange: (updater: (prev: ActivityItem[]) => ActivityItem[]) => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout, onNavigate, currentView, jiraQueueBadge }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout, onNavigate, currentView, jiraQueueBadge, activities, loadingActivities, onActivitiesChange }) => {
   const router = useRouter();
   const isAdmin = currentUser.role === Role.ADMIN;
   const [showNotifications, setShowNotifications] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
-  const [activities, setActivities] = useState<Array<{ id: string; type: string; message: string; createdAt: string; taskId?: string | null; isRead: boolean }>>([]);
-  const [loadingActivities, setLoadingActivities] = useState(true);
   const notifRef = useRef<HTMLDivElement>(null);
   const displayName = currentUser.name || currentUser.email || 'User';
   const roleLabel = isAdmin ? 'Administrator' : `${currentUser.countryCode} • ${currentUser.role}`;
@@ -42,23 +45,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     setAvatarError(false);
   }, [currentUser.avatarUrl]);
 
-  useEffect(() => {
-    const loadActivities = async () => {
-      setLoadingActivities(true);
-      const response = await fetch('/api/activities', { cache: 'no-store' });
-      if (!response.ok) {
-        setLoadingActivities(false);
-        return;
-      }
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        setActivities(data);
-      }
-      setLoadingActivities(false);
-    };
-    void loadActivities();
-  }, [currentUser.id]);
-
   const formatTimeAgo = (isoDate: string) => {
     const time = new Date(isoDate).getTime();
     if (Number.isNaN(time)) return '';
@@ -79,7 +65,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       body: JSON.stringify({ all: true })
     });
     if (!response.ok) return;
-    setActivities((prev) => prev.map((item) => ({ ...item, isRead: true })));
+    onActivitiesChange((prev) => prev.map((item) => ({ ...item, isRead: true })));
   };
 
   const markRead = async (activityId: string) => {
@@ -89,7 +75,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
       body: JSON.stringify({ activityId })
     });
     if (!response.ok) return;
-    setActivities((prev) =>
+    onActivitiesChange((prev) =>
       prev.map((item) => (item.id === activityId ? { ...item, isRead: true } : item))
     );
   };

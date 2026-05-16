@@ -48,7 +48,8 @@ export async function GET(req: Request) {
         }
       }
     },
-    orderBy: [{ countryCode: 'asc' }, { name: 'asc' }]
+    orderBy: [{ countryCode: 'asc' }, { name: 'asc' }],
+    take: 500
   });
 
   return NextResponse.json(users);

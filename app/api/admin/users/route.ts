@@ -40,7 +40,8 @@ export async function GET() {
           select: { assignedTasks: true }
         }
       },
-      orderBy: [{ role: 'asc' }, { name: 'asc' }]
+      orderBy: [{ role: 'asc' }, { name: 'asc' }],
+      take: 500
     });
 
     return NextResponse.json(

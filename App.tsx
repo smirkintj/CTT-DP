@@ -151,6 +151,8 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [activities, setActivities] = useState<Array<{ id: string; type: string; message: string; createdAt: string; taskId?: string | null; isRead: boolean }>>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
   const [view, setView] = useState<ViewState>(initialView ?? 'LOGIN');
   const [jiraTaskPrefill, setJiraTaskPrefill] = useState<JiraTaskPrefill | null>(null);
   const [jiraQueueBadge, setJiraQueueBadge] = useState(0);
@@ -290,7 +292,8 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       return;
     }
 
-    void fetch('/api/health'); // warm up serverless function; result ignored
+    // Warm up the serverless function to reduce cold-start latency on first action.
+    void fetch('/api/health');
 
     const userId = session.user.id;
     const cached = readCachedTasks(userId);
@@ -303,11 +306,6 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       setLoadingTasks(false);
       return;
     }
-
-    // Fire a lightweight ping so the serverless function is warm before the user
-    // interacts. Result is intentionally ignored — this only reduces cold-start
-    // latency on the first real action after the workspace loads.
-    void fetch('/api/health');
 
     const controller = new AbortController();
     let active = true;
@@ -399,6 +397,29 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
 
     void loadTask();
   }, [selectedTaskId, sessionUserId, loadingTasks, hasSelectedTask]);
+
+  useEffect(() => {
+    if (!sessionUserId) {
+      setActivities([]);
+      return;
+    }
+    let active = true;
+    const loadActivities = async () => {
+      setLoadingActivities(true);
+      try {
+        const response = await fetch('/api/activities', { cache: 'no-store' });
+        if (!response.ok || !active) return;
+        const data = await response.json();
+        if (active && Array.isArray(data)) setActivities(data);
+      } catch {
+        // non-critical — bell and feed will stay empty
+      } finally {
+        if (active) setLoadingActivities(false);
+      }
+    };
+    void loadActivities();
+    return () => { active = false; };
+  }, [sessionUserId]);
 
   // Handlers
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -748,16 +769,21 @@ const App: React.FC<AppProps> = ({ initialView, initialSelectedTaskId = null, on
       currentView={view}
       onNavigate={handleNavigation}
       jiraQueueBadge={jiraQueueBadge}
+      activities={activities}
+      loadingActivities={loadingActivities}
+      onActivitiesChange={setActivities}
     >
       {view === 'DASHBOARD_STAKEHOLDER' && (
-        <StakeholderDashboard 
-          tasks={tasks} 
+        <StakeholderDashboard
+          tasks={tasks}
           loading={loadingTasks}
           onSelectTask={handleTaskSelect}
           currentUserCountry={currentUser.countryCode}
           currentUserName={currentUser.name}
           currentUserId={currentUser.id}
           onOpenInbox={() => handleNavigation('INBOX')}
+          activityFeed={activities.slice(0, 5)}
+          loadingActivity={loadingActivities}
         />
       )}
       

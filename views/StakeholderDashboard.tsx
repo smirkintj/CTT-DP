@@ -13,6 +13,8 @@ interface StakeholderDashboardProps {
   currentUserName: string;
   currentUserId: string;
   onOpenInbox: () => void;
+  activityFeed: Array<{ id: string; type: string; message: string; createdAt: string }>;
+  loadingActivity: boolean;
 }
 
 const normalizeStatusKey = (status: string) => {
@@ -31,11 +33,9 @@ const getStatusLabel = (statusKey: string) => {
   return labels[statusKey] ?? statusKey;
 };
 
-export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ tasks, loading, onSelectTask, currentUserCountry, currentUserName, currentUserId, onOpenInbox }) => {
+export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ tasks, loading, onSelectTask, currentUserCountry, currentUserName, currentUserId, onOpenInbox, activityFeed, loadingActivity }) => {
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activityFeed, setActivityFeed] = useState<Array<{ id: string; type: string; message: string; createdAt: string }>>([]);
-  const [loadingActivity, setLoadingActivity] = useState(true);
   const [unreadComments, setUnreadComments] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [helpfulLinkGroups, setHelpfulLinkGroups] = useState<{ productId: string; productName: string; links: { id: string; label: string; url: string }[] }[]>([]);
@@ -165,27 +165,6 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
     }
     setShowOnboarding(false);
   };
-
-  useEffect(() => {
-    const loadActivities = async () => {
-      setLoadingActivity(true);
-      const response = await fetch('/api/activities', { cache: 'no-store' });
-      if (!response.ok) {
-        setLoadingActivity(false);
-        return;
-      }
-
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        setActivityFeed(data.slice(0, 5));
-      } else {
-        setActivityFeed([]);
-      }
-      setLoadingActivity(false);
-    };
-
-    void loadActivities();
-  }, []);
 
   useEffect(() => {
     const loadUnreadCount = async () => {

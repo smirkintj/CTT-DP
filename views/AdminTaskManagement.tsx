@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useDeferredValue, useRef, useState } from 'react';
 import { Task, Priority, TestStep, CountryConfig, AdminProductConfig, JiraTaskPrefill, JiraIssue, JiraIssueGroup } from '../types';
 import { Badge } from '../components/Badge';
 import { Trash2, Plus, Search, Filter, X, Save, Globe, CheckCircle2, ExternalLink } from 'lucide-react';
@@ -371,10 +371,12 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     }
   };
 
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+
   const filteredTasks = useMemo(() => {
-    const filtered = tasks.filter(t => 
-      t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      t.featureModule.toLowerCase().includes(searchTerm.toLowerCase())
+    const filtered = tasks.filter(t =>
+      t.title.toLowerCase().includes(deferredSearchTerm.toLowerCase()) ||
+      t.featureModule.toLowerCase().includes(deferredSearchTerm.toLowerCase())
     );
 
     const statusFiltered = statusFilter === 'ALL'
@@ -437,7 +439,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     });
 
     return sorted;
-  }, [tasks, searchTerm, statusFilter, priorityFilter, countryFilter, signedOffFilter, sortBy]);
+  }, [tasks, deferredSearchTerm, statusFilter, priorityFilter, countryFilter, signedOffFilter, sortBy]);
 
   const isAnyBulkActionSaving = bulkAssignSaving || bulkStatusSaving || globalEditSaving;
 
