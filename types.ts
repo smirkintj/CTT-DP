@@ -144,9 +144,14 @@ export interface TestStep {
 
 export interface Comment {
   id: string;
-  userId: string;
-  text: string;
+  body: string;
   createdAt: string;
+  stepOrder?: number | null;
+  author: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
 
 export interface Notification {
