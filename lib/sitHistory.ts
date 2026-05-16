@@ -1,5 +1,5 @@
 // lib/sitHistory.ts
-import { SitHistoryAction } from '@prisma/client';
+import { Prisma, SitHistoryAction } from '@prisma/client';
 import prisma from './prisma';
 
 interface CreateSitHistoryParams {
@@ -7,8 +7,8 @@ interface CreateSitHistoryParams {
   actorId: string;
   action: SitHistoryAction;
   message: string;
-  before?: Record<string, unknown>;
-  after?: Record<string, unknown>;
+  before?: Prisma.InputJsonValue;
+  after?: Prisma.InputJsonValue;
 }
 
 export async function createSitHistory({
