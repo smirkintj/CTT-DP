@@ -1,35 +1,44 @@
 'use client';
-import React, { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { User, Role } from '../types';
+import React, { useEffect, useRef, useState } from 'react';
+import { useSession, signOut } from 'next-auth/react';
+import { useRouter, usePathname } from 'next/navigation';
+import { Role } from '../types';
 import { LogOut, LayoutGrid, Bell, MessageSquare, AlertCircle, Check, Info, List, Database, BookOpen, Sparkles } from 'lucide-react';
 import { AssistantDock } from './AssistantDock';
+import { sessionToUser } from '@/lib/sessionToUser';
 
-type ActivityItem = { id: string; type: string; message: string; createdAt: string; taskId?: string | null; isRead: boolean };
+type ActivityItem = {
+  id: string;
+  type: string;
+  message: string;
+  createdAt: string;
+  taskId?: string | null;
+  isRead: boolean;
+};
 
-interface LayoutProps {
-  children: React.ReactNode;
-  currentUser: User;
-  onLogout: () => void;
-  onNavigate: (view: any) => void;
-  currentView: string;
-  jiraQueueBadge?: number;
-  activities: ActivityItem[];
-  loadingActivities: boolean;
-  onActivitiesChange: (updater: (prev: ActivityItem[]) => ActivityItem[]) => void;
-}
-
-export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout, onNavigate, currentView, jiraQueueBadge, activities, loadingActivities, onActivitiesChange }) => {
+export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { data: session } = useSession();
   const router = useRouter();
-  const isAdmin = currentUser.role === Role.ADMIN;
+  const pathname = usePathname();
+  const currentUser = sessionToUser(session);
+
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
-  const displayName = currentUser.name || currentUser.email || 'User';
-  const roleLabel = isAdmin ? 'Administrator' : `${currentUser.countryCode} • ${currentUser.role}`;
-  const initials = currentUser.name ? currentUser.name.trim().charAt(0).toUpperCase() : '?';
 
-  const unreadCount = activities.filter((item) => !item.isRead).length;
+  useEffect(() => {
+    if (!session?.user) { setActivities([]); return; }
+    let active = true;
+    setLoadingActivities(true);
+    fetch('/api/activities', { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => { if (active && Array.isArray(data)) setActivities(data); })
+      .catch(() => {})
+      .finally(() => { if (active) setLoadingActivities(false); });
+    return () => { active = false; };
+  }, [session?.user?.id]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -41,9 +50,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    setAvatarError(false);
-  }, [currentUser.avatarUrl]);
+  useEffect(() => { setAvatarError(false); }, [currentUser?.avatarUrl]);
+
+  if (!currentUser) return <>{children}</>;
+
+  const isAdmin = currentUser.role === Role.ADMIN;
+  const displayName = currentUser.name || currentUser.email || 'User';
+  const roleLabel = isAdmin ? 'Administrator' : `${currentUser.countryCode} • ${currentUser.role}`;
+  const initials = currentUser.name ? currentUser.name.trim().charAt(0).toUpperCase() : '?';
+  const unreadCount = activities.filter((a) => !a.isRead).length;
 
   const formatTimeAgo = (isoDate: string) => {
     const time = new Date(isoDate).getTime();
@@ -59,38 +74,43 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   };
 
   const markAllRead = async () => {
-    const response = await fetch('/api/activities/mark-read', {
+    const r = await fetch('/api/activities/mark-read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ all: true })
+      body: JSON.stringify({ all: true }),
     });
-    if (!response.ok) return;
-    onActivitiesChange((prev) => prev.map((item) => ({ ...item, isRead: true })));
+    if (!r.ok) return;
+    setActivities((prev) => prev.map((a) => ({ ...a, isRead: true })));
   };
 
   const markRead = async (activityId: string) => {
-    const response = await fetch('/api/activities/mark-read', {
+    const r = await fetch('/api/activities/mark-read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ activityId })
+      body: JSON.stringify({ activityId }),
     });
-    if (!response.ok) return;
-    onActivitiesChange((prev) =>
-      prev.map((item) => (item.id === activityId ? { ...item, isRead: true } : item))
-    );
+    if (!r.ok) return;
+    setActivities((prev) => prev.map((a) => (a.id === activityId ? { ...a, isRead: true } : a)));
   };
+
+  const dashboardHref = isAdmin ? '/admin/dashboard' : '/';
+  const isDashboard = isAdmin ? pathname === '/admin/dashboard' : pathname === '/';
+  const isInbox = pathname === '/inbox';
+  const isKnowledgeBase = pathname === '/knowledge-base';
+  const isAdminTasks = pathname.startsWith('/admin/tasks') || pathname === '/import';
+  const isJiraQueue = pathname === '/admin/jira-intake';
+  const isAdminDb = pathname === '/admin/database';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
-      {/* Top Navigation */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            
-            {/* Logo & Brand */}
             <div className="flex items-center gap-8">
-              <div className="flex items-center gap-2 cursor-pointer group" onClick={() => onNavigate(isAdmin ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}>
-                {/* DKSH Style Brand Mark */}
+              <div
+                className="flex items-center gap-2 cursor-pointer group"
+                onClick={() => router.push(dashboardHref)}
+              >
                 <div className="h-8 w-auto px-2 bg-brand-500 rounded flex items-center justify-center shadow-sm group-hover:bg-brand-600 transition-colors">
                   <span className="text-white font-bold text-sm tracking-wider">CTT</span>
                 </div>
@@ -100,182 +120,133 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
                 </div>
               </div>
 
-              {/* Main Nav */}
               <nav className="hidden md:flex gap-1 ml-4 items-center">
-                <NavItem
-                  active={currentView === (isAdmin ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}
-                  icon={<LayoutGrid size={16} />}
-                  label="Dashboard"
-                  onClick={() => onNavigate(isAdmin ? 'DASHBOARD_ADMIN' : 'DASHBOARD_STAKEHOLDER')}
-                />
+                <NavItem active={isDashboard} icon={<LayoutGrid size={16} />} label="Dashboard" onClick={() => router.push(dashboardHref)} />
                 {!isAdmin && (
-                  <NavItem
-                    active={currentView === 'INBOX'}
-                    icon={<MessageSquare size={16} />}
-                    label="Inbox"
-                    onClick={() => onNavigate('INBOX')}
-                  />
+                  <NavItem active={isInbox} icon={<MessageSquare size={16} />} label="Inbox" onClick={() => router.push('/inbox')} />
                 )}
-                <NavItem
-                  active={currentView === 'KNOWLEDGE_BASE'}
-                  icon={<BookOpen size={16} />}
-                  label="Knowledge Base"
-                  onClick={() => onNavigate('KNOWLEDGE_BASE')}
-                />
-                {isAdmin ? (
+                <NavItem active={isKnowledgeBase} icon={<BookOpen size={16} />} label="Knowledge Base" onClick={() => router.push('/knowledge-base')} />
+                {isAdmin && (
                   <>
-                    <NavItem
-                      active={currentView === 'ADMIN_TASK_MANAGEMENT' || currentView === 'IMPORT_WIZARD'}
-                      icon={<List size={16} />}
-                      label="Tasks"
-                      onClick={() => onNavigate('ADMIN_TASK_MANAGEMENT')}
-                    />
-                    <NavItem
-                      active={currentView === 'ADMIN_JIRA_INTAKE'}
-                      icon={<Sparkles size={16} />}
-                      label="JIRA Queue"
-                      onClick={() => onNavigate('ADMIN_JIRA_INTAKE')}
-                      badge={jiraQueueBadge}
-                    />
-                    <NavItem
-                      active={currentView === 'ADMIN_DATABASE'}
-                      icon={<Database size={16} />}
-                      label="Config"
-                      onClick={() => onNavigate('ADMIN_DATABASE')}
-                    />
+                    <NavItem active={isAdminTasks} icon={<List size={16} />} label="Tasks" onClick={() => router.push('/admin/tasks')} />
+                    <NavItem active={isJiraQueue} icon={<Sparkles size={16} />} label="JIRA Queue" onClick={() => router.push('/admin/jira-intake')} />
+                    <NavItem active={isAdminDb} icon={<Database size={16} />} label="Config" onClick={() => router.push('/admin/database')} />
                   </>
-                ) : null}
+                )}
               </nav>
             </div>
 
-            {/* Right Side: User Profile & Notifications */}
             <div className="flex items-center gap-4">
-               
-               {/* Notification Bell */}
-               <div className="relative" ref={notifRef}>
-                 <button 
-                   onClick={() => setShowNotifications(!showNotifications)}
-                   className={`p-2 rounded-full transition-colors relative ${showNotifications ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-500 hover:bg-brand-50'}`}
-                 >
-                   <Bell size={20} />
-                   {unreadCount > 0 && (
-                     <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-brand-500 rounded-full border-2 border-white"></span>
-                   )}
-                 </button>
+              <div className="relative" ref={notifRef}>
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className={`p-2 rounded-full transition-colors relative ${showNotifications ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-brand-500 hover:bg-brand-50'}`}
+                >
+                  <Bell size={20} />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-brand-500 rounded-full border-2 border-white" />
+                  )}
+                </button>
 
-                 {/* Dropdown */}
-                 {showNotifications && (
-                   <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-100 ring-1 ring-black ring-opacity-5 animate-in fade-in slide-in-from-top-2 origin-top-right overflow-hidden">
-                     <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                       <h3 className="text-sm font-semibold text-slate-900">Notifications</h3>
-                       <button onClick={markAllRead} className="text-xs text-brand-600 hover:text-brand-700 font-medium">Mark all read</button>
-                     </div>
-                     <div className="max-h-[400px] overflow-y-auto">
-                       {loadingActivities ? (
-                         <div className="p-8 text-center text-slate-400">
-                           <p className="text-sm">Loading notifications...</p>
-                         </div>
-                       ) : activities.length === 0 ? (
-                         <div className="p-8 text-center text-slate-400">
-                           <p className="text-sm">No notifications</p>
-                         </div>
-                       ) : (
-                         <div className="divide-y divide-slate-50">
-                          {activities.map(n => (
-                             <button
-                               key={n.id}
-                               onClick={() => {
-                                 if (!n.isRead) {
-                                   void markRead(n.id);
-                                 }
-                                 if (n.taskId && n.type === 'COMMENT_ADDED') {
-                                   setShowNotifications(false);
-                                   router.push(`/tasks/${n.taskId}`);
-                                 }
-                               }}
-                               className={`w-full text-left p-4 hover:bg-slate-50 transition-colors flex gap-3 ${!n.isRead ? 'bg-brand-50/10' : ''}`}
-                             >
-                               <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                 n.type === 'STATUS_CHANGED' ? 'bg-rose-100 text-rose-600' :
-                                 n.type === 'SIGNED_OFF' || n.type === 'DEPLOYED' ? 'bg-emerald-100 text-emerald-600' :
-                                 n.type === 'COMMENT_ADDED' ? 'bg-blue-100 text-blue-600' :
-                                 'bg-slate-100 text-slate-500'
-                               }`}>
-                                 {n.type === 'STATUS_CHANGED' && <AlertCircle size={14} />}
-                                 {(n.type === 'SIGNED_OFF' || n.type === 'DEPLOYED') && <Check size={14} />}
-                                 {n.type === 'COMMENT_ADDED' && <MessageSquare size={14} />}
-                                 {n.type === 'TASK_ASSIGNED' && <Info size={14} />}
-                               </div>
-                               <div>
-                                 <p className="text-sm text-slate-800 leading-snug">{n.message}</p>
-                                 <p className="text-xs text-slate-400 mt-1">{formatTimeAgo(n.createdAt)}</p>
-                               </div>
-                               {!n.isRead && (
-                                 <div className="mt-2 w-2 h-2 rounded-full bg-brand-500 flex-shrink-0"></div>
-                               )}
-                             </button>
-                           ))}
-                         </div>
-                       )}
-                     </div>
-                     <div className="p-2 border-t border-slate-100 text-center">
-                       <button
-                         onClick={() => {
-                           setShowNotifications(false);
-                           onNavigate('INBOX');
-                         }}
-                         className="text-xs text-slate-500 hover:text-slate-800 font-medium py-1"
-                       >
-                         View All History
-                       </button>
-                     </div>
-                   </div>
-                 )}
-               </div>
-               
-               <div className="h-6 w-px bg-slate-200 mx-1"></div>
+                {showNotifications && (
+                  <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-100 ring-1 ring-black ring-opacity-5 animate-in fade-in slide-in-from-top-2 origin-top-right overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                      <h3 className="text-sm font-semibold text-slate-900">Notifications</h3>
+                      <button onClick={markAllRead} className="text-xs text-brand-600 hover:text-brand-700 font-medium">Mark all read</button>
+                    </div>
+                    <div className="max-h-[400px] overflow-y-auto">
+                      {loadingActivities ? (
+                        <div className="p-8 text-center text-slate-400"><p className="text-sm">Loading notifications...</p></div>
+                      ) : activities.length === 0 ? (
+                        <div className="p-8 text-center text-slate-400"><p className="text-sm">No notifications</p></div>
+                      ) : (
+                        <div className="divide-y divide-slate-50">
+                          {activities.map((n) => (
+                            <button
+                              key={n.id}
+                              onClick={() => {
+                                if (!n.isRead) void markRead(n.id);
+                                if (n.taskId && n.type === 'COMMENT_ADDED') {
+                                  setShowNotifications(false);
+                                  router.push(`/tasks/${n.taskId}`);
+                                }
+                              }}
+                              className={`w-full text-left p-4 hover:bg-slate-50 transition-colors flex gap-3 ${!n.isRead ? 'bg-brand-50/10' : ''}`}
+                            >
+                              <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                                n.type === 'STATUS_CHANGED' ? 'bg-rose-100 text-rose-600' :
+                                n.type === 'SIGNED_OFF' || n.type === 'DEPLOYED' ? 'bg-emerald-100 text-emerald-600' :
+                                n.type === 'COMMENT_ADDED' ? 'bg-blue-100 text-blue-600' :
+                                'bg-slate-100 text-slate-500'
+                              }`}>
+                                {n.type === 'STATUS_CHANGED' && <AlertCircle size={14} />}
+                                {(n.type === 'SIGNED_OFF' || n.type === 'DEPLOYED') && <Check size={14} />}
+                                {n.type === 'COMMENT_ADDED' && <MessageSquare size={14} />}
+                                {n.type === 'TASK_ASSIGNED' && <Info size={14} />}
+                              </div>
+                              <div>
+                                <p className="text-sm text-slate-800 leading-snug">{n.message}</p>
+                                <p className="text-xs text-slate-400 mt-1">{formatTimeAgo(n.createdAt)}</p>
+                              </div>
+                              {!n.isRead && <div className="mt-2 w-2 h-2 rounded-full bg-brand-500 flex-shrink-0" />}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-2 border-t border-slate-100 text-center">
+                      <button
+                        onClick={() => { setShowNotifications(false); router.push('/inbox'); }}
+                        className="text-xs text-slate-500 hover:text-slate-800 font-medium py-1"
+                      >
+                        View All History
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
-               <div className="flex items-center gap-3">
-                 <div className="text-right hidden sm:block">
-                   <p className="text-sm font-medium text-slate-900">{displayName}</p>
-                   <p className="text-xs text-slate-500">{roleLabel}</p>
-                 </div>
-                 {currentUser.avatarUrl && !avatarError ? (
-                   // eslint-disable-next-line @next/next/no-img-element
-                   <img 
-                      src={currentUser.avatarUrl} 
-                      alt="User" 
-                      onError={() => setAvatarError(true)}
-                      className="w-9 h-9 rounded-full border border-slate-200 shadow-sm object-cover"
-                   />
-                 ) : (
-                   <div className="w-9 h-9 rounded-full border border-slate-200 shadow-sm bg-slate-100 text-slate-600 flex items-center justify-center text-sm font-semibold">
-                     {initials}
-                   </div>
-                 )}
-                 <button onClick={onLogout} className="text-slate-400 hover:text-slate-800 ml-2">
-                   <LogOut size={18} />
-                 </button>
-               </div>
+              <div className="h-6 w-px bg-slate-200 mx-1" />
+
+              <div className="flex items-center gap-3">
+                <div className="text-right hidden sm:block">
+                  <p className="text-sm font-medium text-slate-900">{displayName}</p>
+                  <p className="text-xs text-slate-500">{roleLabel}</p>
+                </div>
+                {currentUser.avatarUrl && !avatarError ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt="User"
+                    onError={() => setAvatarError(true)}
+                    className="w-9 h-9 rounded-full border border-slate-200 shadow-sm object-cover"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-full border border-slate-200 shadow-sm bg-slate-100 text-slate-600 flex items-center justify-center text-sm font-semibold">
+                    {initials}
+                  </div>
+                )}
+                <button
+                  onClick={() => void signOut({ callbackUrl: '/' })}
+                  className="text-slate-400 hover:text-slate-800 ml-2"
+                  aria-label="Sign out"
+                >
+                  <LogOut size={18} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
 
-      {/* Footer */}
       <footer className="print:hidden border-t border-slate-100 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-          <span className="text-xs text-slate-400 select-none">
-            © {new Date().getFullYear()} DKSH CSSC Digital Product
-          </span>
-          <span className="text-[11px] font-mono text-slate-400 select-none">
-            v{process.env.NEXT_PUBLIC_APP_VERSION ?? '1.0.0'}
-          </span>
+          <span className="text-xs text-slate-400 select-none">© {new Date().getFullYear()} DKSH CSSC Digital Product</span>
+          <span className="text-[11px] font-mono text-slate-400 select-none">v{process.env.NEXT_PUBLIC_APP_VERSION ?? '1.0.0'}</span>
         </div>
       </footer>
 
@@ -284,13 +255,17 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentUser, onLogout,
   );
 };
 
-const NavItem: React.FC<{ active: boolean; icon: React.ReactNode; label: string; onClick: () => void; badge?: number }> = ({ active, icon, label, onClick, badge }) => (
+const NavItem: React.FC<{
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  badge?: number;
+}> = ({ active, icon, label, onClick, badge }) => (
   <button
     onClick={onClick}
     className={`relative flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
-      active
-        ? 'bg-slate-100 text-brand-600'
-        : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+      active ? 'bg-slate-100 text-brand-600' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
     }`}
   >
     {icon}

@@ -1,16 +1,12 @@
- 'use client';
+'use client';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Task, User, Role } from '../types';
+import { useRouter } from 'next/navigation';
+import { Task, Role } from '../types';
 import { Badge } from '../components/Badge';
 import { AlertTriangle, TrendingUp, Clock, MessageSquare, ArrowRight, XCircle } from 'lucide-react';
+import { apiFetch } from '../lib/http';
 
-interface AdminDashboardProps {
-  tasks: Task[];
-  loading: boolean;
-  onSelectTask: (task: Task) => void;
-  onManageTasks: () => void;
-  currentUser: User;
-}
+interface AdminDashboardProps {}
 
 const normalizeStatusKey = (status: string) => {
   if (!status) return 'UNKNOWN';
@@ -111,11 +107,24 @@ const getTaskAccent = (task: Task) => {
   };
 };
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, onSelectTask, onManageTasks, currentUser }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
+  const router = useRouter();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState<'dueDate' | 'priority' | 'status'>('dueDate');
   const [unreadComments, setUnreadComments] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    apiFetch<any[]>('/api/tasks', { cache: 'no-store' })
+      .then((data) => { if (active && Array.isArray(data)) setTasks(data as Task[]); })
+      .catch(() => {})
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
 
   // KPI Calculations
   const totalSteps = tasks.reduce((acc, task) => acc + (task.steps?.length ?? 0), 0);
@@ -234,7 +243,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
         </div>
         <div className="flex gap-2">
            <button 
-             onClick={onManageTasks} // Redirect to manage for now to open create modal there
+             onClick={() => router.push('/admin/tasks')} // Redirect to manage for now to open create modal there
              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 shadow-sm flex items-center gap-2"
            >
              + New Task
@@ -349,7 +358,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                  return (
                  <div
                    key={task.id}
-                   onClick={() => onSelectTask(task)}
+                   onClick={() => router.push(`/tasks/${task.id}`)}
                    className={`relative overflow-hidden bg-white rounded-xl p-4 border shadow-sm hover:border-brand-300 transition-all cursor-pointer group ${accent.cardClass}`}
                  >
                    <div className={`absolute top-0 left-0 right-0 h-1 ${accent.barClass}`} />
@@ -396,7 +405,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
              )}
            </div>
            
-           <button onClick={onManageTasks} className="w-full py-3 text-sm text-slate-500 font-medium hover:text-brand-600 hover:bg-slate-50 border border-dashed border-slate-200 rounded-xl transition-colors">
+           <button onClick={() => router.push('/admin/tasks')} className="w-full py-3 text-sm text-slate-500 font-medium hover:text-brand-600 hover:bg-slate-50 border border-dashed border-slate-200 rounded-xl transition-colors">
               View All Tasks
            </button>
         </div>
@@ -421,7 +430,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ tasks, loading, 
                      const statusKey = normalizeStatusKey(t.status as unknown as string);
                      return statusKey === 'FAILED' || statusKey === 'BLOCKED';
                    }).map(t => (
-                     <div key={t.id} onClick={() => onSelectTask(t)} className="flex items-start gap-3 p-3 bg-red-50/50 rounded-lg border border-red-100 hover:bg-red-50 cursor-pointer transition-colors">
+                     <div key={t.id} onClick={() => router.push(`/tasks/${t.id}`)} className="flex items-start gap-3 p-3 bg-red-50/50 rounded-lg border border-red-100 hover:bg-red-50 cursor-pointer transition-colors">
                         <XCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0"/>
                         <div>
                            <p className="text-xs font-bold text-red-800 line-clamp-1">{t.title}</p>

@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { sessionToUser } from '@/lib/sessionToUser';
 import { Task, Status, User, Role, TestStep, Priority, AdminProductConfig, JiraIssue, JiraIssueGroup } from '../types';
 import { Badge } from '../components/Badge';
 import { SignatureCanvas } from '../components/SignatureCanvas';
@@ -14,12 +17,6 @@ import { resolveMentionUserIds } from '../lib/mentions';
 
 interface TaskDetailProps {
   task: Task;
-  currentUser: User;
-  initialStepOrder?: number | null;
-  initialCommentId?: string | null;
-  onBack: () => void;
-  onUpdateTask: (task: Task) => void;
-  onDeleteTask: (taskId: string) => void;
 }
 
 interface TaskHistoryEntry {
@@ -168,7 +165,15 @@ const IsoComplianceBanner: React.FC = () => {
   );
 };
 
-export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initialStepOrder = null, initialCommentId = null, onBack, onUpdateTask, onDeleteTask }) => {
+export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentUser: User = sessionToUser(session) ?? {
+    id: '', name: 'User', email: '', role: Role.STAKEHOLDER, countryCode: null
+  };
+  const initialStepOrder = searchParams.get('step') ? Number(searchParams.get('step')) : null;
+  const initialCommentId = searchParams.get('comment') || null;
   const [localTask, setLocalTask] = useState<Task>(() => normalizeTask(task));
   const [expandedStep, setExpandedStep] = useState<string | null>(() => {
     const safe = normalizeTask(task);
@@ -368,7 +373,6 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
           steps: (latest.steps ?? []).map((s) => s.id === stepId ? { ...s, ...updates } : s),
         };
         setLocalTask(reOptimised);
-        onUpdateTask(reOptimised);
         return persistStepProgress(stepId, updates, latest.updatedAt, true);
       }
       notify('Task changed by another user. Reloaded latest data.', 'error');
@@ -420,7 +424,6 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
     }
 
     setLocalTask(updatedTask);
-    onUpdateTask(updatedTask);
 
     if (updatedTask.status !== previousStatus) {
       const failedStepOrder =
@@ -656,7 +659,6 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       }
     };
     setLocalTask(deployedTask);
-    onUpdateTask(deployedTask);
     void persistStatus(deployedTask.status);
     setDeploymentModalOpen(false);
   };
@@ -719,7 +721,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       onConfirm: async () => {
         const response = await fetch(`/api/tasks/${localTask.id}`, { method: 'DELETE' });
         if (!response.ok) return;
-        onDeleteTask(localTask.id);
+        router.push(currentUser.role === Role.ADMIN ? '/admin/tasks' : '/');
       }
     });
   };
@@ -729,7 +731,6 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       const updated = await apiFetch<Task>(`/api/tasks/${taskId}`, { cache: 'no-store' });
       const safeUpdated = normalizeTask(updated as Task);
       setLocalTask(safeUpdated);
-      onUpdateTask(safeUpdated);
       void fetch(`/api/tasks/${taskId}/comments/read`, { method: 'POST' });
       return safeUpdated;
     } catch (error) {
@@ -772,7 +773,6 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
         // Re-apply optimistic status on top of refreshed server state before retrying.
         const reOptimised = { ...latest, status };
         setLocalTask(reOptimised);
-        onUpdateTask(reOptimised);
         return persistStatus(status, stepOrder, latest.updatedAt, true);
       }
       notify('Task changed by another user. Reloaded latest data.', 'error');
@@ -839,7 +839,6 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       const updated = await response.json();
       const safeUpdated = normalizeTask(updated as Task);
       setLocalTask(safeUpdated);
-      onUpdateTask(safeUpdated);
       setTaskMetaError(null);
       setTaskEdits({
         title: safeUpdated.title ?? '',
@@ -917,11 +916,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
         title: 'Unsaved Changes',
         message: 'You have unsaved changes. Leave this page without saving?',
         confirmLabel: 'Leave',
-        onConfirm: () => onBack()
+        onConfirm: () => router.back()
       });
       return;
     }
-    onBack();
+    router.back();
   };
 
   useEffect(() => {

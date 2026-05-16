@@ -1,21 +1,14 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Task, Status } from '../types';
 import { Badge } from '../components/Badge';
 import { Search, ArrowRight, MessageSquare, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { notify } from '../lib/notify';
+import { apiFetch } from '../lib/http';
 
-interface StakeholderDashboardProps {
-  tasks: Task[];
-  loading: boolean;
-  onSelectTask: (task: Task) => void;
-  currentUserCountry: string;
-  currentUserName: string;
-  currentUserId: string;
-  onOpenInbox: () => void;
-  activityFeed: Array<{ id: string; type: string; message: string; createdAt: string }>;
-  loadingActivity: boolean;
-}
+interface StakeholderDashboardProps {}
 
 const normalizeStatusKey = (status: string) => {
   if (!status) return 'UNKNOWN';
@@ -33,12 +26,45 @@ const getStatusLabel = (statusKey: string) => {
   return labels[statusKey] ?? statusKey;
 };
 
-export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ tasks, loading, onSelectTask, currentUserCountry, currentUserName, currentUserId, onOpenInbox, activityFeed, loadingActivity }) => {
+export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = () => {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const currentUserCountry = session?.user?.countryCode ?? '';
+  const currentUserName = session?.user?.name || session?.user?.email || 'User';
+  const currentUserId = session?.user?.id ?? '';
+
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activityFeed, setActivityFeed] = useState<Array<{ id: string; type: string; message: string; createdAt: string }>>([]);
+  const [loadingActivity, setLoadingActivity] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [unreadComments, setUnreadComments] = useState(0);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [helpfulLinkGroups, setHelpfulLinkGroups] = useState<{ productId: string; productName: string; links: { id: string; label: string; url: string }[] }[]>([]);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    let active = true;
+    setLoading(true);
+    apiFetch<any[]>('/api/tasks', { cache: 'no-store' })
+      .then((data) => { if (active && Array.isArray(data)) setTasks(data as Task[]); })
+      .catch(() => {})
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    let active = true;
+    setLoadingActivity(true);
+    fetch('/api/activities', { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => { if (active && Array.isArray(data)) setActivityFeed(data.slice(0, 5)); })
+      .catch(() => {})
+      .finally(() => { if (active) setLoadingActivity(false); });
+    return () => { active = false; };
+  }, [session?.user?.id]);
   
   const myTasks = tasks.filter(t => t.countryCode === currentUserCountry);
   const statusFilteredTasks = filterStatus === 'ALL'
@@ -335,7 +361,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                 <button
                   type="button"
                   onClick={() => {
-                    if (myTasks[0]) onSelectTask(myTasks[0]);
+                    if (myTasks[0]) router.push(`/tasks/${myTasks[0].id}`);
                   }}
                   disabled={!myTasks[0]}
                   className="px-3 py-1.5 rounded-md bg-slate-900 text-white text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800"
@@ -344,7 +370,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                 </button>
                 <button
                   type="button"
-                  onClick={onOpenInbox}
+                  onClick={() => router.push('/inbox')}
                   className="px-3 py-1.5 rounded-md border border-slate-200 text-slate-700 text-xs font-medium hover:bg-slate-50"
                 >
                   Open Discussions
@@ -413,7 +439,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                         <span className="text-3xl font-bold text-purple-900">{unreadComments}</span>
                         <span className="text-xs text-purple-600 font-medium">new comments</span>
                     </div>
-                    <button onClick={onOpenInbox} className="text-xs text-purple-700 hover:text-purple-900 font-medium mt-3 flex items-center gap-1">
+                    <button onClick={() => router.push('/inbox')} className="text-xs text-purple-700 hover:text-purple-900 font-medium mt-3 flex items-center gap-1">
                         View Discussions <ArrowRight size={12}/>
                     </button>
                 </div>
@@ -475,7 +501,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                       <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                         <button
                           type="button"
-                          onClick={onOpenInbox}
+                          onClick={() => router.push('/inbox')}
                           className="px-3 py-1.5 rounded-md bg-slate-900 text-white text-xs font-medium hover:bg-slate-800"
                         >
                           Open Discussions
@@ -506,7 +532,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = ({ task
                   return (
                   <div 
                     key={task.id}
-                    onClick={() => onSelectTask(task)}
+                    onClick={() => router.push(`/tasks/${task.id}`)}
                     className={`group bg-white rounded-xl p-5 border shadow-sm hover:shadow-md hover:border-brand-200 transition-all motion-safe:hover:-translate-y-0.5 cursor-pointer relative overflow-hidden flex flex-col h-full animate-card-enter ${accent.cardClass}`}
                   >
                     {/* Status Strip */}
