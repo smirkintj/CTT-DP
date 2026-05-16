@@ -488,7 +488,32 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       return;
     }
 
-    await refreshTask(localTask.id);
+    const responseData = await response.json().catch(() => ({}));
+    const newCommentId = responseData?.id ?? `optimistic-${Date.now()}`;
+
+    // Inject the new comment directly into local state — no full round-trip needed.
+    const newComment = {
+      id: newCommentId,
+      body: text.trim(),
+      createdAt: new Date().toISOString(),
+      author: { id: currentUser.id, name: currentUser.name, email: currentUser.email }
+    };
+    const newStepComment = stepOrder != null
+      ? { id: newCommentId, userId: currentUser.name, text: text.trim(), createdAt: new Date().toISOString() }
+      : null;
+
+    setLocalTask((prev) => {
+      const updatedSteps = (prev.steps ?? []).map((step) => {
+        if (step.id !== stepId) return step;
+        return { ...step, comments: [...(step.comments ?? []), ...(newStepComment ? [newStepComment] : [])] };
+      });
+      return {
+        ...prev,
+        comments: [...(prev.comments ?? []), newComment],
+        steps: updatedSteps
+      };
+    });
+
     setCommentInputs((prev) => ({ ...prev, [stepId]: '' }));
     setCommentSaveState((prev) => ({ ...prev, [stepId]: 'saved' }));
     window.setTimeout(() => {
@@ -940,6 +965,17 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
 
   const handleSaveStep = async (stepId: string) => {
     const edits = stepEdits[stepId];
+    // Apply edit optimistically so the UI reflects the save immediately.
+    setLocalTask((prev) => ({
+      ...prev,
+      steps: (prev.steps ?? []).map((s) =>
+        s.id === stepId
+          ? { ...s, description: edits?.description ?? s.description, expectedResult: edits?.expectedResult ?? s.expectedResult, testData: edits?.testData ?? s.testData }
+          : s
+      )
+    }));
+    setEditingStepId(null);
+
     const response = await fetch(`/api/tasks/${localTask.id}/steps/${stepId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -951,9 +987,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task, currentUser, initi
       })
     });
 
-    if (!response.ok) return;
-    setEditingStepId(null);
-    await refreshTask(localTask.id);
+    if (!response.ok) {
+      // Revert on failure by reloading from server.
+      notify('Failed to save step', 'error');
+      await refreshTask(localTask.id);
+    }
   };
 
   const handleDeleteStep = async (stepId: string) => {
