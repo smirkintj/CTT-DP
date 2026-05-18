@@ -1,5 +1,5 @@
 import AppRouteShell from '../../AppRouteShell';
 
 export default function Page() {
-  return <AppRouteShell initialView="QA_JIRA_QUEUE" />;
+  return <AppRouteShell />;
 }
