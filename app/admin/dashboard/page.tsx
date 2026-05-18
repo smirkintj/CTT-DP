@@ -1,5 +1,13 @@
-import AppRouteShell from '../../AppRouteShell';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import { AdminDashboard } from '@/views/AdminDashboard';
 
-export default function Page() {
-  return <AppRouteShell initialView="DASHBOARD_ADMIN" />;
+export const dynamic = 'force-dynamic';
+
+export default async function Page() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) redirect('/');
+  if (session.user.role !== 'ADMIN') redirect('/');
+  return <AdminDashboard />;
 }

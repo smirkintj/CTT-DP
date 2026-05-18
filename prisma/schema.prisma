@@ -295,6 +295,7 @@ model Activity {
 
   @@index([createdAt])
   @@index([countryCode])
+  @@index([countryCode, createdAt])
 }
 
 model ActivityRead {

@@ -40,17 +40,15 @@ export async function GET() {
       tasks = await prisma.task.findMany({
         where,
         include: taskRelationIncludeList,
-        orderBy: {
-          updatedAt: 'desc'
-        }
+        orderBy: { updatedAt: 'desc' },
+        take: 500
       });
     } catch {
       tasks = await prisma.task.findMany({
         where,
         include: taskRelationIncludeSafe,
-        orderBy: {
-          updatedAt: 'desc'
-        }
+        orderBy: { updatedAt: 'desc' },
+        take: 500
       });
     }
 
@@ -72,7 +70,8 @@ export async function GET() {
       // Last-resort fallback so dashboards remain usable even if relation includes fail.
       const minimalTasks = await prisma.task.findMany({
         where,
-        orderBy: { updatedAt: 'desc' }
+        orderBy: { updatedAt: 'desc' },
+        take: 500
       });
 
       const mappedMinimal = minimalTasks.map((task) =>
@@ -215,133 +214,116 @@ export async function POST(req: Request) {
     return badRequest('Target system is invalid for the selected product', 'TASK_TARGET_SYSTEM_INVALID');
   }
 
-  const createdTaskIds: string[] = [];
   const taskGroupId = countries.length > 1 ? randomUUID() : null;
 
-  for (const countryCode of countries) {
-    const selectedAssigneeId = assigneeByCountry[countryCode];
-    let assignee = null;
-
-    if (selectedAssigneeId) {
-      assignee = await prisma.user.findFirst({
-        where: {
-          id: selectedAssigneeId,
-          role: UserRole.STAKEHOLDER,
-          isActive: true,
-          countryCode,
-          productAccesses: {
-            some: {
-              productId
-            }
-          }
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true
-        }
-      });
-      if (!assignee) {
-        return badRequest(
-          `Selected assignee is invalid for ${countryCode}`,
-          'TASK_ASSIGNEE_INVALID'
-        );
+  // Step 1: Resolve assignees for all countries in parallel before writing anything.
+  const countryAssigneeResults = await Promise.all(
+    countries.map(async (countryCode) => {
+      const selectedAssigneeId = assigneeByCountry[countryCode];
+      if (selectedAssigneeId) {
+        const assignee = await prisma.user.findFirst({
+          where: {
+            id: selectedAssigneeId,
+            role: UserRole.STAKEHOLDER,
+            isActive: true,
+            countryCode,
+            productAccesses: { some: { productId } }
+          },
+          select: { id: true, email: true, name: true }
+        });
+        return { countryCode, assignee, invalid: !assignee };
       }
-    }
-
-    if (!assignee) {
-      assignee = await prisma.user.findFirst({
+      const assignee = await prisma.user.findFirst({
         where: {
           role: UserRole.STAKEHOLDER,
           isActive: true,
           countryCode,
-          productAccesses: {
-            some: {
-              productId
-            }
-          }
+          productAccesses: { some: { productId } }
         },
-        select: {
-          id: true,
-          email: true,
-          name: true
-        }
+        select: { id: true, email: true, name: true }
       });
-    }
+      return { countryCode, assignee, invalid: false };
+    })
+  );
 
-    const created = await prisma.task.create({
-      data: {
-        title,
-        description,
-        jiraTicket,
-        jiraTicketVerified,
-        eodTicket,
-        crNumber,
-        developer,
-        productId,
-        module: moduleName,
-        targetSystemId: targetSystem?.id ?? null,
-        status: TaskStatus.DRAFT,
-        priority,
-        countryCode,
-        dueDate,
-        assigneeId: assignee?.id ?? null,
-        taskGroupId,
-        updatedById: session.user.id
-      },
-      select: { id: true }
-    });
-
-    createdTaskIds.push(created.id);
-
-    await createTaskHistory({
-      taskId: created.id,
-      actorId: session.user.id,
-      action: TaskHistoryAction.TASK_CREATED,
-      message: `${session.user.name || session.user.email || 'Admin'} created "${title}" for ${countryCode}.`,
-      after: {
-        title,
-        description,
-        jiraTicket,
-        eodTicket,
-        crNumber,
-        developer,
-        productId,
-        module: moduleName,
-        targetSystemId: targetSystem?.id ?? null,
-        status: TaskStatus.DRAFT,
-        priority,
-        countryCode,
-        dueDate: dueDate ? dueDate.toISOString() : null,
-        assigneeId: assignee?.id ?? null,
-        taskGroupId
-      }
-    });
-
-    if (steps.length > 0) {
-      await prisma.taskStep.createMany({
-        data: steps
-          .filter((step: any) => !step?.countryFilter || step.countryFilter === 'ALL' || step.countryFilter === countryCode)
-          .map((step: any, index: number) => ({
-            taskId: created.id,
-            order: index + 1,
-            description: (step?.description || '').toString(),
-            expectedResult: (step?.expectedResult || '').toString(),
-            testData: step?.testData ? step.testData.toString() : null
-          }))
-      });
-    }
-
-    await prisma.activity.create({
-      data: {
-        type: ActivityType.STATUS_CHANGED,
-        taskId: created.id,
-        actorId: session.user.id,
-        countryCode,
-        message: `Admin created draft task "${title}" for ${countryCode}.`
-      }
-    });
+  const invalidEntry = countryAssigneeResults.find((e) => e.invalid);
+  if (invalidEntry) {
+    return badRequest(
+      `Selected assignee is invalid for ${invalidEntry.countryCode}`,
+      'TASK_ASSIGNEE_INVALID'
+    );
   }
+
+  // Step 2: Create tasks for all countries in parallel.
+  const actorLabel = session.user.name || session.user.email || 'Admin';
+  const createdTaskIds = await Promise.all(
+    countryAssigneeResults.map(async ({ countryCode, assignee }) => {
+      const created = await prisma.task.create({
+        data: {
+          title,
+          description,
+          jiraTicket,
+          jiraTicketVerified,
+          eodTicket,
+          crNumber,
+          developer,
+          productId,
+          module: moduleName,
+          targetSystemId: targetSystem?.id ?? null,
+          status: TaskStatus.DRAFT,
+          priority,
+          countryCode,
+          dueDate,
+          assigneeId: assignee?.id ?? null,
+          taskGroupId,
+          updatedById: session.user.id
+        },
+        select: { id: true }
+      });
+
+      const historyAfter = {
+        title, description, jiraTicket, eodTicket, crNumber, developer,
+        productId, module: moduleName, targetSystemId: targetSystem?.id ?? null,
+        status: TaskStatus.DRAFT, priority, countryCode,
+        dueDate: dueDate ? dueDate.toISOString() : null,
+        assigneeId: assignee?.id ?? null, taskGroupId
+      };
+
+      await Promise.all([
+        createTaskHistory({
+          taskId: created.id,
+          actorId: session.user.id,
+          action: TaskHistoryAction.TASK_CREATED,
+          message: `${actorLabel} created "${title}" for ${countryCode}.`,
+          after: historyAfter
+        }),
+        steps.length > 0
+          ? prisma.taskStep.createMany({
+              data: steps
+                .filter((step: any) => !step?.countryFilter || step.countryFilter === 'ALL' || step.countryFilter === countryCode)
+                .map((step: any, index: number) => ({
+                  taskId: created.id,
+                  order: index + 1,
+                  description: (step?.description || '').toString(),
+                  expectedResult: (step?.expectedResult || '').toString(),
+                  testData: step?.testData ? step.testData.toString() : null
+                }))
+            })
+          : Promise.resolve(),
+        prisma.activity.create({
+          data: {
+            type: ActivityType.STATUS_CHANGED,
+            taskId: created.id,
+            actorId: session.user.id,
+            countryCode,
+            message: `Admin created draft task "${title}" for ${countryCode}.`
+          }
+        })
+      ]);
+
+      return created.id;
+    })
+  );
 
   logPilotEvent('tasks.create.success', {
     actorId: session.user.id,

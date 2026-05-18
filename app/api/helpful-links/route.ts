@@ -10,7 +10,6 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Get all product accesses for the user
   const accesses = await prisma.userProductAccess.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: 'asc' },
@@ -23,23 +22,21 @@ export async function GET() {
     return NextResponse.json([]);
   }
 
-  // Fetch links for all products in parallel
-  const groups = await Promise.all(
-    accesses.map(async (access) => {
-      const setting = await prisma.portalSetting.findUnique({
-        where: { key: getHelpfulLinksKey(access.product.id) },
-        select: { value: true }
-      });
-      const links = Array.isArray(setting?.value) ? setting.value : [];
-      if (links.length === 0) return null;
-      return {
-        productId: access.product.id,
-        productName: access.product.name,
-        links
-      };
-    })
-  );
+  const keys = accesses.map((a) => getHelpfulLinksKey(a.product.id));
+  const settings = await prisma.portalSetting.findMany({
+    where: { key: { in: keys } },
+    select: { key: true, value: true }
+  });
+  const settingsByKey = new Map(settings.map((s) => [s.key, s.value]));
 
-  // Filter out products with no links
-  return NextResponse.json(groups.filter(Boolean));
+  const groups = accesses
+    .map((access) => {
+      const value = settingsByKey.get(getHelpfulLinksKey(access.product.id));
+      const links = Array.isArray(value) ? value : [];
+      if (links.length === 0) return null;
+      return { productId: access.product.id, productName: access.product.name, links };
+    })
+    .filter(Boolean);
+
+  return NextResponse.json(groups);
 }

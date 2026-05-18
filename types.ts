@@ -62,6 +62,7 @@ export interface Task {
   dueDate: string | null;
   createdAt?: string;
   steps: TestStep[];
+  comments?: Comment[];
   commentCount?: number;
   updatedAt: string;
   updatedBy?: {
@@ -144,9 +145,14 @@ export interface TestStep {
 
 export interface Comment {
   id: string;
-  userId: string;
-  text: string;
+  body: string;
   createdAt: string;
+  stepOrder?: number | null;
+  author: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
 
 export interface Notification {
