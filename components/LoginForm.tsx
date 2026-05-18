@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { fieldBaseClass } from '@/components/ui/formClasses';
 
-const LOGIN_LOCK_MS = 30_000;
-
 export default function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -14,11 +12,8 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [lockUntil, setLockUntil] = useState<number | null>(null);
-  const [remainingLockSeconds, setRemainingLockSeconds] = useState(0);
   const [loginError, setLoginError] = useState<string | null>(null);
   const emailIsValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const isLocked = !!lockUntil && Date.now() < lockUntil;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -28,70 +23,21 @@ export default function LoginForm() {
     if (savedEmail) setEmail(savedEmail);
   }, []);
 
-  useEffect(() => {
-    if (!email) { setLockUntil(null); setRemainingLockSeconds(0); return; }
-    const key = `ctt_login_lock_${email.toLowerCase().trim()}`;
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return;
-    const until = Number(raw);
-    if (!Number.isFinite(until) || until <= Date.now()) { window.localStorage.removeItem(key); return; }
-    setLockUntil(until);
-  }, [email]);
-
-  useEffect(() => {
-    if (!lockUntil) { setRemainingLockSeconds(0); return; }
-    const tick = () => {
-      const remaining = Math.max(0, Math.ceil((lockUntil - Date.now()) / 1000));
-      setRemainingLockSeconds(remaining);
-      if (remaining === 0) {
-        window.localStorage.removeItem(`ctt_login_lock_${email.toLowerCase().trim()}`);
-        setLockUntil(null);
-      }
-    };
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
-  }, [lockUntil, email]);
-
-  useEffect(() => {
-    if (!lockUntil || remainingLockSeconds <= 0) return;
-    setLoginError(`Too many failed attempts. Please retry in ${remainingLockSeconds}s.`);
-  }, [lockUntil, remainingLockSeconds]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password || isLoggingIn) return;
     if (!emailIsValid) { setLoginError('Please enter a valid email address.'); return; }
-    if (isLocked && remainingLockSeconds > 0) {
-      setLoginError(`Too many attempts. Try again in ${remainingLockSeconds}s.`);
-      return;
-    }
 
     setLoginError(null);
     setIsLoggingIn(true);
     const result = await signIn('credentials', { email, password, redirect: false });
 
     if (!result || result.error) {
-      const keyBase = email.toLowerCase().trim();
-      const attemptsKey = `ctt_login_attempts_${keyBase}`;
-      const lockKey = `ctt_login_lock_${keyBase}`;
-      const nextAttempts = Number(window.localStorage.getItem(attemptsKey) || '0') + 1;
-      if (nextAttempts >= 3) {
-        const until = Date.now() + LOGIN_LOCK_MS;
-        window.localStorage.setItem(lockKey, String(until));
-        window.localStorage.removeItem(attemptsKey);
-        setLockUntil(until);
-        setLoginError(`Too many failed attempts. Please retry in ${Math.ceil(LOGIN_LOCK_MS / 1000)}s.`);
-      } else {
-        window.localStorage.setItem(attemptsKey, String(nextAttempts));
-        setLoginError('Invalid email or password. Please try again.');
-      }
+      setLoginError('Invalid email or password. Please try again.');
       setIsLoggingIn(false);
       return;
     }
 
-    window.localStorage.removeItem(`ctt_login_attempts_${email.toLowerCase().trim()}`);
-    window.localStorage.removeItem(`ctt_login_lock_${email.toLowerCase().trim()}`);
     if (rememberMe) {
       window.localStorage.setItem('ctt_saved_email', email.trim());
       window.localStorage.setItem('ctt_remember_me', 'true');
@@ -181,9 +127,9 @@ export default function LoginForm() {
             <div>
               <button
                 type="submit"
-                disabled={isLoggingIn || isLocked || !emailIsValid || !password}
+                disabled={isLoggingIn || !emailIsValid || !password}
                 className={`w-full flex justify-center items-center gap-2 py-3 px-4 border rounded-xl shadow-sm text-sm font-semibold transition-all ${
-                  isLoggingIn || isLocked || !emailIsValid || !password
+                  isLoggingIn || !emailIsValid || !password
                     ? 'bg-slate-300 text-slate-500 border-slate-300 cursor-not-allowed'
                     : 'text-white bg-slate-900 border-transparent hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900'
                 }`}
