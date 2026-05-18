@@ -1,16 +1,12 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, Plus, Search, Sparkles } from 'lucide-react';
-import { JiraIssueGroup, JiraTaskPrefill, User } from '../types';
+import { JiraIssueGroup } from '../types';
 import { apiFetch, ApiError } from '../lib/http';
 
-interface AdminJiraIntakeProps {
-  currentUser: User;
-  onOpenTask: (taskId: string) => void;
-  onCreateTask: (prefill: JiraTaskPrefill) => void;
-  onSitPendingCount?: (count: number) => void;
-}
+interface AdminJiraIntakeProps {}
 
 type JiraIntakeResponse = {
   configured: boolean;
@@ -327,7 +323,12 @@ const ORB_CLASSES = [
   'from-teal-400 to-cyan-700 shadow-[0_0_24px_rgba(20,184,166,0.4)]',
 ];
 
-export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, onOpenTask, onCreateTask, onSitPendingCount }) => {
+export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = () => {
+  const router = useRouter();
+  const onOpenTask = (taskId: string) => router.push(`/tasks/${taskId}`);
+  const onCreateTask = (prefill: { jiraTicket: string; title: string; description: string; productId: string; productName: string }) => {
+    router.push(`/admin/tasks?prefill=${encodeURIComponent(JSON.stringify(prefill))}`);
+  };
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -354,7 +355,7 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
             (i) => i.sitComplete && !(i.linkedTasks ?? []).every((t) => t.sitSignedOffAt)
           ).length;
         }, 0);
-        onSitPendingCount?.(pending);
+        // Badge count removed from Layout
       } catch (error) {
         setPageError(error instanceof ApiError ? error.message : 'Failed to load Jira intake');
       } finally {
@@ -375,9 +376,7 @@ export const AdminJiraIntake: React.FC<AdminJiraIntakeProps> = ({ currentUser, o
   }, [groups, searchTerm]);
 
   const totalIssueCount = filteredGroups.reduce((s, g) => s + g.issues.length, 0);
-  const scopeLabel = currentUser.productAccesses?.length
-    ? currentUser.productAccesses.map((p) => p.name).join(' · ')
-    : 'All products';
+  const scopeLabel = 'All products';
 
   const handleCreateFromIssue = (issue: JiraIssueGroup['issues'][number]) => {
     onCreateTask({ jiraTicket: issue.key, title: issue.summary, description: `Imported from Jira ${issue.key}`, productId: issue.productId, productName: issue.productName });

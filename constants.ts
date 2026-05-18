@@ -114,7 +114,7 @@ export const MOCK_TASKS: Task[] = [
         expectedResult: 'Tax ID is present in header.', 
         isPassed: null,
         comments: [
-           { id: 'c1', userId: 'u2', text: 'Please check if the font supports Thai characters as well.', createdAt: '5 hrs ago' }
+           { id: 'c1', body: 'Please check if the font supports Thai characters as well.', createdAt: '5 hrs ago', author: { id: 'u2', name: 'Alex', email: 'alex@dksh.com' } }
         ]
       },
     ],
@@ -148,7 +148,7 @@ export const MOCK_TASKS: Task[] = [
         isPassed: false,
         completedAt: '2023-11-10 02:00 PM',
         comments: [
-          { id: 'c2', userId: 'u2', text: '@MichaelWong can you check the API logs?', createdAt: '2 days ago' }
+          { id: 'c2', body: '@MichaelWong can you check the API logs?', createdAt: '2 days ago', author: { id: 'u2', name: 'Alex', email: 'alex@dksh.com' } }
         ]
       },
     ],

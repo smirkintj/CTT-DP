@@ -1,5 +1,6 @@
 'use client';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useDeferredValue, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Task, Priority, TestStep, CountryConfig, AdminProductConfig, JiraTaskPrefill, JiraIssue, JiraIssueGroup } from '../types';
 import { Badge } from '../components/Badge';
 import { Trash2, Plus, Search, Filter, X, Save, Globe, CheckCircle2, ExternalLink } from 'lucide-react';
@@ -9,31 +10,42 @@ import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass,
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { isValidDueDate, isValidJiraTicket, normalizeEodTicketInput, normalizeJiraTicketInput } from '../lib/taskValidation';
 
-interface AdminTaskManagementProps {
-  tasks: Task[];
-  loading: boolean;
-  onImport: () => void;
-  onEdit: (task: Task) => void;
-  onAddTask: (tasks: Task[]) => void;
-  onDeleteTasks: (taskIds: string[]) => void;
-  availableCountries: CountryConfig[];
-  availableModules: string[];
-  jiraPrefill?: JiraTaskPrefill | null;
-  onJiraPrefillConsumed?: () => void;
-}
+interface AdminTaskManagementProps {}
 
-export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({ 
-    tasks, 
-    loading,
-    onImport, 
-    onEdit, 
-    onAddTask,
-    onDeleteTasks,
-    availableCountries,
-    availableModules,
-    jiraPrefill = null,
-    onJiraPrefillConsumed
-}) => {
+export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [availableCountries, setAvailableCountries] = useState<CountryConfig[]>([]);
+  const [availableModules, setAvailableModules] = useState<string[]>([]);
+
+  const prefillParam = searchParams.get('prefill');
+  const jiraPrefill: JiraTaskPrefill | null = (() => {
+    if (!prefillParam) return null;
+    try { return JSON.parse(decodeURIComponent(prefillParam)) as JiraTaskPrefill; } catch { return null; }
+  })();
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    apiFetch<Task[]>('/api/tasks', { cache: 'no-store' })
+      .then((data) => { if (active && Array.isArray(data)) setTasks(data as Task[]); })
+      .catch(() => {})
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/admin/countries').then((r) => r.ok ? r.json() : []),
+      fetch('/api/admin/modules').then((r) => r.ok ? r.json() : []),
+    ]).then(([c, m]) => {
+      if (Array.isArray(c)) setAvailableCountries(c);
+      if (Array.isArray(m)) setAvailableModules(m);
+    }).catch(() => {});
+  }, []);
   const [stakeholders, setStakeholders] = useState<Array<{
     id: string;
     name: string;
@@ -150,9 +162,6 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     };
   };
 
-  const onJiraPrefillConsumedRef = useRef(onJiraPrefillConsumed);
-  onJiraPrefillConsumedRef.current = onJiraPrefillConsumed;
-
   useEffect(() => {
     if (!jiraPrefill) return;
 
@@ -172,8 +181,9 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     });
     setJiraTicketLinked(Boolean(jiraPrefill.jiraTicket));
     setIsModalOpen(true);
-    onJiraPrefillConsumedRef.current?.();
-  }, [jiraPrefill]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Clear the prefill param from the URL without a page reload
+    router.replace('/admin/tasks');
+  }, [prefillParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isModalOpen || !newTask.productId) {
@@ -357,24 +367,18 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
   const refreshTasks = async () => {
     try {
       const refreshed = await apiFetch<Task[]>('/api/tasks', { cache: 'no-store' });
-      const mappedTasks = Array.isArray(refreshed)
-        ? refreshed.map((task) => ({
-            ...task,
-            featureModule: task.featureModule ?? (task as any).module ?? 'General',
-            productName: task.productName ?? 'EasyOrder',
-            productId: task.productId ?? 'prod_easyorder'
-          }))
-        : [];
-      onAddTask(mappedTasks);
+      if (Array.isArray(refreshed)) setTasks(refreshed as Task[]);
     } catch {
       notify('Updated, but failed to refresh tasks. Please reload.', 'error');
     }
   };
 
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+
   const filteredTasks = useMemo(() => {
-    const filtered = tasks.filter(t => 
-      t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      t.featureModule.toLowerCase().includes(searchTerm.toLowerCase())
+    const filtered = tasks.filter(t =>
+      t.title.toLowerCase().includes(deferredSearchTerm.toLowerCase()) ||
+      t.featureModule.toLowerCase().includes(deferredSearchTerm.toLowerCase())
     );
 
     const statusFiltered = statusFilter === 'ALL'
@@ -437,7 +441,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
     });
 
     return sorted;
-  }, [tasks, searchTerm, statusFilter, priorityFilter, countryFilter, signedOffFilter, sortBy]);
+  }, [tasks, deferredSearchTerm, statusFilter, priorityFilter, countryFilter, signedOffFilter, sortBy]);
 
   const isAnyBulkActionSaving = bulkAssignSaving || bulkStatusSaving || globalEditSaving;
 
@@ -486,7 +490,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
           notify(`Deleted ${selectedTaskIds.length - failed.length}/${selectedTaskIds.length} tasks.`, 'error');
         }
         const deletedIds = selectedTaskIds.filter((id) => !failed.includes(id));
-        if (deletedIds.length > 0) onDeleteTasks(deletedIds);
+        if (deletedIds.length > 0) setTasks((prev) => prev.filter((t) => !deletedIds.includes(t.id)));
         setSelectedTaskIds([]);
       }
     });
@@ -932,8 +936,12 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
          })
        });
 
-       const createdTasks = Array.isArray(data) ? data : [];
-       onAddTask(createdTasks);
+       const createdTasks = Array.isArray(data) ? (data as Task[]) : [];
+       setTasks((prev) => {
+         const map = new Map(prev.map((t) => [t.id, t]));
+         for (const t of createdTasks) map.set(t.id, t);
+         return Array.from(map.values());
+       });
        setIsModalOpen(false);
        resetCreateForm();
        setCreateSaveState('saved');
@@ -1071,7 +1079,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                  <button
                    onClick={() => {
                      setIsActionMenuOpen(false);
-                     onImport();
+                     router.push('/import');
                    }}
                    className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50"
                  >
@@ -1241,11 +1249,11 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = ({
                       <tr
                         key={task.id}
                         className="hover:bg-slate-50 transition-colors cursor-pointer focus-within:bg-slate-50"
-                        onClick={() => onEdit(task)}
+                        onClick={() => router.push(`/tasks/${task.id}`)}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
-                            onEdit(task);
+                            router.push(`/tasks/${task.id}`);
                           }
                         }}
                         tabIndex={0}

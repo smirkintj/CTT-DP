@@ -1,18 +1,13 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { AdminProductConfig, CountryConfig } from '../types';
 import { Trash2, Plus, Package, Bell, Users, Search, X, RotateCcw, UserPlus, Info } from 'lucide-react';
 import { notify } from '../lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass } from '../components/ui/formClasses';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 
-interface AdminDatabaseProps {
-  countries: CountryConfig[];
-  modules: string[];
-  onUpdateCountries: (countries: CountryConfig[]) => void;
-  onUpdateModules: (modules: string[]) => void;
-  currentUserId: string;
-}
+interface AdminDatabaseProps {}
 
 type AdminUserRow = {
   id: string;
@@ -30,14 +25,22 @@ type AdminUserRow = {
 
 type UserDrawerMode = 'create' | 'edit';
 
-export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
-  countries,
-  modules,
-  onUpdateCountries,
-  onUpdateModules,
-  currentUserId
-}) => {
+export const AdminDatabase: React.FC<AdminDatabaseProps> = () => {
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id ?? '';
+  const [countries, setCountries] = useState<CountryConfig[]>([]);
+  const [modules, setModules] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'countries' | 'products' | 'notifications' | 'users'>('countries');
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/admin/countries').then((r) => r.ok ? r.json() : []),
+      fetch('/api/admin/modules').then((r) => r.ok ? r.json() : []),
+    ]).then(([c, m]) => {
+      if (Array.isArray(c)) setCountries(c);
+      if (Array.isArray(m)) setModules(m);
+    }).catch(() => {});
+  }, []);
   const [emailSettings, setEmailSettings] = useState({
     enableReminders: false,
     daysBefore: 3
@@ -159,7 +162,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
         setProductHelpfulLinks([]);
         setSavedProductHelpfulLinks([]);
         setProductHelpfulLinksSaveState('idle');
-        onUpdateModules((data as AdminProductConfig[])[0].modules.map((module) => module.name));
+        setModules((data as AdminProductConfig[])[0].modules.map((module) => module.name));
         // Preload helpful links for the initially selected product
         void loadProductHelpfulLinks(firstId);
       }
@@ -427,7 +430,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
         const next = [...countries.filter((country) => country.code !== data.code), data].sort((a, b) =>
           a.code.localeCompare(b.code)
         );
-        onUpdateCountries(next);
+        setCountries(next);
         setNewCountryName('');
         setNewCountryCode('');
       })();
@@ -445,7 +448,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
           notify(data?.error || 'Failed to delete country', 'error');
           return;
         }
-        onUpdateCountries(countries.filter((country) => country.code !== code));
+        setCountries(countries.filter((country) => country.code !== code));
       })();
   };
 
@@ -933,7 +936,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = ({
                             setProductHelpfulLinks([]);
                             setSavedProductHelpfulLinks([]);
                             setProductHelpfulLinksSaveState('idle');
-                            onUpdateModules(product.modules.map((module) => module.name));
+                            setModules(product.modules.map((module) => module.name));
                             void loadProductHelpfulLinks(product.id);
                           }}
                           className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${

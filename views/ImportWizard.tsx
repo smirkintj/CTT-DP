@@ -1,19 +1,14 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AlertCircle, ArrowRight, Check, FileSpreadsheet, UploadCloud } from 'lucide-react';
 import { CountryConfig, Priority, Task, TestStep } from '../types';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
 import { notify } from '../lib/notify';
 import { isValidDueDate } from '../lib/taskValidation';
 
-type ImportWizardProps = {
-  tasks: Task[];
-  availableCountries: CountryConfig[];
-  availableModules: string[];
-  onTasksImported: (updatedTasks: Task[]) => void;
-  onOpenTask: (taskId: string) => void;
-};
+type ImportWizardProps = {};
 
 type ParsedRow = Record<string, string>;
 type PreviewStep = Pick<TestStep, 'id' | 'order' | 'description' | 'expectedResult' | 'actualResult' | 'testData'>;
@@ -91,13 +86,25 @@ const defaultNewTaskForm = {
   dueDate: ''
 };
 
-export const ImportWizard: React.FC<ImportWizardProps> = ({
-  tasks,
-  availableCountries,
-  availableModules,
-  onTasksImported,
-  onOpenTask
-}) => {
+export const ImportWizard: React.FC<ImportWizardProps> = () => {
+  const router = useRouter();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [availableCountries, setAvailableCountries] = useState<CountryConfig[]>([]);
+  const [availableModules, setAvailableModules] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch('/api/tasks', { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : [])
+      .then((data) => { if (Array.isArray(data)) setTasks(data as Task[]); })
+      .catch(() => {});
+    Promise.all([
+      fetch('/api/admin/countries').then((r) => r.ok ? r.json() : []),
+      fetch('/api/admin/modules').then((r) => r.ok ? r.json() : []),
+    ]).then(([c, m]) => {
+      if (Array.isArray(c)) setAvailableCountries(c);
+      if (Array.isArray(m)) setAvailableModules(m);
+    }).catch(() => {});
+  }, []);
   const [step, setStep] = useState(1);
   const [fileName, setFileName] = useState('');
   const [rows, setRows] = useState<ParsedRow[]>([]);
@@ -232,7 +239,6 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       notify(data?.error || 'Failed to import steps', 'error');
       return { ok: false };
     }
-    onTasksImported([data]);
     return { ok: true, taskId: data?.id };
   };
 
@@ -290,7 +296,6 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
       notify('Import succeeded but no task was returned by API.', 'error');
       return { ok: false };
     }
-    onTasksImported(createdTasks);
     return { ok: true, taskId: createdTasks[0]?.id };
   };
 
@@ -640,7 +645,7 @@ export const ImportWizard: React.FC<ImportWizardProps> = ({
             </p>
             {lastImportedTaskId && (
               <button
-                onClick={() => onOpenTask(lastImportedTaskId)}
+                onClick={() => router.push(`/tasks/${lastImportedTaskId}`)}
                 className={`${subtleButtonClass} mt-5`}
               >
                 Open Task Detail

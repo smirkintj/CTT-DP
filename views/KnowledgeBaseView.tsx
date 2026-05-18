@@ -1,15 +1,12 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, AtSign, CheckCircle2, MessageSquarePlus, XCircle } from 'lucide-react';
 import { Role } from '../types';
 
-interface KnowledgeBaseViewProps {
-  onBack: () => void;
-  onNavigate: (target: 'DASHBOARD_STAKEHOLDER' | 'DASHBOARD_ADMIN' | 'INBOX' | 'ADMIN_TASK_MANAGEMENT' | 'IMPORT_WIZARD' | 'ADMIN_DATABASE') => void;
-  currentUserName: string;
-  currentUserRole: Role;
-}
+interface KnowledgeBaseViewProps {}
 
 const workflow = [
   {
@@ -34,7 +31,11 @@ const workflow = [
   }
 ];
 
-export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ onBack, onNavigate, currentUserName, currentUserRole }) => {
+export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = () => {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const currentUserName = session?.user?.name || session?.user?.email || 'User';
+  const currentUserRole = session?.user?.role === 'ADMIN' ? Role.ADMIN : Role.STAKEHOLDER;
   const [adminName, setAdminName] = useState('Admin');
   const [activeTab, setActiveTab] = useState<'WORKFLOW' | 'HOW_TO_TEST' | 'COMMENTS' | 'FAQ'>('WORKFLOW');
 
@@ -65,7 +66,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ onBack, on
     <div className="space-y-6 animate-fade-in">
       <div>
         <button
-          onClick={onBack}
+          onClick={() => router.back()}
           className="mb-3 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800"
         >
           <ArrowLeft size={16} /> Back
@@ -246,14 +247,14 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ onBack, on
         <div className="flex flex-wrap gap-2">
           {currentUserRole === Role.ADMIN ? (
             <>
-              <button onClick={() => onNavigate('ADMIN_TASK_MANAGEMENT')} className="px-3 py-1.5 text-xs rounded-md bg-slate-900 text-white hover:bg-slate-800">Manage Tasks</button>
-              <button onClick={() => onNavigate('IMPORT_WIZARD')} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50">Import Steps</button>
-              <button onClick={() => onNavigate('ADMIN_DATABASE')} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50">User/Config</button>
+              <button onClick={() => router.push('/admin/tasks')} className="px-3 py-1.5 text-xs rounded-md bg-slate-900 text-white hover:bg-slate-800">Manage Tasks</button>
+              <button onClick={() => router.push('/import')} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50">Import Steps</button>
+              <button onClick={() => router.push('/admin/database')} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50">User/Config</button>
             </>
           ) : (
             <>
-              <button onClick={() => onNavigate('DASHBOARD_STAKEHOLDER')} className="px-3 py-1.5 text-xs rounded-md bg-slate-900 text-white hover:bg-slate-800">Open My Tasks</button>
-              <button onClick={() => onNavigate('INBOX')} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50">Open Inbox</button>
+              <button onClick={() => router.push('/')} className="px-3 py-1.5 text-xs rounded-md bg-slate-900 text-white hover:bg-slate-800">Open My Tasks</button>
+              <button onClick={() => router.push('/inbox')} className="px-3 py-1.5 text-xs rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50">Open Inbox</button>
             </>
           )}
         </div>

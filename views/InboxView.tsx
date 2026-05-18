@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Task } from '../types';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { MessageSquare, ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface InboxItem {
@@ -17,12 +18,7 @@ interface InboxItem {
   latestCommentId: string;
 }
 
-interface InboxViewProps {
-  onOpenTask: (task: Task, options?: { stepOrder?: number | null; commentId?: string | null }) => void;
-  onBack: () => void;
-  currentUserId: string;
-  isAdmin: boolean;
-}
+interface InboxViewProps {}
 
 const formatTimeAgo = (isoDate: string) => {
   const time = new Date(isoDate).getTime();
@@ -37,7 +33,11 @@ const formatTimeAgo = (isoDate: string) => {
   return `${days} day${days > 1 ? 's' : ''} ago`;
 };
 
-export const InboxView: React.FC<InboxViewProps> = ({ onOpenTask, onBack, currentUserId, isAdmin }) => {
+export const InboxView: React.FC<InboxViewProps> = () => {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const currentUserId = session?.user?.id ?? '';
+  const isAdmin = session?.user?.role === 'ADMIN';
   const [items, setItems] = useState<InboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'MINE' | 'NEEDS_ATTENTION'>('ALL');
@@ -84,15 +84,12 @@ export const InboxView: React.FC<InboxViewProps> = ({ onOpenTask, onBack, curren
   };
 
   const openTask = async (item: InboxItem) => {
-    const taskId = item.taskId;
-    const response = await fetch(`/api/tasks/${taskId}`, { cache: 'no-store' });
-    if (!response.ok) return;
-    const task = await response.json();
-    await markTaskRead(taskId);
-    onOpenTask(task as Task, {
-      stepOrder: item.latestStepOrder,
-      commentId: item.latestCommentId
-    });
+    await markTaskRead(item.taskId);
+    const params = new URLSearchParams();
+    if (item.latestStepOrder != null) params.set('step', String(item.latestStepOrder));
+    if (item.latestCommentId) params.set('comment', item.latestCommentId);
+    const qs = params.toString();
+    router.push(`/tasks/${item.taskId}${qs ? `?${qs}` : ''}`);
   };
 
   const filteredItems = items.filter((item) => {
@@ -111,7 +108,7 @@ export const InboxView: React.FC<InboxViewProps> = ({ onOpenTask, onBack, curren
       <div className="flex justify-between items-end">
         <div>
           <button
-            onClick={onBack}
+            onClick={() => router.back()}
             className="mb-3 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800"
           >
             <ArrowLeft size={16} /> Back
@@ -160,7 +157,7 @@ export const InboxView: React.FC<InboxViewProps> = ({ onOpenTask, onBack, curren
               </button>
               <button
                 type="button"
-                onClick={onBack}
+                onClick={() => router.back()}
                 className="px-3 py-1.5 rounded-md bg-slate-900 text-white text-xs font-medium hover:bg-slate-800"
               >
                 Back to Dashboard
