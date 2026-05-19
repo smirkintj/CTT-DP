@@ -6,15 +6,7 @@ import { Role } from '../types';
 import { LogOut, LayoutGrid, Bell, MessageSquare, AlertCircle, Check, Info, List, Database, BookOpen, Sparkles } from 'lucide-react';
 import { AssistantDock } from './AssistantDock';
 import { sessionToUser } from '@/lib/sessionToUser';
-
-type ActivityItem = {
-  id: string;
-  type: string;
-  message: string;
-  createdAt: string;
-  taskId?: string | null;
-  isRead: boolean;
-};
+import { useActivities } from './ActivitiesContext';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { data: session, status } = useSession();
@@ -22,23 +14,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const pathname = usePathname();
   const currentUser = sessionToUser(session);
 
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [loadingActivities, setLoadingActivities] = useState(false);
+  const { activities, loading: loadingActivities, markRead, markAllRead } = useActivities();
   const [showNotifications, setShowNotifications] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!session?.user) { setActivities([]); return; }
-    let active = true;
-    setLoadingActivities(true);
-    fetch('/api/activities', { cache: 'no-store' })
-      .then((r) => r.ok ? r.json() : [])
-      .then((data) => { if (active && Array.isArray(data)) setActivities(data); })
-      .catch(() => {})
-      .finally(() => { if (active) setLoadingActivities(false); });
-    return () => { active = false; };
-  }, [session?.user?.id]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -83,26 +62,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     if (hours < 24) return `${hours} hr ago`;
     const days = Math.floor(hours / 24);
     return `${days} day${days > 1 ? 's' : ''} ago`;
-  };
-
-  const markAllRead = async () => {
-    const r = await fetch('/api/activities/mark-read', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ all: true }),
-    });
-    if (!r.ok) return;
-    setActivities((prev) => prev.map((a) => ({ ...a, isRead: true })));
-  };
-
-  const markRead = async (activityId: string) => {
-    const r = await fetch('/api/activities/mark-read', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ activityId }),
-    });
-    if (!r.ok) return;
-    setActivities((prev) => prev.map((a) => (a.id === activityId ? { ...a, isRead: true } : a)));
   };
 
   const dashboardHref = isAdmin ? '/admin/dashboard' : '/';

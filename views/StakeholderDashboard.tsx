@@ -7,6 +7,7 @@ import { Badge } from '../components/Badge';
 import { Search, ArrowRight, MessageSquare, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { notify } from '../lib/notify';
 import { apiFetch } from '../lib/http';
+import { useActivities } from '../components/ActivitiesContext';
 
 interface StakeholderDashboardProps {}
 
@@ -33,10 +34,11 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = () => {
   const currentUserName = session?.user?.name || session?.user?.email || 'User';
   const currentUserId = session?.user?.id ?? '';
 
+  const { activities: allActivities, loading: loadingActivity } = useActivities();
+  const activityFeed = allActivities.slice(0, 5);
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activityFeed, setActivityFeed] = useState<Array<{ id: string; type: string; message: string; createdAt: string }>>([]);
-  const [loadingActivity, setLoadingActivity] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [unreadComments, setUnreadComments] = useState(0);
@@ -51,18 +53,6 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = () => {
       .then((data) => { if (active && Array.isArray(data)) setTasks(data as Task[]); })
       .catch(() => {})
       .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [session?.user?.id]);
-
-  useEffect(() => {
-    if (!session?.user) return;
-    let active = true;
-    setLoadingActivity(true);
-    fetch('/api/activities', { cache: 'no-store' })
-      .then((r) => r.ok ? r.json() : [])
-      .then((data) => { if (active && Array.isArray(data)) setActivityFeed(data.slice(0, 5)); })
-      .catch(() => {})
-      .finally(() => { if (active) setLoadingActivity(false); });
     return () => { active = false; };
   }, [session?.user?.id]);
   
