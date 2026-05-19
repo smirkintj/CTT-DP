@@ -30,6 +30,10 @@ export async function GET() {
           name: true,
           email: true
         }
+      },
+      reads: {
+        where: { userId: session.user.id },
+        select: { activityId: true }
       }
     },
     orderBy: {
@@ -38,18 +42,6 @@ export async function GET() {
     take: 50
   });
 
-  const readRows = await prisma.activityRead.findMany({
-    where: {
-      userId: session.user.id,
-      activityId: { in: activities.map((item) => item.id) }
-    },
-    select: {
-      activityId: true
-    }
-  });
-
-  const readSet = new Set(readRows.map((item) => item.activityId));
-
   return NextResponse.json(
     activities.map((activity) => ({
       id: activity.id,
@@ -57,7 +49,7 @@ export async function GET() {
       message: activity.message,
       taskId: activity.taskId,
       createdAt: activity.createdAt.toISOString(),
-      isRead: readSet.has(activity.id)
+      isRead: activity.reads.length > 0
     }))
   );
 }

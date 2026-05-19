@@ -19,7 +19,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const session = await getServerSession(authOptions);
   if (!session?.user) return unauthorized('Unauthorized', 'AUTH_REQUIRED');
   if (session.user.role !== 'ADMIN') return forbidden('Forbidden', 'ADMIN_REQUIRED');
-  const scope = await getAdminProductScope(session.user.id);
+  const scope = await getAdminProductScope(session.user.id, session.user.role);
 
   const { id: userId } = await params;
   if (!userId) return badRequest('User id is required', 'USER_ID_REQUIRED');

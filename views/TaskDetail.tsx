@@ -174,11 +174,12 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
   };
   const initialStepOrder = searchParams.get('step') ? Number(searchParams.get('step')) : null;
   const initialCommentId = searchParams.get('comment') || null;
-  const [localTask, setLocalTask] = useState<Task>(() => normalizeTask(task));
-  const [expandedStep, setExpandedStep] = useState<string | null>(() => {
+  const [{ localTask: _initTask, initStep: _initStep }] = useState(() => {
     const safe = normalizeTask(task);
-    return safe.steps.find((s) => !isStepResolved(s))?.id || safe.steps[0]?.id || null;
+    return { localTask: safe, initStep: safe.steps.find((s) => !isStepResolved(s))?.id || safe.steps[0]?.id || null };
   });
+  const [localTask, setLocalTask] = useState<Task>(_initTask);
+  const [expandedStep, setExpandedStep] = useState<string | null>(_initStep);
   const [taskEdits, setTaskEdits] = useState({
     title: task.title ?? '',
     description: task.description ?? '',

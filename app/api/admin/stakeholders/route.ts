@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   if (session.user.role !== 'ADMIN') {
     return forbidden('Forbidden', 'ADMIN_REQUIRED');
   }
-  const scope = await getAdminProductScope(session.user.id);
+  const scope = await getAdminProductScope(session.user.id, session.user.role);
 
   const { searchParams } = new URL(req.url);
   const productId = searchParams.get('productId');

@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useDeferredValue, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Task, Status } from '../types';
@@ -66,8 +66,14 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = () => {
     return () => { active = false; };
   }, [session?.user?.id]);
   
-  const myTasks = tasks.filter(t => t.countryCode === currentUserCountry);
-  const statusFilteredTasks = filterStatus === 'ALL'
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+
+  const myTasks = useMemo(
+    () => tasks.filter(t => t.countryCode === currentUserCountry),
+    [tasks, currentUserCountry]
+  );
+
+  const statusFilteredTasks = useMemo(() => filterStatus === 'ALL'
     ? myTasks
     : myTasks.filter((task) => {
         const statusKey = normalizeStatusKey(task.status as unknown as string);
@@ -79,7 +85,9 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = () => {
           return statusKey === 'PASSED' && isSignedOff;
         }
         return statusKey === filterStatus;
-      });
+      }),
+    [myTasks, filterStatus]
+  );
   const isTaskCompleted = (task: Task) => {
     const statusKey = normalizeStatusKey(task.status as unknown as string);
     return statusKey === 'DEPLOYED' || Boolean(task.signedOffAt || task.signedOff?.signedAt);
@@ -93,7 +101,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = () => {
   };
 
   const filteredTasks = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
+    const query = deferredSearchTerm.trim().toLowerCase();
     const searched = statusFilteredTasks.filter((task) => {
       if (!query) return true;
       return (
@@ -130,7 +138,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = () => {
 
       return a.title.localeCompare(b.title);
     });
-  }, [statusFilteredTasks, searchTerm]);
+  }, [statusFilteredTasks, deferredSearchTerm]);
   
   // Calculate specific stats
   const pendingCount = myTasks.filter((task) => {

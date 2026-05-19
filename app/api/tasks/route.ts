@@ -28,7 +28,7 @@ export async function GET() {
 
   // Admins see tasks scoped to their assigned products.
   // Unrestricted admins (no product access assigned) see all tasks.
-  const adminScope = isAdmin ? await getAdminProductScope(session.user.id) : null;
+  const adminScope = isAdmin ? await getAdminProductScope(session.user.id, session.user.role) : null;
   const where = isAdmin
     ? adminScope?.restricted
       ? { productId: { in: adminScope.productIds } }

@@ -5,7 +5,10 @@ export type AdminProductScope = {
   productIds: string[];
 };
 
-export async function getAdminProductScope(userId: string): Promise<AdminProductScope> {
+export async function getAdminProductScope(userId: string, role?: string): Promise<AdminProductScope> {
+  // Short-circuit for ADMIN — no DB query needed
+  if (role === 'ADMIN') return { restricted: false, productIds: [] };
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
