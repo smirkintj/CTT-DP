@@ -159,7 +159,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = () => {
       setUnreadComments(typeof data?.count === 'number' ? data.count : 0);
     };
     void loadUnreadCount();
-  }, [tasks.length]);
+  }, []);
 
   const isLoading = loading && tasks.length === 0;
 
