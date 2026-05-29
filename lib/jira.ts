@@ -217,6 +217,79 @@ export async function searchJiraIssues(
   }));
 }
 
+/**
+ * Search Jira issues that have a comment matching a keyword within a time window.
+ * Returns issue keys with their Excel attachment lists.
+ */
+export async function searchJiraIssuesWithKeywordComment(
+  projectKey: string,
+  keyword: string,
+  withinHours: number,
+  perProduct?: Partial<JiraCredentials> | null
+): Promise<Array<{ key: string; summary: string; attachments: Array<{ id: string; filename: string; content: string; mimeType: string; size: number }> }>> {
+  const creds = resolveJiraCredentials(perProduct);
+  if (!creds) return [];
+  const authHeader = makeAuthHeader(creds);
+
+  try {
+    const jql = `project = "${projectKey}" AND comment ~ "${keyword.replace(/"/g, '\\"')}" AND updated >= "-${withinHours}h" ORDER BY updated DESC`;
+    const res = await fetch(`${creds.baseUrl}/rest/api/3/search/jql`, {
+      method: 'POST',
+      headers: { Authorization: authHeader, Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jql, fields: ['summary', 'attachment'], maxResults: 20 }),
+      cache: 'no-store'
+    });
+    if (!res.ok) {
+      console.error(`[jira] searchJiraIssuesWithKeywordComment → HTTP ${res.status}`);
+      return [];
+    }
+    const payload = (await res.json()) as {
+      issues?: Array<{
+        key: string;
+        fields?: {
+          summary?: string;
+          attachment?: Array<{ id: string; filename: string; content: string; mimeType: string; size: number }>;
+        };
+      }>;
+    };
+
+    return (payload.issues ?? []).map((issue) => ({
+      key: issue.key,
+      summary: issue.fields?.summary ?? issue.key,
+      attachments: (issue.fields?.attachment ?? []).filter((a) =>
+        a.mimeType?.includes('spreadsheetml') || /\.(xlsx|xls)$/i.test(a.filename ?? '')
+      )
+    }));
+  } catch (err) {
+    console.error('[jira] searchJiraIssuesWithKeywordComment threw:', err);
+    return [];
+  }
+}
+
+/** Download a Jira attachment by its content URL. Returns a Buffer. */
+export async function fetchJiraAttachment(
+  contentUrl: string,
+  perProduct?: Partial<JiraCredentials> | null
+): Promise<Buffer | null> {
+  const creds = resolveJiraCredentials(perProduct);
+  if (!creds) return null;
+  try {
+    const res = await fetch(contentUrl, {
+      headers: { Authorization: makeAuthHeader(creds), Accept: 'application/octet-stream' },
+      cache: 'no-store'
+    });
+    if (!res.ok) {
+      console.error(`[jira] fetchJiraAttachment → HTTP ${res.status}`);
+      return null;
+    }
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (err) {
+    console.error('[jira] fetchJiraAttachment threw:', err);
+    return null;
+  }
+}
+
 /** Fetch sprint name from a Jira issue's sprint field (Agile).
  *  Returns sprint name string or null if not found / not configured. */
 export async function fetchJiraIssueSprint(

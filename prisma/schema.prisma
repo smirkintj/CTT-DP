@@ -90,6 +90,7 @@ model User {
   sitTasksUpdated     SitTask[]        @relation("SitTaskUpdatedBy")
   sitCasesAcknowledged SitTestCase[]   @relation("SitCaseAcknowledgedBy")
   sitHistoryEntries   SitTaskHistory[] @relation("SitHistoryActor")
+  draftTasksReviewed  DraftTask[]      @relation("DraftTaskReviewedBy")
 }
 
 model Product {
@@ -116,6 +117,7 @@ model Product {
   userAccesses          UserProductAccess[]
   notificationConfigs   NotificationConfig[]
   sitTasks              SitTask[]
+  draftTasks            DraftTask[]
 }
 
 model Country {
@@ -369,6 +371,12 @@ enum SitEvidenceType {
   JAM_LINK
 }
 
+enum DraftTaskStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum SitHistoryAction {
   TASK_CREATED
   TASK_PUBLISHED
@@ -513,4 +521,25 @@ model SitTaskHistory {
   actor   User?   @relation("SitHistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([sitTaskId, createdAt])
+}
+
+model DraftTask {
+  id              String          @id @default(cuid())
+  jiraTicket      String          @unique
+  productId       String
+  status          DraftTaskStatus @default(PENDING)
+  rawExcelData    Json
+  generatedData   Json
+  editedData      Json?
+  rejectionReason String?
+  reviewedById    String?
+  reviewedAt      DateTime?
+  resultTaskIds   String[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  product      Product @relation(fields: [productId], references: [id])
+  reviewedBy   User?   @relation("DraftTaskReviewedBy", fields: [reviewedById], references: [id])
+
+  @@index([status, createdAt])
 }

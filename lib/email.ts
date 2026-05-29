@@ -1,3 +1,12 @@
+type DraftTaskReadyEmailInput = {
+  to: string;
+  recipientName?: string;
+  jiraTicket: string;
+  generatedTitle: string;
+  productName: string;
+  draftTaskId: string;
+};
+
 type TaskAssignedEmailInput = {
   to: string;
   assigneeName?: string;
@@ -266,6 +275,28 @@ export async function sendTaskReportEmail(input: TaskReportEmailInput): Promise<
   return sendEmail({
     to: input.to,
     subject: `Signed-off Report: ${input.taskTitle}`,
+    html
+  });
+}
+
+export async function sendDraftTaskReadyEmail(input: DraftTaskReadyEmailInput): Promise<boolean> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ctt-dksh.vercel.app';
+  const reviewUrl = `${appUrl}/admin/draft-tasks`;
+  const html = createTemplate(
+    'UAT Draft Task Ready for Review',
+    `A new UAT task draft has been generated from SIT results and is ready for your review.`,
+    [
+      `Jira Ticket: <strong>${input.jiraTicket}</strong>`,
+      `Product: <strong>${input.productName}</strong>`,
+      `Generated Title: <strong>${input.generatedTitle}</strong>`,
+      'Review the draft, make any edits, then approve to create the UAT task and assign it to stakeholders.'
+    ],
+    { label: 'Review Draft', href: reviewUrl }
+  );
+
+  return sendEmail({
+    to: input.to,
+    subject: `UAT Draft Ready: ${input.jiraTicket} — ${input.generatedTitle}`,
     html
   });
 }
