@@ -39,7 +39,7 @@ export function parseExcel(buffer: Buffer): SitTestRow[] {
     const titleKey = findKey(row, ['title', 'name', 'test name', 'scenario', 'description']);
     const stepsKey = findKey(row, ['step', 'action', 'test step']);
     const expectedKey = findKey(row, ['expected', 'expected result', 'expected outcome']);
-    const resultKey = findKey(row, ['result', 'status', 'outcome', 'pass', 'fail']);
+    const resultKey = findKey(row, ['status', 'outcome', 'pass', 'fail', 'result']);
 
     const id = normalize(row[idKey]);
     const title = normalize(row[titleKey]);
