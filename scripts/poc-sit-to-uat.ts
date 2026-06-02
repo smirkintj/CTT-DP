@@ -13,13 +13,16 @@
  * Without a key the script still runs the parser and shows the fallback output.
  */
 
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { parseExcel } from '../lib/parseExcel';
 import { generateDraftTask } from '../lib/generateDraftTask';
 
 // ─── 1. Build a realistic SIT Excel in-memory ─────────────────────────────────
 
-function buildSampleExcel(): Buffer {
+async function buildSampleExcel(): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('SIT Results');
+
   const rows = [
     // Header row
     ['Test Case ID', 'Title', 'Test Steps', 'Expected Result', 'Status'],
@@ -83,11 +86,9 @@ function buildSampleExcel(): Buffer {
     ],
   ];
 
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'SIT Results');
-  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
-  return buf;
+  rows.forEach((r) => ws.addRow(r));
+  const buf = await wb.xlsx.writeBuffer();
+  return Buffer.from(buf);
 }
 
 // ─── 2. Helpers ───────────────────────────────────────────────────────────────
@@ -106,12 +107,12 @@ async function main() {
 
   // Stage 1 — build Excel
   hr('Stage 1 · Build sample SIT Excel');
-  const buffer = buildSampleExcel();
+  const buffer = await buildSampleExcel();
   console.log(`Created in-memory Excel: ${buffer.byteLength} bytes`);
 
   // Stage 2 — parse
   hr('Stage 2 · Parse Excel → SitTestRow[]');
-  const rows = parseExcel(buffer);
+  const rows = await parseExcel(buffer);
   console.log(`Parsed ${rows.length} test case rows:\n`);
   rows.forEach((r, i) => {
     console.log(`  [${i + 1}] ${r.testCaseId}  ${r.result.padEnd(12)}  ${r.title}`);

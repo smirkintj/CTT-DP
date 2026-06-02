@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>CTT × Jira Integration Workflow</title>
+<title>CTT × JIRA Integration Workflow</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -14,12 +14,38 @@ body {
   padding: 48px 32px 100px;
 }
 
-.wrap { max-width: 720px; margin: 0 auto; }
+.wrap { max-width: 760px; margin: 0 auto; }
 
 h1 { text-align:center; font-size:20px; font-weight:700; color:#f8fafc; margin-bottom:4px; }
-.sub { text-align:center; font-size:11px; color:#475569; letter-spacing:.12em; text-transform:uppercase; margin-bottom:32px; }
+.sub { text-align:center; font-size:11px; color:#475569; letter-spacing:.12em; text-transform:uppercase; margin-bottom:24px; }
 
-/* legend */
+.summary-bar {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 36px;
+  padding: 14px 20px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 12px;
+}
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0 16px;
+  border-right: 1px solid rgba(255,255,255,.07);
+}
+.summary-item:last-child { border-right: none; }
+.summary-val { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.summary-lbl { font-size: 9.5px; color: #475569; letter-spacing: .1em; text-transform: uppercase; text-align: center; }
+.sv-green { color: #34d399; }
+.sv-cyan  { color: #22d3ee; }
+.sv-amber { color: #fbbf24; }
+.sv-indigo{ color: #a5b4fc; }
+
 .legend { display:flex; flex-wrap:wrap; gap:18px; justify-content:center; margin-bottom:48px; }
 .li { display:flex; align-items:center; gap:7px; font-size:11.5px; color:#94a3b8; }
 .ld { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
@@ -29,169 +55,187 @@ h1 { text-align:center; font-size:20px; font-weight:700; color:#f8fafc; margin-b
 .ld-c { background:#06b6d4; box-shadow:0 0 7px rgba(6,182,212,.7); }
 .ld-k { background:#ec4899; box-shadow:0 0 7px rgba(236,72,153,.7); }
 
-/* phase header */
-.phase {
-  display:flex; align-items:center; gap:12px;
-  margin: 40px 0 20px;
-}
+.phase { display:flex; align-items:center; gap:12px; margin: 40px 0 20px; }
 .phase .ln { flex:1; height:1px; background:rgba(255,255,255,.06); }
-.phase .lb {
-  font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
-  white-space:nowrap; padding:5px 16px; border-radius:20px;
-}
+.phase .lb { font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap; padding:5px 16px; border-radius:20px; }
 .lb-s { color:#818cf8; background:rgba(99,102,241,.13); border:1px solid rgba(99,102,241,.28); }
 .lb-r { color:#94a3b8; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); }
-.lb-t { color:#34d399; background:rgba(16,185,129,.1);  border:1px solid rgba(16,185,129,.22); }
+.lb-t { color:#34d399; background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.22); }
 
-/* timeline */
 .timeline { position:relative; padding-left: 48px; }
-
-/* vertical line */
 .timeline::before {
   content:'';
   position:absolute;
   left: 15px; top:0; bottom:0;
   width:2px;
-  background: linear-gradient(to bottom,
-    transparent 0%,
-    rgba(99,102,241,.4) 5%,
-    rgba(99,102,241,.3) 30%,
-    rgba(245,158,11,.3) 50%,
-    rgba(16,185,129,.3) 75%,
-    rgba(6,182,212,.3) 90%,
-    transparent 100%
-  );
+  background: linear-gradient(to bottom, transparent 0%, rgba(99,102,241,.4) 5%, rgba(99,102,241,.3) 30%, rgba(245,158,11,.3) 50%, rgba(16,185,129,.3) 75%, rgba(6,182,212,.3) 90%, transparent 100%);
   border-radius:2px;
 }
 
-/* step wrapper */
-.step-wrap {
-  position:relative;
-  margin-bottom: 6px;
-}
-
-/* dot on timeline */
+.step-wrap { position:relative; margin-bottom: 6px; }
 .step-wrap::before {
   content: attr(data-n);
   position:absolute;
-  left: -40px;
-  top: 14px;
+  left: -40px; top: 14px;
   width: 24px; height: 24px;
   border-radius:50%;
   display:flex; align-items:center; justify-content:center;
   font-size:9px; font-weight:800;
   border:2px solid;
   background:#070a12;
-  line-height:1;
-  text-align:center;
+  line-height:1; text-align:center;
 }
 .step-wrap.dot-s::before { color:#818cf8; border-color:rgba(99,102,241,.6); box-shadow:0 0 8px rgba(99,102,241,.4); }
 .step-wrap.dot-a::before { color:#fbbf24; border-color:rgba(245,158,11,.6); box-shadow:0 0 8px rgba(245,158,11,.35); }
 .step-wrap.dot-q::before { color:#34d399; border-color:rgba(16,185,129,.6); box-shadow:0 0 8px rgba(16,185,129,.35); }
-.step-wrap.dot-c::before { color:#22d3ee; border-color:rgba(6,182,212,.6);  box-shadow:0 0 8px rgba(6,182,212,.35); }
+.step-wrap.dot-c::before { color:#22d3ee; border-color:rgba(6,182,212,.6); box-shadow:0 0 8px rgba(6,182,212,.35); }
 .step-wrap.dot-k::before { color:#f472b6; border-color:rgba(236,72,153,.6); box-shadow:0 0 8px rgba(236,72,153,.35); }
 .step-wrap.dot-d::before { color:#a5b4fc; border-color:rgba(99,102,241,.4); box-shadow:0 0 8px rgba(99,102,241,.2); }
 
-/* connector between steps */
-.connector {
-  height:18px;
-  position:relative;
-  margin-left:0;
-}
-.connector::after {
-  content:'↓';
-  position:absolute;
-  left:-33px; top:50%;
-  transform:translateY(-50%);
-  font-size:11px;
-  color:rgba(255,255,255,.18);
-}
+.connector { height:18px; position:relative; margin-left:0; }
+.connector::after { content:'↓'; position:absolute; left:-33px; top:50%; transform:translateY(-50%); font-size:11px; color:rgba(255,255,255,.18); }
 
-/* card */
-.card {
-  border-radius:12px;
-  padding:15px 18px 14px;
-  border:1px solid transparent;
-  position:relative;
-}
-
+.card { border-radius:12px; padding:15px 18px 14px; border:1px solid transparent; position:relative; }
 .card-s { background:rgba(99,102,241,.08); border-color:rgba(99,102,241,.22); }
 .card-a { background:rgba(245,158,11,.07); border-color:rgba(245,158,11,.2); }
 .card-q { background:rgba(16,185,129,.07); border-color:rgba(16,185,129,.2); }
-.card-c { background:rgba(6,182,212,.07);  border-color:rgba(6,182,212,.2); }
+.card-c { background:rgba(6,182,212,.07); border-color:rgba(6,182,212,.2); }
 .card-k { background:rgba(236,72,153,.07); border-color:rgba(236,72,153,.2); }
 .card-d { background:rgba(99,102,241,.06); border-color:rgba(99,102,241,.18); }
 
 .card-inner { display:flex; align-items:flex-start; gap:14px; }
-
-/* left: actor badge */
-.actor-badge {
-  flex-shrink:0;
-  width:80px;
-  text-align:center;
-  padding-top:2px;
-}
-.actor-name {
-  font-size:8.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
-  display:block; margin-bottom:4px;
-}
-.actor-role {
-  font-size:8px; color:#334155; letter-spacing:.06em; text-transform:uppercase;
-  display:block;
-}
+.actor-badge { flex-shrink:0; width:80px; text-align:center; padding-top:2px; }
+.actor-name { font-size:8.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; display:block; margin-bottom:4px; }
+.actor-role { font-size:8px; color:#334155; letter-spacing:.06em; text-transform:uppercase; display:block; }
 .an-s { color:#818cf8; } .an-a { color:#fbbf24; } .an-q { color:#34d399; }
 .an-c { color:#22d3ee; } .an-k { color:#f472b6; } .an-d { color:#a5b4fc; }
-
-/* divider */
 .divider { width:1px; background:rgba(255,255,255,.07); align-self:stretch; flex-shrink:0; margin:0 2px; }
-
-/* right: content */
 .content { flex:1; min-width:0; }
 .title { font-size:13px; font-weight:600; color:#f1f5f9; margin-bottom:5px; line-height:1.3; }
-.desc  { font-size:11.5px; color:#64748b; line-height:1.6; }
-.desc code {
-  background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1);
-  border-radius:4px; padding:1px 5px; font-size:10.5px; color:#94a3b8;
-  font-family:'SF Mono',Consolas,monospace;
-}
+.desc { font-size:11.5px; color:#64748b; line-height:1.6; }
+.desc code { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); border-radius:4px; padding:1px 5px; font-size:10.5px; color:#94a3b8; font-family:'SF Mono',Consolas,monospace; }
 .desc em { color:#6ee7b7; font-style:italic; }
 
-/* tag */
-.tag {
-  display:inline-flex; align-items:center;
-  font-size:8.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
-  border-radius:4px; padding:2px 7px; margin-top:8px;
-}
+.tags-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:10px; }
+.tag { display:inline-flex; align-items:center; font-size:8.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; border-radius:4px; padding:2px 7px; }
 .tg-s { background:rgba(99,102,241,.14); color:#a5b4fc; border:1px solid rgba(99,102,241,.22); }
-.tg-a { background:rgba(245,158,11,.1);  color:#fcd34d; border:1px solid rgba(245,158,11,.2); }
-.tg-c { background:rgba(6,182,212,.12);  color:#67e8f9; border:1px solid rgba(6,182,212,.22); }
+.tg-a { background:rgba(245,158,11,.1); color:#fcd34d; border:1px solid rgba(245,158,11,.2); }
+.tg-c { background:rgba(6,182,212,.12); color:#67e8f9; border:1px solid rgba(6,182,212,.22); }
 
-/* jira note — right-aligned annotation */
-.jira-note {
-  margin-left: 110px;
-  margin-top:4px;
-  padding: 8px 12px;
-  border-left:2px solid rgba(245,158,11,.3);
-  background:rgba(245,158,11,.04);
-  border-radius:0 8px 8px 0;
+.time-pill, .auto-full, .auto-partial, .auto-manual {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 8.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  border-radius: 4px; padding: 3px 8px; line-height: 1; white-space: nowrap;
 }
-.jira-note .jn-label {
-  font-size:8.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
-  color:#92400e; margin-bottom:3px;
-}
+.time-pill { background: rgba(52,211,153,.1); color: #6ee7b7; border: 1px solid rgba(52,211,153,.22); text-transform: none; letter-spacing: .03em; font-weight: 600; }
+.time-pill::before { content: '⏱'; }
+.auto-full { background: rgba(6,182,212,.12); color: #67e8f9; border: 1px solid rgba(6,182,212,.25); }
+.auto-full::before { content: '⚡'; }
+.auto-partial { background: rgba(245,158,11,.1); color: #fcd34d; border: 1px solid rgba(245,158,11,.22); }
+.auto-partial::before { content: '◑'; }
+.auto-manual { background: rgba(148,163,184,.08); color: #64748b; border: 1px solid rgba(148,163,184,.15); }
+.auto-manual::before { content: '✋'; }
+
+.jira-note { margin-left: 110px; margin-top:4px; padding: 8px 12px; border-left:2px solid rgba(245,158,11,.3); background:rgba(245,158,11,.04); border-radius:0 8px 8px 0; }
+.jira-note .jn-label { font-size:8.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:#92400e; margin-bottom:3px; }
 .jira-note .jn-text { font-size:11px; color:#64748b; line-height:1.5; }
-.jira-note .jn-text code {
-  background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1);
-  border-radius:4px; padding:1px 5px; font-size:10px; color:#94a3b8;
-  font-family:'SF Mono',Consolas,monospace;
+.jira-note .jn-text code { background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); border-radius:4px; padding:1px 5px; font-size:10px; color:#94a3b8; font-family:'SF Mono',Consolas,monospace; }
+
+.phase-summary { margin: 8px 0 0 0; padding: 10px 14px; border-radius: 8px; background: rgba(255,255,255,.02); border: 1px solid rgba(255,255,255,.06); display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.ps-label { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #334155; flex-shrink: 0; }
+.ps-stats { display: flex; gap: 10px; flex-wrap: wrap; }
+.ps-stat { font-size: 10.5px; color: #475569; }
+.ps-stat strong { color: #94a3b8; }
+
+/* ── Future Enhancements ── */
+.future-section { margin-top: 56px; }
+.future-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 20px;
 }
+.future-header .ln { flex:1; height:1px; background: rgba(139,92,246,.15); }
+.future-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  white-space: nowrap; padding: 5px 16px; border-radius: 20px;
+  color: #c4b5fd;
+  background: rgba(139,92,246,.12);
+  border: 1px solid rgba(139,92,246,.28);
+}
+.future-sub {
+  text-align: center; font-size: 11px; color: #475569;
+  margin-bottom: 24px; letter-spacing: .04em;
+}
+.future-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.fcard {
+  border-radius: 12px;
+  padding: 18px 20px;
+  border: 1px solid rgba(139,92,246,.18);
+  background: rgba(139,92,246,.05);
+  display: flex; gap: 16px; align-items: flex-start;
+  position: relative;
+  overflow: hidden;
+}
+.fcard::before {
+  content: '';
+  position: absolute; top: 0; left: 0;
+  width: 3px; height: 100%;
+  border-radius: 3px 0 0 3px;
+}
+.fcard-1::before { background: linear-gradient(to bottom, #f59e0b, #d97706); }
+.fcard-2::before { background: linear-gradient(to bottom, #06b6d4, #0284c7); }
+.fcard-3::before { background: linear-gradient(to bottom, #8b5cf6, #6366f1); }
+.fcard-icon {
+  font-size: 22px; flex-shrink: 0; width: 36px; text-align: center; margin-top: 1px;
+}
+.fcard-body { flex: 1; min-width: 0; }
+.fcard-title { font-size: 13px; font-weight: 700; color: #f1f5f9; margin-bottom: 5px; }
+.fcard-desc { font-size: 11.5px; color: #64748b; line-height: 1.65; }
+.fcard-desc code {
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 4px; padding: 1px 5px; font-size: 10.5px; color: #94a3b8;
+  font-family: 'SF Mono', Consolas, monospace;
+}
+.fcard-desc strong { color: #94a3b8; }
+.fcard-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ftag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 8.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  border-radius: 4px; padding: 2px 7px;
+}
+.ftag-trigger  { background: rgba(245,158,11,.1);  color: #fcd34d; border: 1px solid rgba(245,158,11,.22); }
+.ftag-jira     { background: rgba(6,182,212,.1);   color: #67e8f9; border: 1px solid rgba(6,182,212,.22); }
+.ftag-new      { background: rgba(139,92,246,.12); color: #c4b5fd; border: 1px solid rgba(139,92,246,.25); }
+.ftag-effort   { background: rgba(255,255,255,.05); color: #475569; border: 1px solid rgba(255,255,255,.1); }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-<h1>CTT × Jira Integration</h1>
+<h1>CTT × JIRA Integration</h1>
 <p class="sub">End-to-end workflow · Setup vs Routine</p>
+
+<div class="summary-bar">
+  <div class="summary-item">
+    <span class="summary-val sv-cyan" style="font-size:18px;letter-spacing:-.01em;">8 → 0</span>
+    <span class="summary-lbl">Manual JIRA<br>touchpoints/ticket</span>
+  </div>
+  <div class="summary-item">
+    <span class="summary-val sv-green">11 of 16</span>
+    <span class="summary-lbl">Steps with<br>automation</span>
+  </div>
+  <div class="summary-item">
+    <span class="summary-val sv-amber">3</span>
+    <span class="summary-lbl">Manual steps<br>remaining</span>
+  </div>
+  <div class="summary-item">
+    <span class="summary-val sv-indigo">0</span>
+    <span class="summary-lbl">Manual JIRA<br>status updates</span>
+  </div>
+</div>
 
 <div class="legend">
   <div class="li"><div class="ld ld-s"></div>One-time Setup</div>
@@ -202,23 +246,19 @@ h1 { text-align:center; font-size:20px; font-weight:700; color:#f8fafc; margin-b
 </div>
 
 
-<!-- ════════════ PHASE 1: ONE-TIME SETUP ════════════ -->
+<!-- PHASE 1 -->
 <div class="phase"><div class="ln"></div><div class="lb lb-s">① One-Time Setup</div><div class="ln"></div></div>
-
 <div class="timeline">
 
   <div class="step-wrap dot-s" data-n="1">
     <div class="card card-s">
       <div class="card-inner">
-        <div class="actor-badge">
-          <span class="actor-name an-s">Admin</span>
-          <span class="actor-role">CTT Config</span>
-        </div>
+        <div class="actor-badge"><span class="actor-name an-s">Admin</span><span class="actor-role">CTT Config</span></div>
         <div class="divider"></div>
         <div class="content">
-          <div class="title">Configure Jira credentials per product</div>
+          <div class="title">Configure JIRA credentials per product</div>
           <div class="desc">Set <code>Base URL</code>, <code>email</code>, <code>API token</code> per product (EasyOrder, Connect Client…). Token is AES-256 encrypted at rest — never exposed.</div>
-          <span class="tag tg-s">⚙ One-time</span>
+          <div class="tags-row"><span class="tag tg-s">⚙ One-time</span><span class="auto-manual">Manual</span><span class="time-pill">~15 min · one-time only</span></div>
         </div>
       </div>
     </div>
@@ -229,15 +269,12 @@ h1 { text-align:center; font-size:20px; font-weight:700; color:#f8fafc; margin-b
   <div class="step-wrap dot-s" data-n="2">
     <div class="card card-s">
       <div class="card-inner">
-        <div class="actor-badge">
-          <span class="actor-name an-s">Admin</span>
-          <span class="actor-role">CTT Config</span>
-        </div>
+        <div class="actor-badge"><span class="actor-name an-s">Admin</span><span class="actor-role">CTT Config</span></div>
         <div class="divider"></div>
         <div class="content">
           <div class="title">Set project key + pull statuses</div>
           <div class="desc">e.g. project key <code>EO</code>, pull status <code>"In UAT"</code>. CTT only pulls Stories and Tasks — Bugs, Defects, and sub-tasks are excluded automatically.</div>
-          <span class="tag tg-s">⚙ One-time</span>
+          <div class="tags-row"><span class="tag tg-s">⚙ One-time</span><span class="auto-manual">Manual</span><span class="time-pill">~5 min · one-time only</span></div>
         </div>
       </div>
     </div>
@@ -248,48 +285,45 @@ h1 { text-align:center; font-size:20px; font-weight:700; color:#f8fafc; margin-b
   <div class="step-wrap dot-s" data-n="3">
     <div class="card card-s">
       <div class="card-inner">
-        <div class="actor-badge">
-          <span class="actor-name an-s">Admin</span>
-          <span class="actor-role">CTT Config</span>
-        </div>
+        <div class="actor-badge"><span class="actor-name an-s">Admin</span><span class="actor-role">CTT Config</span></div>
         <div class="divider"></div>
         <div class="content">
-          <div class="title">Set Jira transition names</div>
-          <div class="desc">
-            <code>jiraInUatTransition</code> → default <code>"In UAT"</code><br/>
-            <code>jiraReadyToDeployTransition</code> → default <code>"Ready to Deploy"</code><br/>
-            Must match exact transition names in your Jira project workflow.
-          </div>
-          <span class="tag tg-s">⚙ One-time</span>
+          <div class="title">Set JIRA transition names</div>
+          <div class="desc"><code>jiraInUatTransition</code> → default <code>"In UAT"</code><br/><code>jiraReadyToDeployTransition</code> → default <code>"Ready to Deploy"</code><br/>Must match exact transition names in your JIRA project workflow.</div>
+          <div class="tags-row"><span class="tag tg-s">⚙ One-time</span><span class="auto-manual">Manual</span><span class="time-pill">~5 min · one-time only</span></div>
         </div>
       </div>
     </div>
     <div class="jira-note">
-      <div class="jn-label">Jira Admin (once)</div>
-      <div class="jn-text">Confirm these transition names exist in the Jira project workflow. Generate an API token at <code>id.atlassian.net → Security → API tokens</code> and give to CTT admin.</div>
+      <div class="jn-label">JIRA Admin (once)</div>
+      <div class="jn-text">Confirm these transition names exist in the JIRA project workflow. Generate an API token at <code>id.atlassian.net → Security → API tokens</code> and give to CTT admin.</div>
     </div>
   </div>
 
-</div><!-- /timeline -->
+</div>
+<div class="phase-summary">
+  <span class="ps-label">Phase 1 Summary</span>
+  <div class="ps-stats">
+    <span class="ps-stat">⏱ <strong>~25 min</strong> one-time investment</span>
+    <span class="ps-stat">✅ <strong>Never repeated</strong> after initial setup</span>
+    <span class="ps-stat">⚡ <strong>0 automation</strong> — pure config</span>
+  </div>
+</div>
 
 
-<!-- ════════════ PHASE 2: ROUTINE ════════════ -->
-<div class="phase"><div class="ln"></div><div class="lb lb-r">② Routine Workflow — per Jira ticket</div><div class="ln"></div></div>
-
+<!-- PHASE 2 -->
+<div class="phase"><div class="ln"></div><div class="lb lb-r">② Routine Workflow — per JIRA ticket</div><div class="ln"></div></div>
 <div class="timeline">
 
   <div class="step-wrap dot-a" data-n="4">
     <div class="card card-a">
       <div class="card-inner">
-        <div class="actor-badge">
-          <span class="actor-name an-a">Admin</span>
-          <span class="actor-role">JIRA Queue</span>
-        </div>
+        <div class="actor-badge"><span class="actor-name an-a">Admin</span><span class="actor-role">JIRA Queue</span></div>
         <div class="divider"></div>
         <div class="content">
           <div class="title">Open JIRA Queue</div>
-          <div class="desc">CTT fetches all Jira tickets in the configured status for your assigned products. Each ticket is a card in the galaxy view. Click the ticket key pill to open it in Jira.</div>
-          <span class="tag tg-a">↻ Per sprint</span>
+          <div class="desc">CTT fetches all JIRA tickets in the configured status for your assigned products. Each ticket is a card in the galaxy view. Click the ticket key pill to open it in JIRA.</div>
+          <div class="tags-row"><span class="tag tg-a">↻ Per sprint</span><span class="auto-full">Fully automated</span><span class="time-pill">Saves ~20 min/sprint</span></div>
         </div>
       </div>
     </div>
@@ -300,15 +334,12 @@ h1 { text-align:center; font-size:20px; font-weight:700; color:#f8fafc; margin-b
   <div class="step-wrap dot-a" data-n="5">
     <div class="card card-a">
       <div class="card-inner">
-        <div class="actor-badge">
-          <span class="actor-name an-a">Admin</span>
-          <span class="actor-role">JIRA Queue</span>
-        </div>
+        <div class="actor-badge"><span class="actor-name an-a">Admin</span><span class="actor-role">JIRA Queue</span></div>
         <div class="divider"></div>
         <div class="content">
           <div class="title">Create CTT task from unlinked card</div>
-          <div class="desc">Click <strong>Create Task</strong> on any unlinked card. Modal pre-fills ticket key, title, product. Admin adds countries, test steps, assignee. Jira ticket shows Linked ✓ badge.</div>
-          <span class="tag tg-a">↻ Per ticket</span>
+          <div class="desc">Click <strong>Create Task</strong> on any unlinked card. Modal pre-fills ticket key, title, product. Admin fills in test steps and expected results — or imports via <strong>Excel</strong> bulk import. Assignee and countries added before save. JIRA ticket shows Linked ✓ badge.</div>
+          <div class="tags-row"><span class="tag tg-a">↻ Per ticket</span><span class="auto-partial">Partially automated</span><span class="time-pill">Saves ~10 min/ticket</span></div>
         </div>
       </div>
     </div>
@@ -319,82 +350,77 @@ h1 { text-align:center; font-size:20px; font-weight:700; color:#f8fafc; margin-b
   <div class="step-wrap dot-c" data-n="6">
     <div class="card card-c">
       <div class="card-inner">
-        <div class="actor-badge">
-          <span class="actor-name an-c">CTT</span>
-          <span class="actor-role">Automatic</span>
-        </div>
+        <div class="actor-badge"><span class="actor-name an-c">CTT</span><span class="actor-role">Automatic</span></div>
         <div class="divider"></div>
         <div class="content">
-          <div class="title">Jira ticket auto-transitions → <code>In UAT</code></div>
-          <div class="desc">On task save, CTT calls the Jira Transitions API. Silently skipped if the transition doesn't exist — the task save always succeeds regardless.</div>
-          <span class="tag tg-c">⚡ Automatic</span>
+          <div class="title">Teams notification → task assigned &amp; due date</div>
+          <div class="desc">CTT posts to the product's Teams channel: task title, country, assignee, and due date. Stakeholder is notified immediately without email or manual chasing. Configurable per product via incoming webhook URL.</div>
+          <div class="tags-row"><span class="tag tg-c">⚡ Automatic</span><span class="auto-full">Fully automated</span><span class="time-pill">Zero manual notification effort</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <div class="step-wrap dot-c" data-n="7">
+    <div class="card card-c">
+      <div class="card-inner">
+        <div class="actor-badge"><span class="actor-name an-c">CTT</span><span class="actor-role">Automatic</span></div>
+        <div class="divider"></div>
+        <div class="content">
+          <div class="title">JIRA ticket auto-transitions → <code>In UAT</code></div>
+          <div class="desc">On task save, CTT calls the JIRA Transitions API. Silently skipped if the transition doesn't exist — the task save always succeeds regardless.</div>
+          <div class="tags-row"><span class="tag tg-c">⚡ Automatic</span><span class="auto-full">Fully automated</span><span class="time-pill">Saves ~3 min/ticket</span></div>
         </div>
       </div>
     </div>
     <div class="jira-note">
-      <div class="jn-label">Jira · Board</div>
+      <div class="jn-label">JIRA · Board</div>
       <div class="jn-text">Ticket now appears in the <code>In UAT</code> column. QA team picks it up and runs testing across all applicable markets (MY, SG, TH, ID…).</div>
     </div>
   </div>
 
   <div class="connector"></div>
 
-  <div class="step-wrap dot-a" data-n="7">
+  <div class="step-wrap dot-a" data-n="8">
     <div class="card card-a">
       <div class="card-inner">
-        <div class="actor-badge">
-          <span class="actor-name an-a">Admin</span>
-          <span class="actor-role">JIRA Queue</span>
-        </div>
+        <div class="actor-badge"><span class="actor-name an-a">Admin</span><span class="actor-role">JIRA Queue</span></div>
         <div class="divider"></div>
         <div class="content">
           <div class="title">Card shows linked CTT tasks</div>
-          <div class="desc">"Create Task" CTA disappears. Card lists all linked tasks with status badge + country pill. One Jira ticket can map to multiple countries — each appears as a separate row.</div>
-          <span class="tag tg-a">↻ Ongoing</span>
+          <div class="desc">"Create Task" CTA disappears. Card lists all linked tasks with status badge + country pill. One JIRA ticket can map to multiple countries — each appears as a separate row.</div>
+          <div class="tags-row"><span class="tag tg-a">↻ Ongoing</span><span class="auto-full">Fully automated</span><span class="time-pill">Real-time visibility</span></div>
         </div>
       </div>
     </div>
   </div>
 
-</div><!-- /timeline -->
+</div>
+<div class="phase-summary">
+  <span class="ps-label">Phase 2 Summary</span>
+  <div class="ps-stats">
+    <span class="ps-stat">⏱ <strong>~33 min saved</strong> per sprint</span>
+    <span class="ps-stat">⚡ <strong>4 of 5 steps</strong> automated</span>
+    <span class="ps-stat">📣 <strong>Teams notified</strong> on task assignment</span>
+  </div>
+</div>
 
 
-<!-- ════════════ PHASE 3: SIT ════════════ -->
-<div class="phase"><div class="ln"></div><div class="lb lb-t">③ SIT Sign-off Detection</div><div class="ln"></div></div>
-
+<!-- PHASE 3 -->
+<div class="phase"><div class="ln"></div><div class="lb lb-t">③ SIT Sign-off &amp; Deployment Handover</div><div class="ln"></div></div>
 <div class="timeline">
 
   <div class="step-wrap dot-q" data-n="—">
     <div class="card card-q">
       <div class="card-inner">
-        <div class="actor-badge">
-          <span class="actor-name an-q">QA Team</span>
-          <span class="actor-role">In Jira</span>
-        </div>
+        <div class="actor-badge"><span class="actor-name an-q">QA Team</span><span class="actor-role">In JIRA</span></div>
         <div class="divider"></div>
         <div class="content">
-          <div class="title">Comments SIT completion on the Jira ticket</div>
+          <div class="title">Comments SIT completion on the JIRA ticket</div>
           <div class="desc">Posts: <em>"SIT for this user story is completed."</em> and attaches the test script. CTT uses fuzzy matching — typos and grammar variations are tolerated.</div>
-          <span class="tag tg-a">↻ Per ticket</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="connector"></div>
-
-  <div class="step-wrap dot-c" data-n="8">
-    <div class="card card-c">
-      <div class="card-inner">
-        <div class="actor-badge">
-          <span class="actor-name an-c">CTT</span>
-          <span class="actor-role">Automatic</span>
-        </div>
-        <div class="divider"></div>
-        <div class="content">
-          <div class="title">Detects SIT comment on next JIRA Queue load</div>
-          <div class="desc">Fetches up to 100 comments per ticket (max 5 concurrent to avoid Jira rate limits), sorted newest-first. Handles both ADF and plain-text comment bodies.</div>
-          <span class="tag tg-c">⚡ Automatic</span>
+          <div class="tags-row"><span class="tag tg-a">↻ Per ticket</span><span class="auto-manual">Manual</span><span class="time-pill">~2 min · no change to QA process</span></div>
         </div>
       </div>
     </div>
@@ -405,15 +431,28 @@ h1 { text-align:center; font-size:20px; font-weight:700; color:#f8fafc; margin-b
   <div class="step-wrap dot-c" data-n="9">
     <div class="card card-c">
       <div class="card-inner">
-        <div class="actor-badge">
-          <span class="actor-name an-c">CTT</span>
-          <span class="actor-role">Automatic</span>
+        <div class="actor-badge"><span class="actor-name an-c">CTT</span><span class="actor-role">Automatic</span></div>
+        <div class="divider"></div>
+        <div class="content">
+          <div class="title">Detects SIT comment on next JIRA Queue load</div>
+          <div class="desc">Fetches up to 100 comments per ticket (max 5 concurrent to avoid JIRA rate limits). Handles both ADF and plain-text comment bodies. Click the comment excerpt to jump to it in JIRA via <code>focusedCommentId</code>.</div>
+          <div class="tags-row"><span class="tag tg-c">⚡ Automatic</span><span class="auto-full">Fully automated</span><span class="time-pill">Saves ~10 min/ticket</span></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <div class="step-wrap dot-c" data-n="10">
+    <div class="card card-c">
+      <div class="card-inner">
+        <div class="actor-badge"><span class="actor-name an-c">CTT</span><span class="actor-role">Automatic</span></div>
         <div class="divider"></div>
         <div class="content">
           <div class="title">Emerald SIT panel + nav badge appear</div>
-          <div class="desc">Card shows the comment excerpt — click it to jump directly to that Jira comment (<code>focusedCommentId</code>). Nav badge shows count of unacknowledged SIT items.</div>
-          <span class="tag tg-c">⚡ Automatic</span>
+          <div class="desc">Card shows the comment excerpt — click it to jump directly to that JIRA comment. Nav badge shows count of unacknowledged SIT items across all products.</div>
+          <div class="tags-row"><span class="tag tg-c">⚡ Automatic</span><span class="auto-full">Fully automated</span><span class="time-pill">Instant visibility</span></div>
         </div>
       </div>
     </div>
@@ -421,18 +460,15 @@ h1 { text-align:center; font-size:20px; font-weight:700; color:#f8fafc; margin-b
 
   <div class="connector"></div>
 
-  <div class="step-wrap dot-a" data-n="10">
+  <div class="step-wrap dot-a" data-n="11">
     <div class="card card-a">
       <div class="card-inner">
-        <div class="actor-badge">
-          <span class="actor-name an-a">Admin</span>
-          <span class="actor-role">JIRA Queue</span>
-        </div>
+        <div class="actor-badge"><span class="actor-name an-a">Admin</span><span class="actor-role">JIRA Queue</span></div>
         <div class="divider"></div>
         <div class="content">
           <div class="title">Acknowledges SIT</div>
-          <div class="desc">Clicks <strong>Acknowledge SIT ✓</strong>. All CTT tasks linked to this Jira ticket get <code>sitSignedOffAt</code> stamped. Card shows "✓ Acknowledged". Nav badge decrements.</div>
-          <span class="tag tg-a">↻ Per ticket</span>
+          <div class="desc">Clicks <strong>Acknowledge SIT ✓</strong>. All CTT tasks linked to this JIRA ticket get <code>sitSignedOffAt</code> stamped. Card shows "✓ Acknowledged". Nav badge decrements.</div>
+          <div class="tags-row"><span class="tag tg-a">↻ Per ticket</span><span class="auto-partial">Partially automated</span><span class="time-pill">Saves ~5 min/ticket</span></div>
         </div>
       </div>
     </div>
@@ -440,18 +476,15 @@ h1 { text-align:center; font-size:20px; font-weight:700; color:#f8fafc; margin-b
 
   <div class="connector"></div>
 
-  <div class="step-wrap dot-k" data-n="11">
+  <div class="step-wrap dot-k" data-n="12">
     <div class="card card-k">
       <div class="card-inner">
-        <div class="actor-badge">
-          <span class="actor-name an-k">Stakeholder</span>
-          <span class="actor-role">Task Detail</span>
-        </div>
+        <div class="actor-badge"><span class="actor-name an-k">Stakeholder</span><span class="actor-role">Task Detail</span></div>
         <div class="divider"></div>
         <div class="content">
           <div class="title">Reviews task + signs off in CTT</div>
-          <div class="desc">Reviews test steps, actual results, and the SIT sign-off date in Task Detail. Signs off the task. Full audit trail: Jira link, SIT date + comment, signature, per-country coverage.</div>
-          <span class="tag tg-a">↻ Per task</span>
+          <div class="desc">Reviews test steps, actual results, and the SIT sign-off date. Signs off with an electronic signature. Full audit trail: JIRA link, SIT date + comment, signature, per-country coverage. Can <strong>email or print the generated sign-off report</strong> directly from CTT.</div>
+          <div class="tags-row"><span class="tag tg-a">↻ Per task</span><span class="auto-partial">Partially automated</span><span class="time-pill">Saves ~15 min/task</span></div>
         </div>
       </div>
     </div>
@@ -459,24 +492,53 @@ h1 { text-align:center; font-size:20px; font-weight:700; color:#f8fafc; margin-b
 
   <div class="connector"></div>
 
-  <div class="step-wrap dot-c" data-n="12">
+  <div class="step-wrap dot-c" data-n="13">
     <div class="card card-c">
       <div class="card-inner">
-        <div class="actor-badge">
-          <span class="actor-name an-c">CTT</span>
-          <span class="actor-role">Automatic</span>
-        </div>
+        <div class="actor-badge"><span class="actor-name an-c">CTT</span><span class="actor-role">Automatic</span></div>
         <div class="divider"></div>
         <div class="content">
-          <div class="title">Jira ticket auto-transitions → <code>Ready to Deploy</code></div>
-          <div class="desc">On sign-off, CTT calls the Jira Transitions API. Ticket moves to <code>jiraReadyToDeployTransition</code>. Dev team sees it's cleared for release.</div>
-          <span class="tag tg-c">⚡ Automatic</span>
+          <div class="title">Teams notification → task signed off</div>
+          <div class="desc">CTT posts to the product channel: task title, country, product, and who signed off. Also fires a separate <strong>overdue alert</strong> to the channel if a task passes its due date without sign-off — no manual chasing needed.</div>
+          <div class="tags-row"><span class="tag tg-c">⚡ Automatic</span><span class="auto-full">Fully automated</span><span class="time-pill">Instant team visibility on completion &amp; overdue</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <div class="step-wrap dot-c" data-n="14">
+    <div class="card card-c">
+      <div class="card-inner">
+        <div class="actor-badge"><span class="actor-name an-c">CTT</span><span class="actor-role">Automatic</span></div>
+        <div class="divider"></div>
+        <div class="content">
+          <div class="title">JIRA ticket auto-transitions → <code>Ready to Deploy</code></div>
+          <div class="desc">On sign-off, CTT calls the JIRA Transitions API. Ticket moves to <code>jiraReadyToDeployTransition</code>. Dev team sees it's cleared for release with no manual JIRA update needed.</div>
+          <div class="tags-row"><span class="tag tg-c">⚡ Automatic</span><span class="auto-full">Fully automated</span><span class="time-pill">Saves ~3 min/ticket</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"></div>
+
+  <div class="step-wrap dot-c" data-n="15">
+    <div class="card card-c">
+      <div class="card-inner">
+        <div class="actor-badge"><span class="actor-name an-c">CTT</span><span class="actor-role">Automatic</span></div>
+        <div class="divider"></div>
+        <div class="content">
+          <div class="title">Creates JIRA subtask with sign-off report attached</div>
+          <div class="desc">CTT creates a sub-task titled <em>"Sign-off Report — [Task] [Country]"</em> on the parent ticket with structured details in the description: product, country, assignee, signer, and sign-off date. The full sign-off report — test steps, evidence screenshots, history, and electronic signature — is attached as <code>signoff-report-{id}.html</code>. Openable in any browser, printable as PDF. No CTT login needed.</div>
+          <div class="tags-row"><span class="tag tg-c">⚡ Automatic</span><span class="auto-full">Fully automated</span><span class="time-pill">Zero effort · complete UAT evidence in JIRA</span></div>
         </div>
       </div>
     </div>
     <div class="jira-note">
-      <div class="jn-label">Jira · Result</div>
-      <div class="jn-text">Ticket is now <code>Ready to Deploy</code>. Dev team picks up for release. Next ticket enters the routine from Step 4.</div>
+      <div class="jn-label">JIRA · Subtask Created</div>
+      <div class="jn-text">Dev team opens the parent ticket → sees the subtask → downloads <code>signoff-report-{id}.html</code> for the full UAT evidence record. Ticket is now <code>Ready to Deploy</code> — pick up for release.</div>
     </div>
   </div>
 
@@ -485,20 +547,197 @@ h1 { text-align:center; font-size:20px; font-weight:700; color:#f8fafc; margin-b
   <div class="step-wrap dot-d" data-n="✓">
     <div class="card card-d">
       <div class="card-inner">
-        <div class="actor-badge">
-          <span class="actor-name an-d">Done</span>
-          <span class="actor-role">Full cycle</span>
-        </div>
+        <div class="actor-badge"><span class="actor-name an-d">Done</span><span class="actor-role">Full cycle</span></div>
         <div class="divider"></div>
         <div class="content">
           <div class="title">Full cycle complete</div>
-          <div class="desc">Jira sits at <code>Ready to Deploy</code>. CTT holds the full record: Jira link, SIT sign-off date + comment, stakeholder signature, per-country test coverage. Dev picks up for release.</div>
+          <div class="desc">JIRA sits at <code>Ready to Deploy</code> with a subtask holding the complete UAT evidence. CTT holds the full record: JIRA link, SIT sign-off, stakeholder signature, per-country coverage, and attached report. Dev picks up for release — no extra coordination needed.</div>
         </div>
       </div>
     </div>
   </div>
 
-</div><!-- /timeline -->
+</div>
+<div class="phase-summary">
+  <span class="ps-label">Phase 3 Summary</span>
+  <div class="ps-stats">
+    <span class="ps-stat">⏱ <strong>~36 min saved</strong> per ticket</span>
+    <span class="ps-stat">⚡ <strong>6 of 8 steps</strong> automated</span>
+    <span class="ps-stat">📣 <strong>Teams alerted</strong> on sign-off &amp; overdue</span>
+  </div>
+</div>
+
+
+<!-- ════════════ MEASURED OUTCOMES ════════════ -->
+<div class="future-section">
+  <div class="future-header">
+    <div class="ln"></div>
+    <div class="future-label" style="color:#34d399;background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.25);">📊 Measured Outcomes</div>
+    <div class="ln"></div>
+  </div>
+  <p class="future-sub">Quantifiable, defensible — measurable per ticket and at scale</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+
+    <div style="border-radius:14px;padding:22px 20px;background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.2);position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0;left:0;width:3px;height:100%;background:linear-gradient(to bottom,#34d399,#059669);border-radius:3px 0 0 3px;"></div>
+      <div style="font-size:48px;font-weight:900;color:#34d399;letter-spacing:-.03em;line-height:1;margin-bottom:4px;">~50</div>
+      <div style="font-size:12px;font-weight:700;color:#6ee7b7;margin-bottom:14px;letter-spacing:.02em;">min saved per ticket</div>
+      <div style="font-size:10.5px;color:#475569;line-height:1.9;border-top:1px solid rgba(52,211,153,.12);padding-top:12px;">
+        <div style="display:flex;justify-content:space-between;"><span>SIT comment detection</span><span style="color:#64748b;">10 min</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>JIRA transitions ×2</span><span style="color:#64748b;">6 min</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Report creation + JIRA attach</span><span style="color:#64748b;">25 min</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Subtask creation</span><span style="color:#64748b;">8 min</span></div>
+      </div>
+      <div style="margin-top:12px;padding:7px 10px;border-radius:6px;background:rgba(52,211,153,.08);font-size:10px;color:#34d399;font-weight:600;">
+        At 20 tickets/sprint → <strong style="color:#6ee7b7;">~16 hrs recovered</strong> per sprint
+      </div>
+    </div>
+
+    <div style="border-radius:14px;padding:22px 20px;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.2);position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0;left:0;width:3px;height:100%;background:linear-gradient(to bottom,#22d3ee,#0284c7);border-radius:3px 0 0 3px;"></div>
+      <div style="line-height:1;margin-bottom:4px;">
+        <span style="font-size:48px;font-weight:900;color:#64748b;letter-spacing:-.03em;">8</span>
+        <span style="font-size:22px;color:#334155;font-weight:700;margin:0 4px;">→</span>
+        <span style="font-size:48px;font-weight:900;color:#22d3ee;letter-spacing:-.03em;">0</span>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:#67e8f9;margin-bottom:14px;letter-spacing:.02em;">manual JIRA touchpoints/ticket</div>
+      <div style="font-size:10.5px;color:#475569;line-height:1.75;border-top:1px solid rgba(6,182,212,.12);padding-top:12px;">
+        <div style="color:#334155;font-weight:600;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">Before CTT — 8 manual steps</div>
+        Open JIRA · move to In UAT · monitor comments · acknowledge SIT · chase stakeholder · move to Ready to Deploy · create sign-off doc · attach to JIRA + create subtask
+      </div>
+      <div style="margin-top:12px;padding:7px 10px;border-radius:6px;background:rgba(6,182,212,.08);font-size:10px;color:#22d3ee;font-weight:600;">
+        After CTT → <strong style="color:#67e8f9;">0 manual JIRA actions</strong> required
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════ FUTURE ENHANCEMENTS ════════════ -->
+<div class="future-section">
+  <div class="future-header">
+    <div class="ln"></div>
+    <div class="future-label">🔭 Future Enhancements — JIRA Automation Roadmap</div>
+    <div class="ln"></div>
+  </div>
+  <p class="future-sub">Not yet built · Planned extensions to the current integration</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+
+    <!-- ── MEDIUM column ── -->
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <div style="height:1px;flex:1;background:rgba(245,158,11,.15);"></div>
+        <span style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#d97706;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);padding:3px 12px;border-radius:20px;white-space:nowrap;">◑ Medium</span>
+        <div style="height:1px;flex:1;background:rgba(245,158,11,.15);"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+
+        <div class="fcard fcard-1" style="background:rgba(245,158,11,.06);border-color:rgba(245,158,11,.2);">
+          <div class="fcard-icon" style="font-size:18px;">💬</div>
+          <div class="fcard-body">
+            <div class="fcard-title">Auto-comment when UAT starts or is blocked</div>
+            <div class="fcard-desc">On <code>IN_PROGRESS</code>, posts <em>"UAT started by [Assignee] — [Country]."</em> On <code>BLOCKED</code>, posts the block reason. Dev team sees live UAT status directly in JIRA without opening CTT.</div>
+            <div class="fcard-tags">
+              <span class="ftag ftag-trigger">Status change</span>
+              <span class="ftag ftag-jira">Comment API</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="fcard fcard-1" style="background:rgba(245,158,11,.06);border-color:rgba(245,158,11,.2);">
+          <div class="fcard-icon" style="font-size:18px;">🔒</div>
+          <div class="fcard-body">
+            <div class="fcard-title">Auto-close subtask after report is attached</div>
+            <div class="fcard-desc">Extends the current flow: after the sign-off report is attached, CTT calls <code>transitionJiraIssue(subtaskKey, 'Done')</code>. Keeps the parent ticket's subtask list clean — open subtasks signal work still in progress.</div>
+            <div class="fcard-tags">
+              <span class="ftag ftag-trigger">Attachment success</span>
+              <span class="ftag ftag-jira">Transitions API</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="fcard fcard-1" style="background:rgba(245,158,11,.06);border-color:rgba(245,158,11,.2);">
+          <div class="fcard-icon" style="font-size:18px;">🌍</div>
+          <div class="fcard-body">
+            <div class="fcard-title">Live UAT country tally on JIRA ticket</div>
+            <div class="fcard-desc">CTT posts and continuously updates a single comment: <em>"✅ MY · ✅ SG · ⏳ TH · ❌ ID"</em> as each country's task changes status. QA and dev see coverage at a glance without leaving JIRA.</div>
+            <div class="fcard-tags">
+              <span class="ftag ftag-trigger">Task status change</span>
+              <span class="ftag ftag-jira">Comment API</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="fcard fcard-1" style="background:rgba(245,158,11,.06);border-color:rgba(245,158,11,.2);">
+          <div class="fcard-icon" style="font-size:18px;">📅</div>
+          <div class="fcard-body">
+            <div class="fcard-title">Sprint due date auto-sync</div>
+            <div class="fcard-desc">On task creation from the queue, CTT calls <code>GET /rest/agile/1.0/sprint/{id}</code> and pre-fills the CTT task due date from the sprint end date. One less field for the admin to fill manually every time.</div>
+            <div class="fcard-tags">
+              <span class="ftag ftag-trigger">Task creation</span>
+              <span class="ftag ftag-jira">Agile API</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── MAJOR column ── -->
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <div style="height:1px;flex:1;background:rgba(139,92,246,.15);"></div>
+        <span style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#a78bfa;background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.28);padding:3px 12px;border-radius:20px;white-space:nowrap;">🚀 Major</span>
+        <div style="height:1px;flex:1;background:rgba(139,92,246,.15);"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+
+        <div class="fcard fcard-3" style="background:rgba(139,92,246,.07);border-color:rgba(139,92,246,.22);">
+          <div class="fcard-icon" style="font-size:18px;">🏷️</div>
+          <div class="fcard-body">
+            <div class="fcard-title">Release version management</div>
+            <div class="fcard-desc">New <strong>Release Management</strong> page pulls JIRA Fix Versions via <code>GET /rest/api/3/project/{key}/versions</code>. Admin links a CTT task → CTT sets <code>fixVersions</code> on the JIRA ticket. Full UAT audit trail grouped per release.</div>
+            <div class="fcard-tags">
+              <span class="ftag ftag-trigger">Admin action</span>
+              <span class="ftag ftag-jira">Versions API</span>
+              <span class="ftag ftag-new">New page</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="fcard fcard-3" style="background:rgba(139,92,246,.07);border-color:rgba(139,92,246,.22);">
+          <div class="fcard-icon" style="font-size:18px;">📦</div>
+          <div class="fcard-body">
+            <div class="fcard-title">UAT release dashboard</div>
+            <div class="fcard-desc">Dedicated page per Fix Version — all linked tickets, UAT status per country (colour-coded), sign-off completion %, and a one-click <strong>Export bundle</strong> that zips all sign-off HTML reports for that release. Single source of truth for release readiness.</div>
+            <div class="fcard-tags">
+              <span class="ftag ftag-trigger">Release linked</span>
+              <span class="ftag ftag-jira">Versions + Issues API</span>
+              <span class="ftag ftag-new">New page</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="fcard fcard-3" style="background:rgba(139,92,246,.07);border-color:rgba(139,92,246,.22);">
+          <div class="fcard-icon" style="font-size:18px;">⚡</div>
+          <div class="fcard-body">
+            <div class="fcard-title">Real-time SIT detection via JIRA webhook</div>
+            <div class="fcard-desc">CTT registers a JIRA webhook (<code>POST /rest/api/3/webhook</code>) to receive a push the instant a comment is posted — no queue refresh needed. SIT is detected in real-time and a Teams alert fires automatically. Vercel is already publicly reachable — no infra change required.</div>
+            <div class="fcard-tags">
+              <span class="ftag ftag-trigger">JIRA push event</span>
+              <span class="ftag ftag-jira">Webhook API</span>
+              <span class="ftag ftag-new">New endpoint</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
 </div><!-- /wrap -->
 </body>
 </html>

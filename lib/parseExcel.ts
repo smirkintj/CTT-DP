@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 export type SitTestRow = {
   testCaseId: string;
@@ -9,46 +9,58 @@ export type SitTestRow = {
 
 /**
  * Parse a SIT Excel file (Buffer) into structured test case rows.
- * Expects columns (case-insensitive): Test Case ID, Title/Name, Steps, Expected Result, Result/Status.
+ * Expects columns (case-insensitive): Test Case ID, Title/Name, Steps, Expected Result, Status.
  * Skips blank rows and the header row.
+ *
+ * Uses exceljs (no prototype-pollution CVEs) instead of xlsx.
  */
-export function parseExcel(buffer: Buffer): SitTestRow[] {
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
-  const sheetName = workbook.SheetNames[0];
-  if (!sheetName) return [];
+export async function parseExcel(buffer: Buffer): Promise<SitTestRow[]> {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
 
-  const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+  const sheet = workbook.worksheets[0];
+  if (!sheet) return [];
 
-  const normalize = (val: unknown): string => String(val ?? '').trim();
-
-  // Flexible column name resolution — match common variants case-insensitively
-  const findKey = (row: Record<string, unknown>, variants: string[]): string => {
-    const keys = Object.keys(row).map((k) => k.trim().toLowerCase());
-    for (const v of variants) {
-      const idx = keys.findIndex((k) => k.includes(v.toLowerCase()));
-      if (idx !== -1) return Object.keys(row)[idx];
-    }
-    return '';
+  const normalize = (val: ExcelJS.CellValue): string => {
+    if (val === null || val === undefined) return '';
+    if (typeof val === 'object' && 'text' in val) return String((val as ExcelJS.CellRichTextValue).text ?? '').trim();
+    if (typeof val === 'object' && 'result' in val) return String((val as ExcelJS.CellFormulaValue).result ?? '').trim();
+    return String(val).trim();
   };
+
+  // Read header row (row 1) to build column index map
+  const headerRow = sheet.getRow(1);
+  const headers: Record<string, number> = {};
+  headerRow.eachCell((cell, colNumber) => {
+    headers[normalize(cell.value).toLowerCase()] = colNumber;
+  });
+
+  const findCol = (variants: string[]): number => {
+    for (const v of variants) {
+      const match = Object.keys(headers).find((h) => h.includes(v.toLowerCase()));
+      if (match) return headers[match];
+    }
+    return 0;
+  };
+
+  const idCol = findCol(['test case id', 'id', 'case id', 'tc id', 'no']);
+  const titleCol = findCol(['title', 'name', 'test name', 'scenario']);
+  const stepsCol = findCol(['step', 'action', 'test step']);
+  const expectedCol = findCol(['expected result', 'expected outcome', 'expected']);
+  const resultCol = findCol(['status', 'outcome', 'pass', 'fail', 'result']);
 
   const result: SitTestRow[] = [];
 
-  for (const row of rows) {
-    const idKey = findKey(row, ['test case id', 'id', 'case id', 'tc id', 'no']);
-    const titleKey = findKey(row, ['title', 'name', 'test name', 'scenario', 'description']);
-    const stepsKey = findKey(row, ['step', 'action', 'test step']);
-    const expectedKey = findKey(row, ['expected', 'expected result', 'expected outcome']);
-    const resultKey = findKey(row, ['status', 'outcome', 'pass', 'fail', 'result']);
+  sheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return; // skip header
 
-    const id = normalize(row[idKey]);
-    const title = normalize(row[titleKey]);
-    const stepText = normalize(row[stepsKey]);
-    const expectedText = normalize(row[expectedKey]);
-    const resultText = normalize(row[resultKey]);
+    const id = idCol ? normalize(row.getCell(idCol).value) : '';
+    const title = titleCol ? normalize(row.getCell(titleCol).value) : '';
+    const stepText = stepsCol ? normalize(row.getCell(stepsCol).value) : '';
+    const expectedText = expectedCol ? normalize(row.getCell(expectedCol).value) : '';
+    const resultText = resultCol ? normalize(row.getCell(resultCol).value) : '';
 
-    // Skip empty rows
-    if (!title && !stepText) continue;
+    if (!title && !stepText) return; // skip blank rows
 
     result.push({
       testCaseId: id || `TC-${result.length + 1}`,
@@ -56,7 +68,7 @@ export function parseExcel(buffer: Buffer): SitTestRow[] {
       steps: stepText ? [{ action: stepText, expected: expectedText }] : [],
       result: resultText,
     });
-  }
+  });
 
   return result;
 }

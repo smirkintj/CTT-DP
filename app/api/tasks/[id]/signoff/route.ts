@@ -75,9 +75,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const body = await req.json().catch(() => null);
+  const MAX_SIGNATURE_BYTES = 512 * 1024; // 512 KB — signature canvases are small
+  const rawSig = body?.signatureData;
+  if (typeof rawSig === 'string' && rawSig.length > MAX_SIGNATURE_BYTES) {
+    return NextResponse.json({ error: 'Signature image too large (max 512 KB)' }, { status: 413 });
+  }
   const signatureData =
-    typeof body?.signatureData === 'string' && body.signatureData.startsWith('data:image/')
-      ? body.signatureData
+    typeof rawSig === 'string' && rawSig.startsWith('data:image/')
+      ? rawSig
       : null;
 
   const task = await prisma.task.findUnique({
@@ -101,6 +106,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (task.status === 'DRAFT') {
     return NextResponse.json({ error: 'Task is not ready for stakeholder actions' }, { status: 409 });
+  }
+
+  // Idempotency guard — prevent duplicate Jira subtasks and duplicate sign-off emails
+  if (task.signedOffAt) {
+    return NextResponse.json({ error: 'Task has already been signed off' }, { status: 409 });
   }
 
   const staleMessage = validateExpectedUpdatedAt(task.updatedAt, body?.expectedUpdatedAt);

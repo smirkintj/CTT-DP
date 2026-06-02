@@ -14,6 +14,12 @@ const getAppVersion = (): string => {
   return `${major}.${minor} · ${sha}`;
 };
 
+// 'unsafe-eval' is only needed in Next.js dev mode (HMR). Drop it in production
+// to remove one of two CSP bypasses flagged in the security audit.
+// 'unsafe-inline' is still required by Next.js's inline script hydration — removing
+// it properly requires a nonce-based CSP (future work).
+const isDev = process.env.NODE_ENV === 'development';
+
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -25,7 +31,7 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self'",
