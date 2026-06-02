@@ -40,3 +40,4 @@ lerna-debug.log*
 .vercel
 .env*.local
 .superpowers/
+tsx-501/
