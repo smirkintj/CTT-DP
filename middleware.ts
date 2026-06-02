@@ -34,6 +34,7 @@ export async function middleware(req: NextRequest) {
   const isTaskRoute = pathname.startsWith('/tasks');
   const isInboxRoute = pathname.startsWith('/inbox');
   const isKnowledgeBaseRoute = pathname.startsWith('/knowledge-base');
+  const isQaRoute = pathname.startsWith('/qa');
 
   if (isAdminRoute) {
     if (!token || token.role !== 'ADMIN') {
@@ -51,9 +52,17 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  if (isQaRoute) {
+    if (!token || token.role !== 'QA') {
+      const url = req.nextUrl.clone();
+      url.pathname = '/';
+      return NextResponse.redirect(url);
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/import', '/tasks/:path*', '/inbox', '/knowledge-base', '/api/:path*']
+  matcher: ['/admin/:path*', '/import', '/tasks/:path*', '/inbox', '/knowledge-base', '/qa/:path*', '/api/:path*']
 };

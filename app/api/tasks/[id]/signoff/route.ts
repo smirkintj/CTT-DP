@@ -75,9 +75,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const body = await req.json().catch(() => null);
+  const MAX_SIGNATURE_BYTES = 512 * 1024; // 512 KB
+  const rawSignature = body?.signatureData;
   const signatureData =
-    typeof body?.signatureData === 'string' && body.signatureData.startsWith('data:image/')
-      ? body.signatureData
+    typeof rawSignature === 'string' &&
+    rawSignature.startsWith('data:image/') &&
+    rawSignature.length <= MAX_SIGNATURE_BYTES
+      ? rawSignature
       : null;
 
   const task = await prisma.task.findUnique({
@@ -101,6 +105,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (task.status === 'DRAFT') {
     return NextResponse.json({ error: 'Task is not ready for stakeholder actions' }, { status: 409 });
+  }
+
+  if (task.signedOffAt) {
+    return NextResponse.json({ error: 'Task is already signed off' }, { status: 409 });
   }
 
   const staleMessage = validateExpectedUpdatedAt(task.updatedAt, body?.expectedUpdatedAt);
