@@ -52,8 +52,14 @@ const productConfigs = [
 ];
 
 const seed = async () => {
-  const adminPasswordHash = await bcrypt.hash('Admin123!', 10);
-  const userPasswordHash = await bcrypt.hash('User123!', 10);
+  const adminPw = process.env.SEED_ADMIN_PASSWORD;
+  const userPw  = process.env.SEED_USER_PASSWORD;
+  if (!adminPw || !userPw) {
+    console.error('❌  Set SEED_ADMIN_PASSWORD and SEED_USER_PASSWORD env vars before seeding.');
+    process.exit(1);
+  }
+  const adminPasswordHash = await bcrypt.hash(adminPw, 10);
+  const userPasswordHash  = await bcrypt.hash(userPw, 10);
 
   await prisma.country.createMany({
     data: countries.map((country) => ({

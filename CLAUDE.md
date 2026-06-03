@@ -66,9 +66,8 @@ npm run db:purge-and-seed   # wipe + reseed local DB
 - ServicePro (`SP`)
 
 ## Staging Credentials
-- Admin: `putra.mahirudin@dksh.com` / `Admin123@`
-- Stakeholder pilot (MY): `uat-my@dksh.com` / `User123@`
-- QA pilot: `qa-eo@dksh.com` / `User123@`
+Stored in 1Password (CTT vault) — do not commit passwords to source files.
+Accounts: `putra.mahirudin@dksh.com` (admin), `uat-my@dksh.com` (stakeholder MY), `qa-eo@dksh.com` (QA)
 
 # context-mode — MANDATORY routing rules
 

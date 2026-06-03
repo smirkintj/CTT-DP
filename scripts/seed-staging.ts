@@ -24,8 +24,12 @@ const prisma = new PrismaClient();
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 
-const ADMIN_PASSWORD = 'Admin123@';
-const USER_PASSWORD = 'User123@';
+const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD;
+const USER_PASSWORD  = process.env.SEED_USER_PASSWORD;
+if (!ADMIN_PASSWORD || !USER_PASSWORD) {
+  console.error('❌  Set SEED_ADMIN_PASSWORD and SEED_USER_PASSWORD env vars before seeding.');
+  process.exit(1);
+}
 
 const COUNTRIES = [
   { code: 'MY', name: 'Malaysia' },
