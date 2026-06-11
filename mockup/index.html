@@ -5,294 +5,382 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CTT — Change Tracking Tool</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --br:#c4161c;--brdk:#9b1117;--brlt:#fee2e2;
-  --s50:#f8fafc;--s100:#f1f5f9;--s200:#e2e8f0;--s300:#cbd5e1;
-  --s400:#94a3b8;--s500:#64748b;--s600:#475569;--s700:#334155;
-  --s800:#1e293b;--s900:#0f172a;
-  --em:#10b981;--bl:#3b82f6;--am:#f59e0b;--ro:#f43f5e;--in:#6366f1;--vi:#8b5cf6;
-}
-html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--s100);color:var(--s900);line-height:1.5;-webkit-font-smoothing:antialiased}
-body{overflow:hidden}
+html,body{height:100%;font-family:'Inter',system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+body{overflow:hidden;background:#eef0f7}
 
-/* ── PAGE SYSTEM ── */
+/* ── noise util ── */
+.noise{position:absolute;inset:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E")}
+
+/* PAGE SYSTEM */
 .page{position:absolute;inset:0;display:none}
 .page.active{display:block}
 #pg-login.active{display:flex}
 
-/* ══════════════════════════════
+/* ═══════════════════════════════════════
    LOGIN
-══════════════════════════════ */
-#pg-login{background:var(--s900);align-items:center;justify-content:center;overflow:hidden}
-#c3{position:absolute;inset:0;opacity:.5}
-.l-noise{position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");pointer-events:none}
-.l-glow{position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(196,22,28,.2) 0%,transparent 65%);top:50%;left:50%;transform:translate(-50%,-55%);pointer-events:none}
-.lcard{position:relative;z-index:10;width:400px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:44px;backdrop-filter:blur(28px);box-shadow:0 40px 100px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.07)}
-.l-brand{display:flex;align-items:center;gap:12px;margin-bottom:38px}
-.l-icon{width:38px;height:38px;background:var(--br);border-radius:10px;display:grid;place-items:center}
-.l-icon svg{width:19px;height:19px}
-.l-name{font-size:14px;font-weight:700;color:#fff;letter-spacing:-.01em}
-.l-sub{font-size:10.5px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.3)}
-.l-h{font-size:25px;font-weight:700;color:#fff;letter-spacing:-.03em;margin-bottom:5px}
-.l-p{font-size:13px;color:rgba(255,255,255,.38);margin-bottom:30px}
-.lbl{display:block;font-size:11px;font-weight:500;color:rgba(255,255,255,.4);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
-.inp{width:100%;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:11px 14px;font-size:14px;font-family:inherit;color:#fff;outline:none;transition:border-color .2s,box-shadow .2s}
-.inp::placeholder{color:rgba(255,255,255,.18)}
-.inp:focus{border-color:rgba(196,22,28,.5);box-shadow:0 0 0 3px rgba(196,22,28,.1)}
+═══════════════════════════════════════ */
+#pg-login{
+  background:#09090f;
+  align-items:center;justify-content:center;overflow:hidden;
+}
+#c3{position:absolute;inset:0;opacity:.48}
+.l-glow-a{position:absolute;width:600px;height:600px;border-radius:50%;
+  background:radial-gradient(circle,rgba(196,22,28,.18) 0%,transparent 65%);
+  top:50%;left:50%;transform:translate(-55%,-58%);pointer-events:none}
+.l-glow-b{position:absolute;width:400px;height:400px;border-radius:50%;
+  background:radial-gradient(circle,rgba(59,130,246,.08) 0%,transparent 65%);
+  top:55%;left:60%;transform:translate(-50%,-50%);pointer-events:none}
+.lcard{
+  position:relative;z-index:10;width:404px;
+  background:rgba(255,255,255,.042);
+  border:1px solid rgba(255,255,255,.088);
+  border-radius:24px;padding:44px;
+  backdrop-filter:blur(32px);
+  box-shadow:0 48px 120px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.07);
+}
+.l-brand{display:flex;align-items:center;gap:12px;margin-bottom:36px}
+.l-icon{width:38px;height:38px;
+  background:linear-gradient(145deg,#c4161c,#7f0e12);
+  border-radius:10px;display:grid;place-items:center;
+  box-shadow:0 4px 14px rgba(196,22,28,.4)}
+.l-icon svg{width:18px;height:18px}
+.l-bname{font-size:14px;font-weight:700;color:#fff;letter-spacing:-.01em}
+.l-bsub{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.28)}
+.l-h{font-size:26px;font-weight:800;color:#fff;letter-spacing:-.04em;margin-bottom:5px}
+.l-p{font-size:13px;color:rgba(255,255,255,.36);margin-bottom:28px}
+.lbl{display:block;font-size:11px;font-weight:600;color:rgba(255,255,255,.36);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+.inp{width:100%;background:rgba(255,255,255,.052);border:1px solid rgba(255,255,255,.09);
+  border-radius:11px;padding:11px 14px;font-size:14px;font-family:inherit;color:#fff;outline:none;
+  transition:border-color .2s,box-shadow .2s}
+.inp::placeholder{color:rgba(255,255,255,.16)}
+.inp:focus{border-color:rgba(196,22,28,.45);box-shadow:0 0 0 3px rgba(196,22,28,.1)}
 .fg{margin-bottom:16px}
-.lbtn{width:100%;padding:12px;background:var(--br);border:none;border-radius:10px;font-size:13.5px;font-weight:600;font-family:inherit;color:#fff;cursor:pointer;margin-top:8px;transition:background .15s,transform .12s,box-shadow .15s;box-shadow:0 4px 18px rgba(196,22,28,.38);letter-spacing:-.01em}
-.lbtn:hover{background:var(--brdk);transform:translateY(-1px);box-shadow:0 8px 24px rgba(196,22,28,.45)}
+.lbtn{width:100%;padding:12px;
+  background:linear-gradient(145deg,#c4161c,#9b1117);
+  border:none;border-radius:11px;font-size:13.5px;font-weight:600;font-family:inherit;color:#fff;cursor:pointer;
+  margin-top:8px;transition:opacity .15s,transform .12s,box-shadow .15s;
+  box-shadow:0 4px 20px rgba(196,22,28,.4)}
+.lbtn:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 8px 28px rgba(196,22,28,.48)}
 .lbtn:active{transform:translateY(0)}
-.l-hint{margin-top:18px;text-align:center;font-size:11.5px;color:rgba(255,255,255,.18)}
-.l-hint span{color:rgba(255,255,255,.4)}
-.dpills{display:flex;gap:6px;margin-top:22px;border-top:1px solid rgba(255,255,255,.06);padding-top:18px}
-.dp{flex:1;padding:7px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:8px;text-align:center;font-size:11px;font-weight:500;color:rgba(255,255,255,.32);cursor:pointer;transition:all .15s}
-.dp:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.68);border-color:rgba(255,255,255,.14)}
-.dp .dr{display:block;font-size:9.5px;color:rgba(255,255,255,.2);margin-top:1px}
+.l-hint{margin-top:16px;text-align:center;font-size:11px;color:rgba(255,255,255,.16)}
+.l-hint span{color:rgba(255,255,255,.36)}
+.dpills{display:flex;gap:6px;margin-top:20px;border-top:1px solid rgba(255,255,255,.055);padding-top:18px}
+.dp{flex:1;padding:7px 8px;background:rgba(255,255,255,.038);
+  border:1px solid rgba(255,255,255,.07);border-radius:9px;text-align:center;
+  font-size:11px;font-weight:500;color:rgba(255,255,255,.3);cursor:pointer;transition:all .15s}
+.dp:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.14)}
+.dp-role{display:block;font-size:9.5px;color:rgba(255,255,255,.18);margin-top:1px}
 
-/* ══════════════════════════════
+/* ═══════════════════════════════════════
    APP SHELL
-══════════════════════════════ */
+═══════════════════════════════════════ */
 #pg-app.active{display:flex;flex-direction:column}
 
-/* TOP NAV */
-.topnav{height:58px;flex-shrink:0;background:rgba(255,255,255,.97);backdrop-filter:blur(12px);border-bottom:1px solid var(--s200);display:flex;align-items:center;padding:0 24px;gap:0;position:sticky;top:0;z-index:50}
-.tn-logo{display:flex;align-items:center;gap:9px;margin-right:28px;cursor:pointer;user-select:none}
-.tn-logo-box{width:30px;height:30px;background:var(--br);border-radius:7px;display:grid;place-items:center;transition:background .15s}
-.tn-logo-box:hover{background:var(--brdk)}
-.tn-logo-box svg{width:15px;height:15px}
-.tn-logo-text{font-size:14px;font-weight:700;color:var(--s900);letter-spacing:-.01em}
-.tn-nav{display:flex;align-items:center;gap:2px;flex:1}
-.tn-item{padding:7px 11px;border-radius:8px;font-size:13px;font-weight:500;color:var(--s500);cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none}
-.tn-item:hover{color:var(--s800);background:var(--s50)}
-.tn-item.active{color:var(--br);background:var(--brlt);font-weight:600}
-.tn-right{display:flex;align-items:center;gap:10px;margin-left:auto}
-.tn-bell{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;cursor:pointer;transition:background .15s;position:relative;border:1px solid var(--s200)}
-.tn-bell:hover{background:var(--s50)}
-.tn-bell svg{width:15px;height:15px;stroke:var(--s500)}
-.tn-bell-dot{position:absolute;top:7px;right:7px;width:6px;height:6px;background:var(--br);border-radius:50%;border:2px solid #fff}
-.tn-div{width:1px;height:20px;background:var(--s200)}
-.tn-user{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;cursor:pointer;transition:background .15s}
-.tn-user:hover{background:var(--s50)}
-.tn-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--br) 0%,#7c0e12 100%);display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
-.tn-uname{font-size:12.5px;font-weight:600;color:var(--s800)}
-.tn-urole{font-size:10.5px;color:var(--s400)}
-.env-pill{padding:3px 8px;background:#fef9c3;border:1px solid #fde047;border-radius:5px;font-size:10px;font-weight:600;color:#713f12;letter-spacing:.04em}
-
-/* SCROLLABLE BODY */
-.app-body{flex:1;overflow-y:auto;padding:28px 24px;min-height:0}
+/* Body bg — light with very subtle gradient mesh */
+.app-body{
+  flex:1;overflow-y:auto;
+  background:
+    radial-gradient(ellipse 80% 60% at 0% 0%, rgba(196,22,28,.04) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 60% at 100% 100%, rgba(99,102,241,.04) 0%, transparent 50%),
+    linear-gradient(160deg, #edf0f8 0%, #f5f7ff 50%, #eef2f8 100%);
+  min-height:0;
+}
 .app-body::-webkit-scrollbar{width:5px}
-.app-body::-webkit-scrollbar-thumb{background:var(--s200);border-radius:3px}
+.app-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:3px}
 
-/* ══════════════════════════════
-   HERO SECTION
-══════════════════════════════ */
+/* ── NAV ── */
+.nav{
+  height:58px;flex-shrink:0;
+  background:rgba(255,255,255,.82);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(0,0,0,.07);
+  position:sticky;top:0;z-index:50;
+}
+.nav-inner{
+  max-width:1200px;margin:0 auto;padding:0 28px;
+  height:100%;display:flex;align-items:center;
+}
+.nav-logo{display:flex;align-items:center;gap:9px;margin-right:28px;cursor:pointer;user-select:none}
+.nav-logo-box{width:30px;height:30px;
+  background:linear-gradient(145deg,#c4161c,#800e12);
+  border-radius:7px;display:grid;place-items:center;
+  box-shadow:0 2px 8px rgba(196,22,28,.35)}
+.nav-logo-box svg{width:15px;height:15px}
+.nav-logo-text{font-size:14px;font-weight:800;color:#0f172a;letter-spacing:-.02em}
+.nav-links{display:flex;align-items:center;gap:2px;flex:1}
+.nav-item{padding:7px 11px;border-radius:8px;font-size:13px;font-weight:500;
+  color:#64748b;cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none}
+.nav-item:hover{color:#0f172a;background:rgba(0,0,0,.05)}
+.nav-item.active{
+  color:#c4161c;
+  background:linear-gradient(135deg,rgba(196,22,28,.08) 0%,rgba(155,17,23,.05) 100%);
+  font-weight:600}
+.nav-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.nav-env{padding:3px 9px;
+  background:linear-gradient(135deg,#fef9c3,#fef3c7);
+  border:1px solid rgba(234,179,8,.3);
+  border-radius:6px;font-size:10px;font-weight:700;color:#854d0e;letter-spacing:.04em}
+.nav-bell{width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,#fff,#f8fafc);
+  border:1px solid rgba(0,0,0,.1);
+  display:grid;place-items:center;cursor:pointer;position:relative;
+  transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.nav-bell:hover{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.nav-bell svg{width:15px;height:15px;stroke:#64748b}
+.nav-bell-dot{position:absolute;top:7px;right:7px;width:6px;height:6px;
+  background:linear-gradient(135deg,#ef4444,#c4161c);border-radius:50%;border:2px solid #fff}
+.nav-div{width:1px;height:20px;background:rgba(0,0,0,.1)}
+.nav-user{display:flex;align-items:center;gap:8px;padding:5px 9px;border-radius:9px;cursor:pointer;transition:background .15s}
+.nav-user:hover{background:rgba(0,0,0,.04)}
+.nav-av{width:28px;height:28px;border-radius:50%;
+  background:linear-gradient(145deg,#c4161c,#7f0e12);
+  display:grid;place-items:center;font-size:10.5px;font-weight:800;color:#fff;flex-shrink:0;
+  box-shadow:0 2px 6px rgba(196,22,28,.3)}
+.nav-uname{font-size:12.5px;font-weight:600;color:#1e293b}
+.nav-urole{font-size:10.5px;color:#94a3b8}
+
+/* ── CONTENT CONTAINER ── */
+.container{max-width:1200px;margin:0 auto;padding:28px 28px 40px}
+
+/* ═══════════════════════════════════════
+   HERO (dark, carries login atmosphere)
+═══════════════════════════════════════ */
 .hero{
-  background:var(--s900);
-  border-radius:18px;
-  padding:32px 36px 28px;
-  margin-bottom:20px;
-  position:relative;
-  overflow:hidden;
+  border-radius:20px;
+  padding:36px 40px 30px;
+  margin-bottom:24px;
+  position:relative;overflow:hidden;
+  background:
+    radial-gradient(ellipse 65% 100% at 8% 55%,rgba(196,22,28,.16) 0%,transparent 55%),
+    radial-gradient(ellipse 50% 70% at 92% 40%,rgba(59,130,246,.1) 0%,transparent 55%),
+    radial-gradient(ellipse 35% 50% at 50% 100%,rgba(99,102,241,.07) 0%,transparent 50%),
+    linear-gradient(155deg,#0c0c1f 0%,#0f1628 55%,#0b1019 100%);
+  box-shadow:0 24px 80px rgba(0,0,0,.28),0 8px 24px rgba(0,0,0,.16);
 }
-/* subtle dot-grid texture */
-.hero::before{
-  content:'';position:absolute;inset:0;
-  background-image:radial-gradient(circle,rgba(255,255,255,.06) 1px,transparent 1px);
-  background-size:28px 28px;
-  pointer-events:none;
-}
-/* red glow corner */
-.hero::after{
-  content:'';position:absolute;
-  bottom:-80px;right:-80px;
-  width:360px;height:360px;
-  background:radial-gradient(circle,rgba(196,22,28,.14) 0%,transparent 65%);
-  pointer-events:none;
-}
+/* subtle dot grid on dark */
+.hero::before{content:'';position:absolute;inset:0;
+  background-image:radial-gradient(circle,rgba(255,255,255,.055) 1px,transparent 1px);
+  background-size:30px 30px;pointer-events:none}
 
-.hero-top{
-  display:flex;align-items:flex-start;justify-content:space-between;
-  margin-bottom:28px;position:relative;z-index:1;
-}
-.hero-eyebrow{
-  font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-  color:rgba(255,255,255,.3);margin-bottom:5px;
-}
-.hero-sprint{font-size:16px;font-weight:700;color:#fff;letter-spacing:-.02em}
-.hero-date{font-size:12px;color:rgba(255,255,255,.35);margin-top:3px}
+/* ── Hero layout: left 55% | right 45% ── */
+.hero-layout{display:grid;grid-template-columns:1fr auto;gap:0;position:relative;z-index:1}
+.hero-left{}
+.hero-right{display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between}
 
-.hero-countdown{text-align:right}
-.hc-val{
-  font-size:44px;font-weight:900;color:#fff;
-  letter-spacing:-.06em;line-height:1;
-}
-.hc-lbl{font-size:11px;color:rgba(255,255,255,.35);text-align:right;margin-top:2px}
+/* hero eyebrow */
+.hero-eyebrow{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(255,255,255,.28);margin-bottom:6px}
+.hero-sprint-name{font-size:15px;font-weight:700;color:#fff;letter-spacing:-.02em;margin-bottom:2px}
+.hero-date{font-size:12px;color:rgba(255,255,255,.32);margin-bottom:28px}
 
-/* BIG METRIC + PRODUCT RINGS */
-.hero-mid{
-  display:flex;align-items:flex-end;justify-content:space-between;
-  margin-bottom:22px;position:relative;z-index:1;
+/* BIG number */
+.hero-big{display:flex;align-items:flex-start;gap:3px;margin-bottom:6px}
+.hero-num{
+  font-size:clamp(88px,10vw,118px);font-weight:900;line-height:.9;
+  letter-spacing:-.06em;
+  background:linear-gradient(160deg,#ffffff 30%,rgba(255,255,255,.55) 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
 }
-.hero-pct-block{}
 .hero-pct{
-  font-size:clamp(80px,9vw,110px);
-  font-weight:900;color:#fff;
-  letter-spacing:-.06em;line-height:.9;
-  display:flex;align-items:baseline;gap:6px;
+  font-size:clamp(28px,3.5vw,40px);font-weight:700;
+  background:linear-gradient(160deg,rgba(255,255,255,.7),rgba(255,255,255,.35));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  margin-top:12px;letter-spacing:-.02em;
 }
-.hero-pct-sym{
-  font-size:clamp(28px,3.5vw,40px);
-  font-weight:700;color:rgba(255,255,255,.55);
-  letter-spacing:-.03em;
-}
-.hero-pct-lbl{
-  font-size:12px;font-weight:500;color:rgba(255,255,255,.4);
-  margin-top:8px;letter-spacing:.01em;
-}
+.hero-sub{font-size:12px;color:rgba(255,255,255,.32);margin-bottom:24px;letter-spacing:.01em}
 
-/* Product ring pills */
-.hero-rings{display:flex;gap:10px;align-items:flex-end}
-.hring-pill{
+/* ── stacked bar ── */
+.hero-bar-track{
+  display:flex;height:9px;border-radius:6px;overflow:hidden;gap:2px;
+  margin-bottom:12px;
+  background:rgba(255,255,255,.07);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.2);
+}
+.hbs{height:100%;border-radius:3px}
+.hbs-em{background:linear-gradient(90deg,#10b981,#34d399)}
+.hbs-bl{background:linear-gradient(90deg,#3b82f6,#60a5fa)}
+.hbs-am{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
+.hbs-ro{background:linear-gradient(90deg,#f43f5e,#fb7185)}
+
+/* legend */
+.hero-legend{display:flex;flex-wrap:wrap;gap:16px}
+.hl{display:flex;align-items:center;gap:5px;font-size:11px;color:rgba(255,255,255,.36)}
+.hl-dot{width:8px;height:8px;border-radius:3px;flex-shrink:0}
+.hl strong{color:rgba(255,255,255,.72);font-weight:700;margin-left:2px}
+
+/* ── countdown (top-right) ── */
+.hero-cd{text-align:right;margin-bottom:24px}
+.hero-cd-val{
+  font-size:52px;font-weight:900;letter-spacing:-.06em;line-height:1;
+  background:linear-gradient(160deg,#ffffff,rgba(255,255,255,.5));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.hero-cd-lbl{font-size:10.5px;color:rgba(255,255,255,.3);text-align:right;margin-top:3px}
+
+/* ── product rings (right column, bottom) ── */
+.hero-rings{display:flex;flex-direction:column;gap:8px}
+.hring{
+  display:flex;align-items:center;gap:12px;
   background:rgba(255,255,255,.055);
   border:1px solid rgba(255,255,255,.09);
-  border-radius:14px;padding:16px 18px;
-  display:flex;align-items:center;gap:14px;
+  border-radius:14px;padding:12px 16px;
   cursor:pointer;transition:background .15s,border-color .15s;
-  min-width:150px;
+  backdrop-filter:blur(10px);
+  min-width:186px;
 }
-.hring-pill:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.14)}
-.hring-svg{position:relative;flex-shrink:0}
-.hring-svg svg{display:block}
-.hring-num{
-  position:absolute;inset:0;display:grid;place-items:center;
-  font-size:14px;font-weight:800;color:#fff;
-}
+.hring:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.15)}
+.hring-fig{position:relative;flex-shrink:0}
+.hring-fig svg{display:block}
+.hring-lbl{position:absolute;inset:0;display:grid;place-items:center;
+  font-size:13px;font-weight:800;color:#fff}
 .hring-info{}
-.hring-code{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:2px}
-.hring-name{font-size:12px;font-weight:600;color:#fff;letter-spacing:-.01em}
-.hring-sub{font-size:10.5px;color:rgba(255,255,255,.35);margin-top:1px}
+.hring-code{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:1px}
+.hring-name{font-size:12px;font-weight:700;color:#fff;letter-spacing:-.01em}
+.hring-meta{font-size:10.5px;color:rgba(255,255,255,.32);margin-top:1px}
 
-/* PROGRESS BAR */
-.hero-bar-wrap{position:relative;z-index:1;margin-bottom:14px}
-.hero-bar{
-  display:flex;height:8px;border-radius:5px;overflow:hidden;
-  gap:2px;background:rgba(255,255,255,.07);
-}
-.hbar-seg{height:100%;border-radius:3px}
+/* ═══════════════════════════════════════
+   BOTTOM GRID
+═══════════════════════════════════════ */
+.grid-2{display:grid;grid-template-columns:1fr 300px;gap:18px}
 
-/* LEGEND */
-.hero-legend{
-  display:flex;flex-wrap:wrap;gap:20px;
-  position:relative;z-index:1;
-}
-.hl-item{display:flex;align-items:center;gap:6px;font-size:11.5px;color:rgba(255,255,255,.4)}
-.hl-dot{width:8px;height:8px;border-radius:3px;flex-shrink:0}
-.hl-item strong{color:rgba(255,255,255,.8);font-weight:700;margin-left:2px}
+/* section header */
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sh-left{display:flex;align-items:center;gap:8px}
+.sh-title{font-size:13.5px;font-weight:700;color:#0f172a;letter-spacing:-.02em}
+.sh-badge{font-size:10.5px;font-weight:600;color:#94a3b8;
+  background:linear-gradient(135deg,rgba(0,0,0,.06),rgba(0,0,0,.04));
+  padding:2px 8px;border-radius:20px;border:1px solid rgba(0,0,0,.06)}
+.sh-link{font-size:12px;font-weight:500;color:#94a3b8;cursor:pointer;transition:color .15s}
+.sh-link:hover{color:#475569}
 
-/* ══════════════════════════════
-   DASHBOARD BOTTOM (2-col)
-══════════════════════════════ */
-.dash-grid{display:grid;grid-template-columns:1fr 308px;gap:16px}
+/* filter bar */
+.fbar{display:flex;gap:7px;margin-bottom:12px}
+.fsel{
+  border:1px solid rgba(0,0,0,.1);border-radius:8px;
+  padding:7px 10px;font-size:12px;font-family:inherit;color:#475569;
+  background:linear-gradient(135deg,#fff,#f8fafc);cursor:pointer;outline:none;
+  transition:border-color .15s,box-shadow .15s;
+  box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.fsel:hover{border-color:rgba(0,0,0,.18);box-shadow:0 2px 6px rgba(0,0,0,.08)}
 
-/* SECTION HEADER */
-.sec-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.sec-h-left{display:flex;align-items:center;gap:8px}
-.sec-title{font-size:13px;font-weight:700;color:var(--s900);letter-spacing:-.01em}
-.sec-badge{font-size:10.5px;font-weight:600;color:var(--s400);background:var(--s100);padding:2px 8px;border-radius:20px}
-.sec-link{font-size:12px;font-weight:500;color:var(--s400);cursor:pointer;transition:color .15s;user-select:none}
-.sec-link:hover{color:var(--s600)}
-
-/* FILTERS */
-.fbar{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap}
-.fsel{border:1px solid var(--s200);border-radius:7px;padding:6px 10px;font-size:12px;font-family:inherit;color:var(--s600);background:#fff;cursor:pointer;outline:none;transition:border-color .15s}
-.fsel:hover{border-color:var(--s300)}
-
-/* TASK CARDS — production-faithful, elevated */
+/* ── TASK CARD ── */
 .tc{
-  background:#fff;border:1px solid var(--s200);border-radius:11px;
-  padding:14px 16px;margin-bottom:9px;
-  position:relative;overflow:hidden;
-  cursor:pointer;
-  transition:box-shadow .2s,border-color .2s,transform .15s;
-  box-shadow:0 1px 3px rgba(0,0,0,.03);
+  background:linear-gradient(155deg,#ffffff 0%,#fafdff 100%);
+  border-radius:13px;padding:15px 17px;margin-bottom:10px;
+  position:relative;overflow:hidden;cursor:pointer;
+  transition:box-shadow .2s,transform .18s;
+  border:1px solid rgba(0,0,0,.07);
+  box-shadow:0 1px 4px rgba(0,0,0,.04),0 0 0 1px rgba(255,255,255,.8) inset;
 }
 .tc:hover{
-  box-shadow:0 6px 22px rgba(0,0,0,.08);
-  border-color:var(--s300);
+  box-shadow:0 8px 30px rgba(0,0,0,.11),0 2px 8px rgba(0,0,0,.06);
   transform:translateY(-1px);
 }
+/* critical cards get colored ambient shadow */
+.tc-critical{
+  border-color:rgba(244,63,94,.15);
+  box-shadow:0 2px 12px rgba(244,63,94,.1),0 0 0 1px rgba(255,255,255,.8) inset;
+}
+.tc-critical:hover{box-shadow:0 8px 30px rgba(244,63,94,.15),0 2px 8px rgba(244,63,94,.08);transform:translateY(-1px)}
+
+/* 3px gradient top bar */
 .tc-bar{position:absolute;top:0;left:0;right:0;height:3px}
-.tc-row1{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:5px}
-.tc-title{font-size:13px;font-weight:600;color:var(--s900);flex:1;line-height:1.35}
-.tc-desc{font-size:11.5px;color:var(--s500);margin-bottom:8px;line-height:1.4}
+
+.tc-r1{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:5px}
+.tc-title{font-size:13.5px;font-weight:600;color:#0f172a;flex:1;line-height:1.35}
+.tc-desc{font-size:12px;color:#64748b;margin-bottom:8px;line-height:1.45}
 .tc-chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:9px}
-.tc-foot{border-top:1px solid var(--s100);padding-top:8px;display:flex;align-items:center;justify-content:space-between}
-.tc-left{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--s600)}
+.tc-foot{border-top:1px solid rgba(0,0,0,.05);padding-top:8px;display:flex;align-items:center;justify-content:space-between}
+.tc-who{display:flex;align-items:center;gap:5px;font-size:11.5px;color:#475569}
 .tc-av{width:19px;height:19px;border-radius:50%;display:grid;place-items:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0}
-.tc-right{display:flex;align-items:center;gap:5px;font-size:11.5px}
-.overdue{display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:600;color:var(--ro);background:#fee2e2;padding:2px 6px;border-radius:20px}
-.jira-pill{font-size:9.5px;font-weight:700;color:#1d4ed8;background:#dbeafe;padding:2px 6px;border-radius:4px}
-.view-all{width:100%;padding:10px;border:1.5px dashed var(--s200);border-radius:10px;background:transparent;font-size:12px;font-weight:500;color:var(--s400);cursor:pointer;transition:all .15s;font-family:inherit;margin-top:2px}
-.view-all:hover{background:var(--s50);color:var(--s600);border-color:var(--s300)}
+.tc-when{display:flex;align-items:center;gap:4px;font-size:11.5px}
+.overdue{display:inline-flex;align-items:center;gap:2px;font-size:9.5px;font-weight:600;
+  color:#dc2626;
+  background:linear-gradient(135deg,#fee2e2,#fecaca);
+  padding:2px 6px;border-radius:20px;margin-left:4px;
+  border:1px solid rgba(220,38,38,.15)}
+.jira-tag{font-size:9.5px;font-weight:700;color:#1d4ed8;
+  background:linear-gradient(135deg,#dbeafe,#bfdbfe);
+  padding:2px 6px;border-radius:4px;border:1px solid rgba(59,130,246,.15)}
 
-/* STATUS & PRIORITY BADGES */
-.bdg{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap}
+.view-all{width:100%;padding:10px;
+  border:1.5px dashed rgba(0,0,0,.12);border-radius:11px;
+  background:transparent;font-size:12.5px;font-weight:500;color:#94a3b8;
+  cursor:pointer;transition:all .15s;font-family:inherit;margin-top:2px}
+.view-all:hover{background:rgba(255,255,255,.7);color:#475569;border-color:rgba(0,0,0,.18)}
+
+/* STATUS BADGES — gradient, not flat solid */
+.bdg{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap;border-width:1px;border-style:solid}
 .bdg-dot{width:5px;height:5px;border-radius:50%}
-.bPASSED{background:#d1fae5;color:#065f46}.bPASSED .bdg-dot{background:var(--em)}
-.bFAILED{background:#fee2e2;color:#991b1b}.bFAILED .bdg-dot{background:var(--ro)}
-.bBLOCKED{background:#fef3c7;color:#92400e}.bBLOCKED .bdg-dot{background:var(--am)}
-.bIN_PROGRESS{background:#dbeafe;color:#1e40af}.bIN_PROGRESS .bdg-dot{background:var(--bl)}
-.bREADY{background:var(--s100);color:var(--s500)}.bREADY .bdg-dot{background:var(--s400)}
-.bDEPLOYED{background:#e0e7ff;color:#3730a3}.bDEPLOYED .bdg-dot{background:var(--in)}
-.pH{background:#fee2e2;color:#991b1b}
-.pM{background:#fef3c7;color:#92400e}
-.pL{background:var(--s100);color:var(--s500)}
-.bmod{background:#eef2ff;color:#3730a3;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600}
-.bprod{background:#ecfdf5;color:#065f46;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600}
-.ctry{display:inline-flex;align-items:center;justify-content:center;padding:2px 6px;border-radius:4px;font-size:9.5px;font-weight:800;letter-spacing:.02em}
-.cMY{background:#dbeafe;color:#1e40af}.cSG{background:#cffafe;color:#155e75}
-.cTH{background:#fce7f3;color:#9d174d}.cVN{background:#fef9c3;color:#713f12}
-.cTW{background:#d1fae5;color:#065f46}.cHK{background:#fee2e2;color:#991b1b}
+.bPASSED{background:linear-gradient(135deg,#d1fae5,#a7f3d0);color:#065f46;border-color:rgba(16,185,129,.2)}.bPASSED .bdg-dot{background:linear-gradient(135deg,#10b981,#059669)}
+.bFAILED{background:linear-gradient(135deg,#fee2e2,#fecaca);color:#991b1b;border-color:rgba(244,63,94,.2)}.bFAILED .bdg-dot{background:linear-gradient(135deg,#f43f5e,#dc2626)}
+.bBLOCKED{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;border-color:rgba(245,158,11,.2)}.bBLOCKED .bdg-dot{background:linear-gradient(135deg,#f59e0b,#d97706)}
+.bIN_PROGRESS{background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1e40af;border-color:rgba(59,130,246,.2)}.bIN_PROGRESS .bdg-dot{background:linear-gradient(135deg,#3b82f6,#2563eb)}
+.bREADY{background:linear-gradient(135deg,#f1f5f9,#e2e8f0);color:#475569;border-color:rgba(0,0,0,.08)}.bREADY .bdg-dot{background:#94a3b8}
+.bDEPLOYED{background:linear-gradient(135deg,#e0e7ff,#c7d2fe);color:#3730a3;border-color:rgba(99,102,241,.2)}.bDEPLOYED .bdg-dot{background:linear-gradient(135deg,#6366f1,#4f46e5)}
+.pH{background:linear-gradient(135deg,#fee2e2,#fecaca);color:#991b1b;border-color:rgba(244,63,94,.15)}
+.pM{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;border-color:rgba(245,158,11,.15)}
+.pL{background:linear-gradient(135deg,#f1f5f9,#e2e8f0);color:#64748b;border-color:rgba(0,0,0,.08)}
+.bmod{background:linear-gradient(135deg,#eef2ff,#e0e7ff);color:#3730a3;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600;border:1px solid rgba(99,102,241,.15)}
+.bprod{background:linear-gradient(135deg,#ecfdf5,#d1fae5);color:#065f46;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600;border:1px solid rgba(16,185,129,.15)}
 
-/* RIGHT COLUMN */
-.rcard{background:#fff;border:1px solid var(--s200);border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.03)}
-.act-item{display:flex;gap:9px;padding:9px 0;border-bottom:1px solid var(--s50);align-items:flex-start}
+/* Country chips */
+.ctry{display:inline-flex;align-items:center;justify-content:center;padding:2px 6px;border-radius:5px;font-size:9.5px;font-weight:800;letter-spacing:.02em;border:1px solid transparent}
+.cMY{background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1e40af;border-color:rgba(59,130,246,.15)}
+.cSG{background:linear-gradient(135deg,#cffafe,#a5f3fc);color:#155e75;border-color:rgba(6,182,212,.15)}
+.cTH{background:linear-gradient(135deg,#fce7f3,#fbcfe8);color:#9d174d;border-color:rgba(236,72,153,.15)}
+.cVN{background:linear-gradient(135deg,#fef9c3,#fef08a);color:#713f12;border-color:rgba(234,179,8,.15)}
+.cTW{background:linear-gradient(135deg,#d1fae5,#a7f3d0);color:#065f46;border-color:rgba(16,185,129,.15)}
+.cHK{background:linear-gradient(135deg,#fee2e2,#fecaca);color:#991b1b;border-color:rgba(244,63,94,.15)}
+
+/* ── RIGHT COLUMN CARDS ── */
+.rcard{
+  background:linear-gradient(155deg,#ffffff,#fafdff);
+  border:1px solid rgba(0,0,0,.07);
+  border-radius:14px;padding:18px;margin-bottom:14px;
+  box-shadow:0 1px 4px rgba(0,0,0,.04),0 0 0 1px rgba(255,255,255,.8) inset;
+}
+.act-item{display:flex;gap:9px;padding:9px 0;border-bottom:1px solid rgba(0,0,0,.04);align-items:flex-start}
 .act-item:last-child{border-bottom:none;padding-bottom:0}
 .act-ico{width:27px;height:27px;border-radius:7px;display:grid;place-items:center;flex-shrink:0}
-.act-ico svg{width:13px;height:13px}
-.ai-s{background:#d1fae5}.ai-s svg{stroke:var(--em)}
-.ai-b{background:#fef3c7}.ai-b svg{stroke:var(--am)}
-.ai-c{background:#dbeafe}.ai-c svg{stroke:var(--bl)}
-.ai-f{background:#fee2e2}.ai-f svg{stroke:var(--ro)}
-.ai-x{background:#e0e7ff}.ai-x svg{stroke:var(--in)}
-.act-body .at{font-size:11.5px;color:var(--s600);line-height:1.45}
-.act-body .at strong{color:var(--s900);font-weight:600}
-.act-body .atm{font-size:10px;color:var(--s400);margin-top:2px}
-.ci-row{display:flex;gap:8px;padding:9px 10px;background:#fff8f8;border:1px solid #fee2e2;border-radius:8px;margin-bottom:6px;cursor:pointer;transition:background .15s;align-items:flex-start}
+.act-ico svg{width:12px;height:12px}
+.ai-s{background:linear-gradient(135deg,#d1fae5,#a7f3d0)}.ai-s svg{stroke:#059669}
+.ai-b{background:linear-gradient(135deg,#fef3c7,#fde68a)}.ai-b svg{stroke:#d97706}
+.ai-c{background:linear-gradient(135deg,#dbeafe,#bfdbfe)}.ai-c svg{stroke:#2563eb}
+.ai-f{background:linear-gradient(135deg,#fee2e2,#fecaca)}.ai-f svg{stroke:#dc2626}
+.ai-x{background:linear-gradient(135deg,#e0e7ff,#c7d2fe)}.ai-x svg{stroke:#4f46e5}
+.at{font-size:11.5px;color:#475569;line-height:1.45}
+.at strong{color:#0f172a;font-weight:600}
+.atm{font-size:10px;color:#94a3b8;margin-top:2px}
+.ci-row{display:flex;gap:8px;padding:9px 10px;
+  background:linear-gradient(135deg,rgba(244,63,94,.06),rgba(220,38,38,.04));
+  border:1px solid rgba(244,63,94,.12);
+  border-radius:9px;margin-bottom:6px;cursor:pointer;transition:background .15s;align-items:flex-start}
 .ci-row:last-child{margin-bottom:0}
-.ci-row:hover{background:#fee2e2}
-.ci-row svg{width:13px;height:13px;stroke:var(--ro);flex-shrink:0;margin-top:1px}
+.ci-row:hover{background:linear-gradient(135deg,rgba(244,63,94,.1),rgba(220,38,38,.07))}
+.ci-row svg{width:13px;height:13px;stroke:#dc2626;flex-shrink:0;margin-top:1px}
 .ci-t{font-size:11.5px;font-weight:600;color:#991b1b;line-height:1.3}
 .ci-m{font-size:10px;color:#dc2626;margin-top:2px}
 </style>
 </head>
 <body>
 
-<!-- ════════════════ LOGIN ════════════════ -->
+<!-- ════════════ LOGIN ════════════ -->
 <div id="pg-login" class="page active">
   <canvas id="c3"></canvas>
-  <div class="l-noise"></div>
-  <div class="l-glow"></div>
+  <div class="noise"></div>
+  <div class="l-glow-a"></div>
+  <div class="l-glow-b"></div>
   <div class="lcard" id="lcard">
     <div class="l-brand">
       <div class="l-icon"><svg viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="9" height="2" rx="1" fill="white"/><rect x="2" y="8" width="13" height="2" rx="1" fill="white"/><rect x="2" y="13" width="7" height="2" rx="1" fill="white"/><polyline points="12,10 14.5,13 18.5,8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-      <div><div class="l-name">CTT</div><div class="l-sub">DKSH Change Tracking</div></div>
+      <div><div class="l-bname">CTT</div><div class="l-bsub">DKSH Change Tracking</div></div>
     </div>
     <h1 class="l-h">Welcome back</h1>
     <p class="l-p">Sign in to track UAT &amp; SIT across markets</p>
@@ -300,142 +388,144 @@ body{overflow:hidden}
     <div class="fg"><label class="lbl">Password</label><input class="inp" type="password" value="••••••••••"></div>
     <button class="lbtn" onclick="enterApp('admin')">Sign in to CTT</button>
     <div class="dpills">
-      <div class="dp" onclick="enterApp('admin')">Putra M.<span class="dr">Admin</span></div>
-      <div class="dp" onclick="enterApp('stakeholder')">UAT MY<span class="dr">Stakeholder</span></div>
-      <div class="dp" onclick="enterApp('qa')">QA EO<span class="dr">QA</span></div>
+      <div class="dp" onclick="enterApp('admin')">Putra M.<span class="dp-role">Admin</span></div>
+      <div class="dp" onclick="enterApp('stakeholder')">UAT MY<span class="dp-role">Stakeholder</span></div>
+      <div class="dp" onclick="enterApp('qa')">QA EO<span class="dp-role">QA</span></div>
     </div>
     <p class="l-hint">v1.4.2 · <span>Staging environment</span></p>
   </div>
 </div>
 
-<!-- ════════════════ APP ════════════════ -->
+<!-- ════════════ APP ════════════ -->
 <div id="pg-app" class="page">
-  <nav class="topnav">
-    <div class="tn-logo" onclick="navTo('admin-dashboard')">
-      <div class="tn-logo-box"><svg viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="9" height="2" rx="1" fill="white"/><rect x="2" y="8" width="13" height="2" rx="1" fill="white"/><rect x="2" y="13" width="7" height="2" rx="1" fill="white"/><polyline points="12,10 14.5,13 18.5,8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-      <span class="tn-logo-text">CTT</span>
-    </div>
-    <div class="tn-nav" id="tn-nav"></div>
-    <div class="tn-right">
-      <div class="env-pill">Staging</div>
-      <div class="tn-bell"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><div class="tn-bell-dot"></div></div>
-      <div class="tn-div"></div>
-      <div class="tn-user" onclick="cycleRole()" title="Click to switch role">
-        <div class="tn-avatar" id="ua">PM</div>
-        <div><div class="tn-uname" id="un">Putra Mahirudin</div><div class="tn-urole" id="ur">Administrator</div></div>
+  <nav class="nav">
+    <div class="nav-inner">
+      <div class="nav-logo" onclick="navTo('admin-dashboard')">
+        <div class="nav-logo-box"><svg viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="9" height="2" rx="1" fill="white"/><rect x="2" y="8" width="13" height="2" rx="1" fill="white"/><rect x="2" y="13" width="7" height="2" rx="1" fill="white"/><polyline points="12,10 14.5,13 18.5,8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span class="nav-logo-text">CTT</span>
+      </div>
+      <div class="nav-links" id="nav-links"></div>
+      <div class="nav-right">
+        <div class="nav-env">Staging</div>
+        <div class="nav-bell"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><div class="nav-bell-dot"></div></div>
+        <div class="nav-div"></div>
+        <div class="nav-user" onclick="cycleRole()" title="Click to switch role">
+          <div class="nav-av" id="ua">PM</div>
+          <div><div class="nav-uname" id="un">Putra Mahirudin</div><div class="nav-urole" id="ur">Administrator</div></div>
+        </div>
       </div>
     </div>
   </nav>
   <div class="app-body" id="app-body"></div>
 </div>
 
-<!-- ════════════════ ADMIN DASHBOARD TEMPLATE ════════════════ -->
+<!-- ════════════ ADMIN DASHBOARD TEMPLATE ════════════ -->
 <template id="t-admin-dashboard">
-<div>
+<div class="container">
+
   <!-- ── HERO ── -->
   <div class="hero">
-    <div class="hero-top">
-      <div>
+    <div class="noise"></div>
+    <div class="hero-layout">
+
+      <!-- LEFT: big number + bar + legend -->
+      <div class="hero-left">
         <div class="hero-eyebrow">Sprint Overview</div>
-        <div class="hero-sprint">June 2026 Release Sprint</div>
+        <div class="hero-sprint-name">June 2026 Release Sprint</div>
         <div class="hero-date">Wednesday, 11 June 2026</div>
-      </div>
-      <div class="hero-countdown">
-        <div class="hc-val" data-count="9">0</div>
-        <div class="hc-lbl">days until deploy</div>
-      </div>
-    </div>
 
-    <div class="hero-mid">
-      <div class="hero-pct-block">
-        <div class="hero-pct">
-          <span data-count="74">0</span>
-          <span class="hero-pct-sym">%</span>
+        <div class="hero-big">
+          <span class="hero-num" data-count="74">0</span>
+          <span class="hero-pct">%</span>
         </div>
-        <div class="hero-pct-lbl">127 tasks across 6 markets · 3 products</div>
-      </div>
+        <div class="hero-sub">127 tasks · 6 markets · 3 products · deploy Jun 20</div>
 
-      <div class="hero-rings">
-        <!-- EasyOrder ring -->
-        <div class="hring-pill" onclick="navTo('tasks')">
-          <div class="hring-svg">
-            <svg width="52" height="52" viewBox="0 0 52 52">
-              <circle cx="26" cy="26" r="20" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="5"/>
-              <circle id="hr-eo" cx="26" cy="26" r="20" fill="none" stroke="#3b82f6" stroke-width="5"
-                stroke-linecap="round" stroke-dasharray="0 125.7" transform="rotate(-90 26 26)"/>
-            </svg>
-            <div class="hring-num" id="hn-eo">0%</div>
-          </div>
-          <div class="hring-info">
-            <div class="hring-code">EO</div>
-            <div class="hring-name">EasyOrder</div>
-            <div class="hring-sub">51 tasks · <span style="color:#f87171">3 blocked</span></div>
-          </div>
+        <div class="hero-bar-track">
+          <div class="hbs hbs-em" data-w="72.4" style="width:0%"></div>
+          <div class="hbs hbs-bl" data-w="15.7" style="width:0%"></div>
+          <div class="hbs hbs-am" data-w="7.1"  style="width:0%"></div>
+          <div class="hbs hbs-ro" data-w="4.7"  style="width:0%"></div>
         </div>
-        <!-- SalesHub ring -->
-        <div class="hring-pill" onclick="navTo('tasks')">
-          <div class="hring-svg">
-            <svg width="52" height="52" viewBox="0 0 52 52">
-              <circle cx="26" cy="26" r="20" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="5"/>
-              <circle id="hr-sh" cx="26" cy="26" r="20" fill="none" stroke="#a855f7" stroke-width="5"
-                stroke-linecap="round" stroke-dasharray="0 125.7" transform="rotate(-90 26 26)"/>
-            </svg>
-            <div class="hring-num" id="hn-sh">0%</div>
-          </div>
-          <div class="hring-info">
-            <div class="hring-code">SH</div>
-            <div class="hring-name">SalesHub</div>
-            <div class="hring-sub">42 tasks · <span style="color:#fbbf24">4 blocked</span></div>
-          </div>
-        </div>
-        <!-- ServicePro ring -->
-        <div class="hring-pill" onclick="navTo('tasks')">
-          <div class="hring-svg">
-            <svg width="52" height="52" viewBox="0 0 52 52">
-              <circle cx="26" cy="26" r="20" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="5"/>
-              <circle id="hr-sp" cx="26" cy="26" r="20" fill="none" stroke="#10b981" stroke-width="5"
-                stroke-linecap="round" stroke-dasharray="0 125.7" transform="rotate(-90 26 26)"/>
-            </svg>
-            <div class="hring-num" id="hn-sp">0%</div>
-          </div>
-          <div class="hring-info">
-            <div class="hring-code">SP</div>
-            <div class="hring-name">ServicePro</div>
-            <div class="hring-sub">34 tasks · <span style="color:#6ee7b7">deploy ready</span></div>
-          </div>
+        <div class="hero-legend">
+          <div class="hl"><div class="hl-dot" style="background:linear-gradient(135deg,#10b981,#34d399)"></div>Passed / Deployed<strong>92</strong></div>
+          <div class="hl"><div class="hl-dot" style="background:linear-gradient(135deg,#3b82f6,#60a5fa)"></div>In Progress<strong>20</strong></div>
+          <div class="hl"><div class="hl-dot" style="background:linear-gradient(135deg,#f59e0b,#fbbf24)"></div>Blocked<strong>9</strong></div>
+          <div class="hl"><div class="hl-dot" style="background:linear-gradient(135deg,#f43f5e,#fb7185)"></div>Failed<strong>6</strong></div>
         </div>
       </div>
-    </div>
 
-    <!-- stacked progress bar -->
-    <div class="hero-bar-wrap">
-      <div class="hero-bar">
-        <div class="hbar-seg" data-w="72.4" style="background:var(--em)"></div>
-        <div class="hbar-seg" data-w="15.7" style="background:var(--bl)"></div>
-        <div class="hbar-seg" data-w="7.1"  style="background:var(--am)"></div>
-        <div class="hbar-seg" data-w="4.7"  style="background:var(--ro)"></div>
+      <!-- RIGHT: countdown + product rings -->
+      <div class="hero-right">
+        <div class="hero-cd">
+          <div class="hero-cd-val" data-count="9">0</div>
+          <div class="hero-cd-lbl">days until deploy</div>
+        </div>
+        <div class="hero-rings">
+          <!-- EasyOrder -->
+          <div class="hring" onclick="navTo('tasks')">
+            <div class="hring-fig">
+              <svg width="48" height="48" viewBox="0 0 48 48">
+                <defs><linearGradient id="g-eo" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#60a5fa"/><stop offset="100%" stop-color="#2563eb"/></linearGradient></defs>
+                <circle cx="24" cy="24" r="18" fill="none" stroke="rgba(255,255,255,.09)" stroke-width="5"/>
+                <circle id="hr-eo" cx="24" cy="24" r="18" fill="none" stroke="url(#g-eo)" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 113.1" transform="rotate(-90 24 24)"/>
+              </svg>
+              <div class="hring-lbl" id="hn-eo" style="font-size:11px">0%</div>
+            </div>
+            <div class="hring-info">
+              <div class="hring-code">EO</div>
+              <div class="hring-name">EasyOrder</div>
+              <div class="hring-meta">51 tasks · <span style="color:#fca5a5">3 blocked</span></div>
+            </div>
+          </div>
+          <!-- SalesHub -->
+          <div class="hring" onclick="navTo('tasks')">
+            <div class="hring-fig">
+              <svg width="48" height="48" viewBox="0 0 48 48">
+                <defs><linearGradient id="g-sh" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#e879f9"/><stop offset="100%" stop-color="#9333ea"/></linearGradient></defs>
+                <circle cx="24" cy="24" r="18" fill="none" stroke="rgba(255,255,255,.09)" stroke-width="5"/>
+                <circle id="hr-sh" cx="24" cy="24" r="18" fill="none" stroke="url(#g-sh)" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 113.1" transform="rotate(-90 24 24)"/>
+              </svg>
+              <div class="hring-lbl" id="hn-sh" style="font-size:11px">0%</div>
+            </div>
+            <div class="hring-info">
+              <div class="hring-code">SH</div>
+              <div class="hring-name">SalesHub</div>
+              <div class="hring-meta">42 tasks · <span style="color:#fcd34d">4 blocked</span></div>
+            </div>
+          </div>
+          <!-- ServicePro -->
+          <div class="hring" onclick="navTo('tasks')">
+            <div class="hring-fig">
+              <svg width="48" height="48" viewBox="0 0 48 48">
+                <defs><linearGradient id="g-sp" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#059669"/></linearGradient></defs>
+                <circle cx="24" cy="24" r="18" fill="none" stroke="rgba(255,255,255,.09)" stroke-width="5"/>
+                <circle id="hr-sp" cx="24" cy="24" r="18" fill="none" stroke="url(#g-sp)" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 113.1" transform="rotate(-90 24 24)"/>
+              </svg>
+              <div class="hring-lbl" id="hn-sp" style="font-size:11px">0%</div>
+            </div>
+            <div class="hring-info">
+              <div class="hring-code">SP</div>
+              <div class="hring-name">ServicePro</div>
+              <div class="hring-meta">34 tasks · <span style="color:#6ee7b7">deploy ready</span></div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="hero-legend">
-      <div class="hl-item"><div class="hl-dot" style="background:var(--em)"></div>Passed / Deployed<strong>92</strong></div>
-      <div class="hl-item"><div class="hl-dot" style="background:var(--bl)"></div>In Progress<strong>20</strong></div>
-      <div class="hl-item"><div class="hl-dot" style="background:var(--am)"></div>Blocked<strong>9</strong></div>
-      <div class="hl-item"><div class="hl-dot" style="background:var(--ro)"></div>Failed<strong>6</strong></div>
-    </div>
-  </div>
-  <!-- /HERO -->
 
-  <!-- ── BOTTOM 2-COL ── -->
-  <div class="dash-grid">
+    </div><!-- /hero-layout -->
+  </div><!-- /hero -->
+
+  <!-- ── BOTTOM GRID ── -->
+  <div class="grid-2">
 
     <!-- TASK LIST -->
     <div>
-      <div class="sec-h">
-        <div class="sec-h-left">
-          <span class="sec-title">Priority Tasks</span>
-          <span class="sec-badge">Open &amp; issues</span>
+      <div class="sh">
+        <div class="sh-left">
+          <span class="sh-title">Priority Tasks</span>
+          <span class="sh-badge">Open &amp; issues</span>
         </div>
-        <span class="sec-link" onclick="navTo('tasks')">View all →</span>
+        <span class="sh-link" onclick="navTo('tasks')">View all →</span>
       </div>
       <div class="fbar">
         <select class="fsel"><option>All statuses</option><option>In Progress</option><option>Blocked</option><option>Failed</option></select>
@@ -443,9 +533,9 @@ body{overflow:hidden}
         <select class="fsel"><option>Sort: Due date</option><option>Sort: Priority</option><option>Sort: Status</option></select>
       </div>
 
-      <div class="tc" onclick="navTo('task-detail')" style="border-color:#fecaca">
-        <div class="tc-bar" style="background:var(--ro)"></div>
-        <div class="tc-row1">
+      <div class="tc tc-critical">
+        <div class="tc-bar" style="background:linear-gradient(90deg,#f43f5e,#fb7185)"></div>
+        <div class="tc-r1">
           <div class="tc-title">EO – Checkout flow rework</div>
           <span class="bdg bBLOCKED"><span class="bdg-dot"></span>Blocked</span>
         </div>
@@ -453,19 +543,17 @@ body{overflow:hidden}
         <div class="tc-chips">
           <span class="ctry cMY">MY</span><span class="ctry cSG">SG</span><span class="ctry cTH">TH</span>
           <span class="bprod">EasyOrder</span><span class="bmod">Order Mgmt</span>
-          <span class="jira-pill">EO-4821</span><span class="bdg pH">High</span>
+          <span class="jira-tag">EO-4821</span><span class="bdg pH">High</span>
         </div>
         <div class="tc-foot">
-          <div class="tc-left"><div class="tc-av" style="background:#334155">AK</div>Ahmad K.</div>
-          <div class="tc-right" style="color:var(--ro)">
-            Jun 12<span class="overdue">Overdue</span>
-          </div>
+          <div class="tc-who"><div class="tc-av" style="background:linear-gradient(135deg,#334155,#1e293b)">AK</div>Ahmad K.</div>
+          <div class="tc-when" style="color:#dc2626">Jun 12<span class="overdue">Overdue</span></div>
         </div>
       </div>
 
-      <div class="tc" onclick="navTo('task-detail')">
-        <div class="tc-bar" style="background:var(--bl)"></div>
-        <div class="tc-row1">
+      <div class="tc">
+        <div class="tc-bar" style="background:linear-gradient(90deg,#3b82f6,#60a5fa)"></div>
+        <div class="tc-r1">
           <div class="tc-title">SH – Price list bulk upload</div>
           <span class="bdg bIN_PROGRESS"><span class="bdg-dot"></span>In Progress</span>
         </div>
@@ -473,17 +561,17 @@ body{overflow:hidden}
         <div class="tc-chips">
           <span class="ctry cMY">MY</span><span class="ctry cVN">VN</span>
           <span class="bprod">SalesHub</span><span class="bmod">Catalogue</span>
-          <span class="jira-pill">SH-2041</span><span class="bdg pM">Medium</span>
+          <span class="jira-tag">SH-2041</span><span class="bdg pM">Medium</span>
         </div>
         <div class="tc-foot">
-          <div class="tc-left"><div class="tc-av" style="background:#7c3aed">LT</div>Linh T.</div>
-          <div class="tc-right" style="color:var(--s500)">Jun 14</div>
+          <div class="tc-who"><div class="tc-av" style="background:linear-gradient(135deg,#7c3aed,#5b21b6)">LT</div>Linh T.</div>
+          <div class="tc-when" style="color:#64748b">Jun 14</div>
         </div>
       </div>
 
       <div class="tc">
-        <div class="tc-bar" style="background:var(--bl)"></div>
-        <div class="tc-row1">
+        <div class="tc-bar" style="background:linear-gradient(90deg,#3b82f6,#60a5fa)"></div>
+        <div class="tc-r1">
           <div class="tc-title">EO – SSO integration with Azure AD</div>
           <span class="bdg bIN_PROGRESS"><span class="bdg-dot"></span>In Progress</span>
         </div>
@@ -491,21 +579,21 @@ body{overflow:hidden}
         <div class="tc-chips">
           <span class="ctry cSG">SG</span><span class="ctry cHK">HK</span><span class="ctry cTW">TW</span>
           <span class="bprod">EasyOrder</span><span class="bmod">Auth</span>
-          <span class="jira-pill">EO-4796</span><span class="bdg pH">High</span>
+          <span class="jira-tag">EO-4796</span><span class="bdg pH">High</span>
         </div>
         <div class="tc-foot">
-          <div class="tc-left">
-            <div class="tc-av" style="background:#0284c7">WY</div>
-            <div class="tc-av" style="background:#7c3aed;margin-left:-5px;border:2px solid #fff">BT</div>
+          <div class="tc-who">
+            <div class="tc-av" style="background:linear-gradient(135deg,#0284c7,#0369a1)">WY</div>
+            <div class="tc-av" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);margin-left:-5px;border:2px solid #fff">BT</div>
             <span style="margin-left:3px">+2</span>
           </div>
-          <div class="tc-right" style="color:var(--s500)">Jun 15</div>
+          <div class="tc-when" style="color:#64748b">Jun 15</div>
         </div>
       </div>
 
-      <div class="tc" style="border-color:#fecaca">
-        <div class="tc-bar" style="background:var(--ro)"></div>
-        <div class="tc-row1">
+      <div class="tc tc-critical">
+        <div class="tc-bar" style="background:linear-gradient(90deg,#f43f5e,#fb7185)"></div>
+        <div class="tc-r1">
           <div class="tc-title">EO – Batch order import v2</div>
           <span class="bdg bFAILED"><span class="bdg-dot"></span>Failed</span>
         </div>
@@ -513,17 +601,17 @@ body{overflow:hidden}
         <div class="tc-chips">
           <span class="ctry cMY">MY</span><span class="ctry cSG">SG</span><span class="ctry cVN">VN</span>
           <span class="bprod">EasyOrder</span><span class="bmod">Import</span>
-          <span class="jira-pill">EO-4771</span><span class="bdg pH">High</span>
+          <span class="jira-tag">EO-4771</span><span class="bdg pH">High</span>
         </div>
         <div class="tc-foot">
-          <div class="tc-left"><div class="tc-av" style="background:#334155">AK</div>Ahmad K.</div>
-          <div class="tc-right" style="color:var(--ro)">Jun 9<span class="overdue">Overdue</span></div>
+          <div class="tc-who"><div class="tc-av" style="background:linear-gradient(135deg,#334155,#1e293b)">AK</div>Ahmad K.</div>
+          <div class="tc-when" style="color:#dc2626">Jun 9<span class="overdue">Overdue</span></div>
         </div>
       </div>
 
       <div class="tc">
-        <div class="tc-bar" style="background:var(--em)"></div>
-        <div class="tc-row1">
+        <div class="tc-bar" style="background:linear-gradient(90deg,#10b981,#34d399)"></div>
+        <div class="tc-r1">
           <div class="tc-title">SP – Service ticket auto-routing</div>
           <span class="bdg bPASSED"><span class="bdg-dot"></span>Passed</span>
         </div>
@@ -531,12 +619,12 @@ body{overflow:hidden}
         <div class="tc-chips">
           <span class="ctry cTH">TH</span>
           <span class="bprod">ServicePro</span><span class="bmod">Routing</span>
-          <span class="jira-pill">SP-0988</span><span class="bdg pL">Low</span>
+          <span class="jira-tag">SP-0988</span><span class="bdg pL">Low</span>
         </div>
         <div class="tc-foot">
-          <div class="tc-left"><div class="tc-av" style="background:#059669">NP</div>Napat P.</div>
-          <div class="tc-right" style="color:var(--em)">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <div class="tc-who"><div class="tc-av" style="background:linear-gradient(135deg,#059669,#047857)">NP</div>Napat P.</div>
+          <div class="tc-when" style="color:#059669">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             Signed off Jun 10
           </div>
         </div>
@@ -548,21 +636,21 @@ body{overflow:hidden}
     <!-- RIGHT COLUMN -->
     <div>
       <div class="rcard">
-        <div class="sec-h" style="margin-bottom:10px">
-          <span class="sec-title">Recent Activity</span>
-          <span class="sec-link">See all →</span>
+        <div class="sh" style="margin-bottom:10px">
+          <span class="sh-title">Recent Activity</span>
+          <span class="sh-link">See all →</span>
         </div>
-        <div class="act-item"><div class="act-ico ai-s"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><div class="act-body"><div class="at"><strong>Ahmad K.</strong> signed off EO–Checkout in MY</div><div class="atm">2 min ago</div></div></div>
-        <div class="act-item"><div class="act-ico ai-b"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div class="act-body"><div class="at"><strong>Task #124</strong> marked Blocked — "API timeout"</div><div class="atm">14 min ago</div></div></div>
-        <div class="act-item"><div class="act-ico ai-c"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div class="act-body"><div class="at"><strong>Linh T.</strong> commented: "@Ahmad recheck step 4?"</div><div class="atm">31 min ago</div></div></div>
-        <div class="act-item"><div class="act-ico ai-x"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div class="act-body"><div class="at"><strong>SP–Ticket routing</strong> moved to Passed (TH)</div><div class="atm">1 hr ago</div></div></div>
-        <div class="act-item"><div class="act-ico ai-f"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div class="act-body"><div class="at"><strong>EO–Batch import</strong> Failed in MY, SG, VN</div><div class="atm">2 hr ago</div></div></div>
+        <div class="act-item"><div class="act-ico ai-s"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="at"><strong>Ahmad K.</strong> signed off EO–Checkout in MY</div><div class="atm">2 min ago</div></div></div>
+        <div class="act-item"><div class="act-ico ai-b"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div><div><div class="at"><strong>Task #124</strong> marked Blocked — "API timeout"</div><div class="atm">14 min ago</div></div></div>
+        <div class="act-item"><div class="act-ico ai-c"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><div class="at"><strong>Linh T.</strong> commented: "@Ahmad recheck step 4?"</div><div class="atm">31 min ago</div></div></div>
+        <div class="act-item"><div class="act-ico ai-x"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div class="at"><strong>SP–Ticket routing</strong> moved to Passed (TH)</div><div class="atm">1 hr ago</div></div></div>
+        <div class="act-item"><div class="act-ico ai-f"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div><div class="at"><strong>EO–Batch import</strong> Failed in MY, SG, VN</div><div class="atm">2 hr ago</div></div></div>
       </div>
       <div class="rcard">
-        <div class="sec-h" style="margin-bottom:10px">
-          <div class="sec-h-left">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            <span class="sec-title">Critical Issues</span>
+        <div class="sh" style="margin-bottom:10px">
+          <div class="sh-left">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/><style>path,line{stroke:#f59e0b}</style></svg>
+            <span class="sh-title">Critical Issues</span>
           </div>
         </div>
         <div class="ci-row"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><div><div class="ci-t">EO–Checkout flow rework</div><div class="ci-m">EasyOrder · MY, SG, TH · Blocked</div></div></div>
@@ -576,14 +664,13 @@ body{overflow:hidden}
 </template>
 
 <script>
-// ── THREE.JS LOGIN ─────────────────────────────────────────────────────────────
+// ── THREE.JS LOGIN ──────────────────────────────────────────────────────────
 (function(){
   const cv=document.getElementById('c3');
   const r=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
   const sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(60,1,.1,100);
   cam.position.z=28;
-  const N=75,p=[],v=[];
-  const pa=new Float32Array(N*3);
+  const N=75,p=[],v=[];const pa=new Float32Array(N*3);
   for(let i=0;i<N;i++){p.push({x:(Math.random()-.5)*56,y:(Math.random()-.5)*38,z:(Math.random()-.5)*8});v.push({x:(Math.random()-.5)*.038,y:(Math.random()-.5)*.038});}
   const pg=new THREE.BufferGeometry();
   sc.add(new THREE.Points(pg,new THREE.PointsMaterial({color:0xc4161c,size:.22,transparent:true,opacity:.75})));
@@ -598,44 +685,29 @@ body{overflow:hidden}
   function tick(){
     if(!document.getElementById('pg-login').classList.contains('active'))return;
     requestAnimationFrame(tick);
-    cam.position.x+=(m.x*3.5-cam.position.x)*.02;
-    cam.position.y+=(-m.y*2.5-cam.position.y)*.02;
-    for(let i=0;i<N;i++){
-      p[i].x+=v[i].x;p[i].y+=v[i].y;
-      if(Math.abs(p[i].x)>30)v[i].x*=-1;if(Math.abs(p[i].y)>20)v[i].y*=-1;
-      pa[i*3]=p[i].x;pa[i*3+1]=p[i].y;pa[i*3+2]=p[i].z;
-    }
+    cam.position.x+=(m.x*3.5-cam.position.x)*.02;cam.position.y+=(-m.y*2.5-cam.position.y)*.02;
+    for(let i=0;i<N;i++){p[i].x+=v[i].x;p[i].y+=v[i].y;if(Math.abs(p[i].x)>30)v[i].x*=-1;if(Math.abs(p[i].y)>20)v[i].y*=-1;pa[i*3]=p[i].x;pa[i*3+1]=p[i].y;pa[i*3+2]=p[i].z;}
     pg.setAttribute('position',new THREE.BufferAttribute(pa.slice(),3));
     lc=0;
-    for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){
-      const dx=p[i].x-p[j].x,dy=p[i].y-p[j].y;
-      if(dx*dx+dy*dy<169){la[lc++]=p[i].x;la[lc++]=p[i].y;la[lc++]=p[i].z;la[lc++]=p[j].x;la[lc++]=p[j].y;la[lc++]=p[j].z;}
-    }
-    lg.attributes.position.needsUpdate=true;lg.setDrawRange(0,lc/3);
-    r.render(sc,cam);
+    for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const dx=p[i].x-p[j].x,dy=p[i].y-p[j].y;if(dx*dx+dy*dy<169){la[lc++]=p[i].x;la[lc++]=p[i].y;la[lc++]=p[i].z;la[lc++]=p[j].x;la[lc++]=p[j].y;la[lc++]=p[j].z;}}
+    lg.attributes.position.needsUpdate=true;lg.setDrawRange(0,lc/3);r.render(sc,cam);
   }
   tick();
 })();
 
-// ── APP STATE ──────────────────────────────────────────────────────────────────
+// ── APP ─────────────────────────────────────────────────────────────────────
 const ROLES={
-  admin:{name:'Putra Mahirudin',initials:'PM',role:'Administrator',
-    nav:['Dashboard','Tasks','JIRA Queue','AI Drafts','Config'],
-    ids:['admin-dashboard','tasks','jira-intake','draft-tasks','database']},
-  stakeholder:{name:'Radzwan Noh',initials:'RN',role:'Stakeholder · MY',
-    nav:['Dashboard','Inbox','Knowledge Base'],ids:['stakeholder-dashboard','inbox','knowledge-base']},
-  qa:{name:'QA Engineer',initials:'QE',role:'QA · EasyOrder',
-    nav:['QA Dashboard','JIRA Queue','SIT Tasks'],ids:['qa-dashboard','qa-jira','qa-sit']}
+  admin:{name:'Putra Mahirudin',initials:'PM',role:'Administrator',nav:['Dashboard','Tasks','JIRA Queue','AI Drafts','Config'],ids:['admin-dashboard','tasks','jira-intake','draft-tasks','database']},
+  stakeholder:{name:'Radzwan Noh',initials:'RN',role:'Stakeholder · MY',nav:['Dashboard','Inbox','Knowledge Base'],ids:['stakeholder-dashboard','inbox','knowledge-base']},
+  qa:{name:'QA Engineer',initials:'QE',role:'QA · EasyOrder',nav:['QA Dashboard','JIRA Queue','SIT Tasks'],ids:['qa-dashboard','qa-jira','qa-sit']}
 };
-const roleList=['admin','stakeholder','qa'];let roleIdx=0;
-
+const rl=['admin','stakeholder','qa'];let ri=0;
 function buildNav(role){
-  const cfg=ROLES[role];
-  document.getElementById('tn-nav').innerHTML=cfg.nav.map((n,i)=>
-    `<div class="tn-item" data-id="${cfg.ids[i]}" onclick="navTo('${cfg.ids[i]}')">${n}</div>`).join('');
+  document.getElementById('nav-links').innerHTML=ROLES[role].nav.map((n,i)=>
+    `<div class="nav-item" data-id="${ROLES[role].ids[i]}" onclick="navTo('${ROLES[role].ids[i]}')">${n}</div>`).join('');
 }
 function enterApp(role='admin'){
-  roleIdx=roleList.indexOf(role);
+  ri=rl.indexOf(role);
   const lp=document.getElementById('pg-login'),ap=document.getElementById('pg-app');
   gsap.to(lp,{opacity:0,duration:.4,onComplete:()=>{
     lp.classList.remove('active');ap.classList.add('active');
@@ -647,64 +719,43 @@ function enterApp(role='admin'){
     gsap.fromTo(ap,{opacity:0},{opacity:1,duration:.3});
   }});
 }
-function cycleRole(){
-  roleIdx=(roleIdx+1)%3;const r=roleList[roleIdx];
-  const c=ROLES[r];
-  document.getElementById('ua').textContent=c.initials;
-  document.getElementById('un').textContent=c.name;
-  document.getElementById('ur').textContent=c.role;
-  buildNav(r);navTo(ROLES[r].ids[0]);
-}
+function cycleRole(){ri=(ri+1)%3;const r=rl[ri];const c=ROLES[r];document.getElementById('ua').textContent=c.initials;document.getElementById('un').textContent=c.name;document.getElementById('ur').textContent=c.role;buildNav(r);navTo(ROLES[r].ids[0]);}
 function navTo(id){
-  document.querySelectorAll('.tn-item').forEach(el=>el.classList.toggle('active',el.dataset.id===id));
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.toggle('active',el.dataset.id===id));
   const body=document.getElementById('app-body');
   const tpl=document.getElementById('t-'+id);
-  const html=tpl?tpl.innerHTML:`<div style="display:grid;place-items:center;min-height:60vh;text-align:center"><div><div style="font-size:36px;margin-bottom:14px">🚧</div><div style="font-size:15px;font-weight:700;color:var(--s700);margin-bottom:6px">${id.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</div><div style="font-size:12.5px;color:var(--s400)">Next batch of mockups — currently showing Login &amp; Admin Dashboard.</div></div></div>`;
+  const html=tpl?tpl.innerHTML:`<div class="container"><div style="display:grid;place-items:center;min-height:56vh;text-align:center"><div><div style="font-size:34px;margin-bottom:14px">🚧</div><div style="font-size:15px;font-weight:700;color:#334155;margin-bottom:6px">${id.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</div><div style="font-size:13px;color:#94a3b8">Part of the next batch — currently showing Login &amp; Admin Dashboard.</div></div></div></div>`;
   gsap.to(body,{opacity:0,y:5,duration:.1,onComplete:()=>{
-    body.innerHTML=html;
-    animateDash();
+    body.innerHTML=html;anim();
     gsap.fromTo(body,{opacity:0,y:8},{opacity:1,y:0,duration:.25,ease:'power2.out'});
   }});
 }
-
-// ── DASHBOARD ANIMATIONS ───────────────────────────────────────────────────────
-function animateDash(){
-  // countdown + sprint %
+function anim(){
+  // counters
   document.querySelectorAll('[data-count]').forEach(el=>{
     const t=+el.dataset.count;
-    gsap.fromTo({v:0},{v:t},{duration:.85,ease:'power2.out',
-      onUpdate:function(){el.textContent=Math.round(this.targets()[0].v);},
-      onComplete:()=>{el.textContent=t;}});
+    gsap.fromTo({v:0},{v:t},{duration:.8,ease:'power2.out',onUpdate:function(){el.textContent=Math.round(this.targets()[0].v);},onComplete:()=>{el.textContent=t;}});
   });
-  // stacked bar
-  document.querySelectorAll('.hbar-seg[data-w]').forEach((el,i)=>{
-    gsap.fromTo(el,{width:'0%'},{width:el.dataset.w+'%',duration:1.0,ease:'power3.out',delay:.1+i*.04});
+  // bar segments
+  document.querySelectorAll('.hbs[data-w]').forEach((el,i)=>{
+    gsap.fromTo(el,{width:'0%'},{width:el.dataset.w+'%',duration:.95,ease:'power3.out',delay:.1+i*.035});
   });
-  // product rings  r=20, C=2π×20=125.66
-  const C=125.66;
-  [{id:'hr-eo',num:'hn-eo',pct:74},{id:'hr-sh',num:'hn-sh',pct:61},{id:'hr-sp',num:'hn-sp',pct:88}]
+  // rings  r=18 C=2π×18=113.1
+  const C=113.1;
+  [{id:'hr-eo',lbl:'hn-eo',pct:74},{id:'hr-sh',lbl:'hn-sh',pct:61},{id:'hr-sp',lbl:'hn-sp',pct:88}]
   .forEach((rg,i)=>{
-    const el=document.getElementById(rg.id),ne=document.getElementById(rg.num);
+    const el=document.getElementById(rg.id),ne=document.getElementById(rg.lbl);
     if(!el||!ne)return;
-    gsap.fromTo({v:0},{v:rg.pct},{duration:.9,delay:.08+i*.07,ease:'power2.out',
-      onUpdate:function(){
-        const v=this.targets()[0].v,f=C*(v/100),g=C-f;
-        el.setAttribute('stroke-dasharray',`${f} ${g}`);
-        ne.textContent=Math.round(v)+'%';
-      },onComplete:()=>{
-        el.setAttribute('stroke-dasharray',`${C*(rg.pct/100)} ${C*(1-rg.pct/100)}`);
-        ne.textContent=rg.pct+'%';
-      }
-    });
+    gsap.fromTo({v:0},{v:rg.pct},{duration:.85,delay:.06+i*.06,ease:'power2.out',
+      onUpdate:function(){const v=this.targets()[0].v,f=C*(v/100),g=C-f;el.setAttribute('stroke-dasharray',`${f} ${g}`);ne.textContent=Math.round(v)+'%';},
+      onComplete:()=>{el.setAttribute('stroke-dasharray',`${C*(rg.pct/100)} ${C*(1-rg.pct/100)}`);ne.textContent=rg.pct+'%';}});
   });
-  // task cards stagger
-  gsap.fromTo('.tc',{opacity:0,y:8},{opacity:1,y:0,duration:.28,stagger:.055,ease:'power2.out',delay:.18});
-  gsap.fromTo('.hring-pill',{opacity:0,y:10},{opacity:1,y:0,duration:.3,stagger:.06,ease:'power2.out',delay:.15});
+  // cards stagger
+  gsap.fromTo('.tc',{opacity:0,y:7},{opacity:1,y:0,duration:.26,stagger:.05,ease:'power2.out',delay:.16});
+  gsap.fromTo('.hring',{opacity:0,x:10},{opacity:1,x:0,duration:.28,stagger:.06,ease:'power2.out',delay:.12});
 }
-
-// ── INIT ───────────────────────────────────────────────────────────────────────
 window.addEventListener('load',()=>{
-  gsap.fromTo('#lcard',{opacity:0,y:20,scale:.97},{opacity:1,y:0,scale:1,duration:.6,ease:'power3.out',delay:.2});
+  gsap.fromTo('#lcard',{opacity:0,y:20,scale:.97},{opacity:1,y:0,scale:1,duration:.65,ease:'power3.out',delay:.2});
 });
 </script>
 </body>
