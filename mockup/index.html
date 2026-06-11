@@ -5,1715 +5,862 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CTT — Change Tracking Tool</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --brand:#c4161c;--brand-dk:#9b1117;--brand-lt:#fee2e2;
+  --s50:#f8fafc;--s100:#f1f5f9;--s200:#e2e8f0;--s300:#cbd5e1;
+  --s400:#94a3b8;--s500:#64748b;--s600:#475569;--s700:#334155;
+  --s800:#1e293b;--s900:#0f172a;
+  --em:#10b981;--bl:#3b82f6;--am:#f59e0b;--ro:#f43f5e;--vi:#8b5cf6;--in:#6366f1;
+  --r:12px;
+}
+html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--s50);color:var(--s900);line-height:1.5}
+body{overflow:hidden}
 
-  :root {
-    --brand:     #c4161c;
-    --brand-dk:  #9b1117;
-    --slate-50:  #f8fafc;
-    --slate-100: #f1f5f9;
-    --slate-200: #e2e8f0;
-    --slate-300: #cbd5e1;
-    --slate-400: #94a3b8;
-    --slate-500: #64748b;
-    --slate-600: #475569;
-    --slate-700: #334155;
-    --slate-800: #1e293b;
-    --slate-900: #0f172a;
-    --emerald:   #10b981;
-    --blue:      #3b82f6;
-    --amber:     #f59e0b;
-    --rose:      #f43f5e;
-    --indigo:    #6366f1;
-    --radius:    12px;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-    --shadow:    0 4px 16px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
-    --shadow-lg: 0 20px 48px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
-  }
+/* PAGE SYSTEM */
+.page{position:absolute;inset:0;display:none}
+.page.active{display:block}
 
-  html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; }
-  body { background: var(--slate-50); color: var(--slate-900); line-height: 1.5; overflow: hidden; }
+/* ══════════════════════════════════════
+   LOGIN
+══════════════════════════════════════ */
+#pg-login{background:var(--s900);display:flex;align-items:center;justify-content:center;overflow:hidden}
+#pg-login.active{display:flex}
+#c3{position:absolute;inset:0;opacity:.5}
+.l-noise{position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");pointer-events:none}
+.l-glow{position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(196,22,28,.2) 0%,transparent 65%);top:50%;left:50%;transform:translate(-50%,-55%);pointer-events:none}
 
-  /* ── PAGE SYSTEM ── */
-  .page { position: absolute; inset: 0; display: none; }
-  .page.active { display: flex; }
+.lcard{
+  position:relative;z-index:10;width:400px;
+  background:rgba(255,255,255,.045);
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:22px;padding:44px;
+  backdrop-filter:blur(28px);
+  box-shadow:0 40px 100px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.07);
+}
+.l-brand{display:flex;align-items:center;gap:12px;margin-bottom:38px}
+.l-icon{width:38px;height:38px;background:var(--brand);border-radius:10px;display:grid;place-items:center}
+.l-icon svg{width:19px;height:19px}
+.l-name{font-size:14px;font-weight:700;color:#fff;letter-spacing:-.01em}
+.l-sub{font-size:10.5px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.3)}
+.l-h{font-size:25px;font-weight:700;color:#fff;letter-spacing:-.03em;margin-bottom:5px}
+.l-p{font-size:13px;color:rgba(255,255,255,.38);margin-bottom:30px}
+.lbl{display:block;font-size:11px;font-weight:500;color:rgba(255,255,255,.4);letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px}
+.inp{width:100%;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:11px 14px;font-size:14px;font-family:inherit;color:#fff;outline:none;transition:border-color .2s,box-shadow .2s}
+.inp::placeholder{color:rgba(255,255,255,.18)}
+.inp:focus{border-color:rgba(196,22,28,.5);box-shadow:0 0 0 3px rgba(196,22,28,.1)}
+.fg{margin-bottom:16px}
+.lbtn{width:100%;padding:12px;background:var(--brand);border:none;border-radius:10px;font-size:13.5px;font-weight:600;font-family:inherit;color:#fff;cursor:pointer;margin-top:8px;transition:background .15s,transform .12s,box-shadow .15s;box-shadow:0 4px 18px rgba(196,22,28,.38);letter-spacing:-.01em}
+.lbtn:hover{background:var(--brand-dk);transform:translateY(-1px);box-shadow:0 8px 24px rgba(196,22,28,.45)}
+.lbtn:active{transform:translateY(0)}
+.l-hint{margin-top:18px;text-align:center;font-size:11.5px;color:rgba(255,255,255,.18)}
+.l-hint span{color:rgba(255,255,255,.4)}
+.dpills{display:flex;gap:6px;margin-top:22px;border-top:1px solid rgba(255,255,255,.06);padding-top:18px}
+.dp{flex:1;padding:7px 8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:8px;text-align:center;font-size:11px;font-weight:500;color:rgba(255,255,255,.32);cursor:pointer;transition:all .15s}
+.dp:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.68);border-color:rgba(255,255,255,.14)}
+.dp .dr{display:block;font-size:9.5px;color:rgba(255,255,255,.2);margin-top:1px}
 
-  /* ──────────────────────────────────────────
-     LOGIN PAGE
-  ────────────────────────────────────────── */
-  #page-login {
-    background: var(--slate-900);
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-  #threejs-canvas {
-    position: absolute;
-    inset: 0;
-    opacity: .55;
-  }
-  .login-noise {
-    position: absolute; inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-  }
-  .login-glow {
-    position: absolute;
-    width: 600px; height: 600px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(196,22,28,.18) 0%, transparent 70%);
-    top: 50%; left: 50%;
-    transform: translate(-50%, -55%);
-    pointer-events: none;
-  }
-  .login-card {
-    position: relative; z-index: 10;
-    width: 420px;
-    background: rgba(255,255,255,.04);
-    border: 1px solid rgba(255,255,255,.08);
-    border-radius: 20px;
-    padding: 40px;
-    backdrop-filter: blur(24px);
-    box-shadow: 0 32px 80px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08);
-  }
-  .login-brand {
-    display: flex; align-items: center; gap: 12px;
-    margin-bottom: 36px;
-  }
-  .login-brand-icon {
-    width: 40px; height: 40px;
-    background: var(--brand);
-    border-radius: 10px;
-    display: grid; place-items: center;
-  }
-  .login-brand-icon svg { width: 20px; height: 20px; fill: white; }
-  .login-brand-text { display: flex; flex-direction: column; }
-  .login-brand-name {
-    font-size: 15px; font-weight: 700;
-    color: white; letter-spacing: -.01em;
-  }
-  .login-brand-sub {
-    font-size: 11px; font-weight: 500; letter-spacing: .06em;
-    text-transform: uppercase; color: rgba(255,255,255,.35);
-  }
-  .login-heading {
-    font-size: 26px; font-weight: 700;
-    color: white; letter-spacing: -.03em;
-    margin-bottom: 6px;
-  }
-  .login-sub {
-    font-size: 13px; color: rgba(255,255,255,.4);
-    margin-bottom: 32px;
-  }
-  .field-label {
-    display: block;
-    font-size: 12px; font-weight: 500;
-    color: rgba(255,255,255,.45);
-    letter-spacing: .04em; text-transform: uppercase;
-    margin-bottom: 7px;
-  }
-  .field-input {
-    width: 100%;
-    background: rgba(255,255,255,.06);
-    border: 1px solid rgba(255,255,255,.1);
-    border-radius: 10px;
-    padding: 11px 14px;
-    font-size: 14px; font-family: inherit;
-    color: white;
-    outline: none;
-    transition: border-color .2s, background .2s;
-  }
-  .field-input::placeholder { color: rgba(255,255,255,.2); }
-  .field-input:focus {
-    border-color: rgba(196,22,28,.6);
-    background: rgba(255,255,255,.09);
-    box-shadow: 0 0 0 3px rgba(196,22,28,.12);
-  }
-  .field-group { margin-bottom: 18px; }
-  .btn-login {
-    width: 100%;
-    padding: 12px;
-    background: var(--brand);
-    border: none; border-radius: 10px;
-    font-size: 14px; font-weight: 600;
-    font-family: inherit; color: white;
-    cursor: pointer; margin-top: 8px;
-    transition: background .15s, transform .1s, box-shadow .15s;
-    box-shadow: 0 4px 16px rgba(196,22,28,.35);
-    letter-spacing: -.01em;
-  }
-  .btn-login:hover { background: var(--brand-dk); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(196,22,28,.45); }
-  .btn-login:active { transform: translateY(0); }
-  .login-hint {
-    margin-top: 20px; text-align: center;
-    font-size: 12px; color: rgba(255,255,255,.2);
-  }
-  .login-hint span { color: rgba(255,255,255,.45); }
-  .demo-pills {
-    display: flex; gap: 6px; margin-top: 24px;
-    border-top: 1px solid rgba(255,255,255,.06);
-    padding-top: 20px;
-  }
-  .demo-pill {
-    flex: 1; padding: 7px 10px;
-    background: rgba(255,255,255,.04);
-    border: 1px solid rgba(255,255,255,.07);
-    border-radius: 8px; text-align: center;
-    font-size: 11px; font-weight: 500;
-    color: rgba(255,255,255,.35);
-    cursor: pointer; transition: all .15s;
-  }
-  .demo-pill:hover {
-    background: rgba(255,255,255,.08);
-    color: rgba(255,255,255,.7);
-    border-color: rgba(255,255,255,.15);
-  }
-  .demo-pill .pill-role {
-    display: block; font-size: 10px;
-    color: rgba(255,255,255,.2);
-    margin-top: 1px;
-  }
+/* ══════════════════════════════════════
+   APP — TOP NAV (matches production)
+══════════════════════════════════════ */
+#pg-app{overflow:hidden}
+#pg-app.active{display:flex;flex-direction:column}
 
-  /* ──────────────────────────────────────────
-     APP SHELL
-  ────────────────────────────────────────── */
-  #page-app {
-    flex-direction: row;
-    background: var(--slate-100);
-  }
+.topnav{
+  height:60px;flex-shrink:0;
+  background:rgba(255,255,255,.96);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--s200);
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;
+  padding:0 28px;gap:0;
+}
+.tn-logo{display:flex;align-items:center;gap:9px;margin-right:32px;text-decoration:none;cursor:pointer}
+.tn-logo-box{width:30px;height:30px;background:var(--brand);border-radius:7px;display:grid;place-items:center;transition:background .15s}
+.tn-logo-box:hover,.tn-logo:hover .tn-logo-box{background:var(--brand-dk)}
+.tn-logo-box svg{width:15px;height:15px}
+.tn-logo-text{font-size:14px;font-weight:700;color:var(--s900);letter-spacing:-.01em}
+.tn-nav{display:flex;align-items:center;gap:2px;flex:1}
+.tn-item{padding:7px 11px;border-radius:8px;font-size:13px;font-weight:500;color:var(--s500);cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none}
+.tn-item:hover{color:var(--s800);background:var(--s50)}
+.tn-item.active{color:var(--brand);background:var(--brand-lt);font-weight:600}
+.tn-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+.tn-bell{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;cursor:pointer;transition:background .15s;position:relative;border:1px solid var(--s200)}
+.tn-bell:hover{background:var(--s50)}
+.tn-bell svg{width:16px;height:16px;stroke:var(--s500)}
+.tn-bell-dot{position:absolute;top:7px;right:7px;width:7px;height:7px;background:var(--brand);border-radius:50%;border:2px solid #fff}
+.tn-div{width:1px;height:22px;background:var(--s200)}
+.tn-user{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:9px;cursor:pointer;transition:background .15s}
+.tn-user:hover{background:var(--s50)}
+.tn-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--brand) 0%,#7c0e12 100%);display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;border:2px solid var(--s200)}
+.tn-uname{font-size:12.5px;font-weight:600;color:var(--s800)}
+.tn-urole{font-size:10.5px;color:var(--s400)}
+.env-chip{padding:3px 8px;background:#fef9c3;border:1px solid #fde047;border-radius:6px;font-size:10px;font-weight:600;color:#713f12;letter-spacing:.04em}
 
-  /* SIDEBAR */
-  .sidebar {
-    width: 236px; flex-shrink: 0;
-    background: var(--slate-900);
-    display: flex; flex-direction: column;
-    height: 100%; overflow: hidden;
-    position: relative;
-  }
-  .sidebar::after {
-    content: '';
-    position: absolute; right: 0; top: 0; bottom: 0;
-    width: 1px;
-    background: linear-gradient(to bottom, transparent, rgba(255,255,255,.06) 20%, rgba(255,255,255,.06) 80%, transparent);
-  }
-  .sidebar-top {
-    padding: 20px 18px 16px;
-    border-bottom: 1px solid rgba(255,255,255,.05);
-  }
-  .sidebar-logo {
-    display: flex; align-items: center; gap: 10px;
-    text-decoration: none;
-  }
-  .sidebar-logo-icon {
-    width: 32px; height: 32px;
-    background: var(--brand);
-    border-radius: 8px;
-    display: grid; place-items: center; flex-shrink: 0;
-  }
-  .sidebar-logo-icon svg { width: 16px; height: 16px; fill: white; }
-  .sidebar-logo-text {
-    font-size: 14px; font-weight: 700;
-    color: white; letter-spacing: -.01em;
-  }
-  .sidebar-logo-version {
-    font-size: 10px; font-weight: 500;
-    color: rgba(255,255,255,.25);
-    margin-top: 1px;
-  }
-  .sidebar-env-badge {
-    display: inline-flex; align-items: center;
-    background: rgba(196,22,28,.15);
-    border: 1px solid rgba(196,22,28,.25);
-    border-radius: 4px;
-    padding: 2px 6px;
-    font-size: 9px; font-weight: 600;
-    color: #f87171;
-    letter-spacing: .06em; text-transform: uppercase;
-    margin-top: 8px;
-  }
-  .sidebar-role-switcher {
-    padding: 10px 14px;
-    border-bottom: 1px solid rgba(255,255,255,.05);
-  }
-  .role-select {
-    width: 100%;
-    background: rgba(255,255,255,.05);
-    border: 1px solid rgba(255,255,255,.08);
-    border-radius: 8px;
-    padding: 7px 10px;
-    font-size: 11px; font-weight: 500;
-    color: rgba(255,255,255,.55);
-    font-family: inherit;
-    outline: none; cursor: pointer;
-  }
-  .role-select option { background: #1e293b; }
-  .sidebar-nav {
-    flex: 1; padding: 10px 10px;
-    overflow-y: auto;
-  }
-  .sidebar-nav::-webkit-scrollbar { display: none; }
-  .nav-section-label {
-    font-size: 9px; font-weight: 600;
-    letter-spacing: .1em; text-transform: uppercase;
-    color: rgba(255,255,255,.2);
-    padding: 10px 8px 5px;
-  }
-  .nav-item {
-    display: flex; align-items: center; gap: 9px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    font-size: 13px; font-weight: 500;
-    color: rgba(255,255,255,.45);
-    cursor: pointer; position: relative;
-    transition: all .15s;
-    margin-bottom: 1px;
-    user-select: none;
-    text-decoration: none;
-  }
-  .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; opacity: .7; }
-  .nav-item:hover { background: rgba(255,255,255,.06); color: rgba(255,255,255,.75); }
-  .nav-item.active {
-    background: rgba(196,22,28,.15);
-    color: white;
-  }
-  .nav-item.active svg { opacity: 1; }
-  .nav-item.active::before {
-    content: '';
-    position: absolute; left: 0; top: 50%;
-    transform: translateY(-50%);
-    width: 3px; height: 16px;
-    background: var(--brand);
-    border-radius: 0 3px 3px 0;
-  }
-  .nav-badge {
-    margin-left: auto;
-    background: var(--brand);
-    color: white;
-    font-size: 10px; font-weight: 700;
-    padding: 1px 6px; border-radius: 10px;
-    min-width: 18px; text-align: center;
-  }
-  .nav-badge.muted {
-    background: rgba(255,255,255,.1);
-    color: rgba(255,255,255,.4);
-  }
-  .sidebar-bottom {
-    padding: 12px 10px;
-    border-top: 1px solid rgba(255,255,255,.05);
-  }
-  .sidebar-user {
-    display: flex; align-items: center; gap: 9px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background .15s;
-  }
-  .sidebar-user:hover { background: rgba(255,255,255,.05); }
-  .user-avatar {
-    width: 28px; height: 28px; border-radius: 50%;
-    background: linear-gradient(135deg, var(--brand) 0%, #7c0e12 100%);
-    display: grid; place-items: center;
-    font-size: 11px; font-weight: 700; color: white;
-    flex-shrink: 0;
-  }
-  .user-info { flex: 1; min-width: 0; }
-  .user-name { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.75); truncate: true; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .user-role-label { font-size: 10px; color: rgba(255,255,255,.3); }
+/* CONTENT AREA */
+.app-body{flex:1;overflow-y:auto;padding:32px 28px}
+.app-body::-webkit-scrollbar{width:6px}
+.app-body::-webkit-scrollbar-thumb{background:var(--s200);border-radius:3px}
 
-  /* MAIN AREA */
-  .main {
-    flex: 1;
-    display: flex; flex-direction: column;
-    overflow: hidden;
-    min-width: 0;
-  }
-  .topbar {
-    height: 56px; flex-shrink: 0;
-    background: white;
-    border-bottom: 1px solid var(--slate-200);
-    display: flex; align-items: center;
-    padding: 0 24px;
-    gap: 16px;
-  }
-  .topbar-title {
-    font-size: 15px; font-weight: 700;
-    color: var(--slate-900); letter-spacing: -.02em;
-    flex: 1;
-  }
-  .topbar-subtitle {
-    font-size: 12px; color: var(--slate-400);
-    font-weight: 400; margin-top: 1px;
-  }
-  .topbar-actions { display: flex; align-items: center; gap: 10px; }
-  .icon-btn {
-    width: 34px; height: 34px;
-    border-radius: 8px;
-    border: 1px solid var(--slate-200);
-    background: white;
-    display: grid; place-items: center;
-    cursor: pointer; transition: all .15s;
-    position: relative;
-  }
-  .icon-btn svg { width: 16px; height: 16px; stroke: var(--slate-500); }
-  .icon-btn:hover { background: var(--slate-50); border-color: var(--slate-300); }
-  .notif-dot {
-    position: absolute; top: 6px; right: 6px;
-    width: 7px; height: 7px;
-    background: var(--brand); border-radius: 50%;
-    border: 2px solid white;
-  }
-  .btn-primary {
-    height: 34px; padding: 0 14px;
-    background: var(--slate-900); border: none;
-    border-radius: 8px;
-    font-size: 13px; font-weight: 600;
-    color: white; cursor: pointer;
-    font-family: inherit;
-    display: flex; align-items: center; gap: 6px;
-    transition: all .15s;
-    white-space: nowrap;
-  }
-  .btn-primary svg { width: 14px; height: 14px; stroke: white; }
-  .btn-primary:hover { background: var(--slate-800); }
-  .btn-secondary {
-    height: 34px; padding: 0 14px;
-    background: white;
-    border: 1px solid var(--slate-200);
-    border-radius: 8px;
-    font-size: 13px; font-weight: 500;
-    color: var(--slate-700); cursor: pointer;
-    font-family: inherit;
-    display: flex; align-items: center; gap: 6px;
-    transition: all .15s;
-    white-space: nowrap;
-  }
-  .btn-secondary svg { width: 14px; height: 14px; stroke: var(--slate-500); }
-  .btn-secondary:hover { background: var(--slate-50); border-color: var(--slate-300); }
+/* ══════════════════════════════════════
+   PAGE: ADMIN DASHBOARD
+══════════════════════════════════════ */
 
-  /* CONTENT */
-  .content {
-    flex: 1; overflow-y: auto; padding: 24px;
-  }
-  .content::-webkit-scrollbar { width: 6px; }
-  .content::-webkit-scrollbar-track { background: transparent; }
-  .content::-webkit-scrollbar-thumb { background: var(--slate-200); border-radius: 3px; }
+/* Page header */
+.pg-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:28px}
+.pg-head-left h1{font-size:24px;font-weight:800;color:var(--s900);letter-spacing:-.04em;line-height:1}
+.pg-head-left p{font-size:13px;color:var(--s400);margin-top:4px}
+.btn-new{height:36px;padding:0 16px;background:var(--s900);border:none;border-radius:9px;font-size:13px;font-weight:600;font-family:inherit;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s;letter-spacing:-.01em}
+.btn-new:hover{background:var(--s800)}
+.btn-new svg{width:14px;height:14px;stroke:#fff;stroke-width:2.5}
 
-  /* SUB-PAGES */
-  .subpage { display: none; }
-  .subpage.active { display: contents; }
+/* Sprint progress card */
+.sprint-card{
+  background:#fff;
+  border:1px solid var(--s200);
+  border-radius:16px;
+  padding:22px 26px;
+  margin-bottom:22px;
+  box-shadow:0 1px 4px rgba(0,0,0,.04);
+}
+.sprint-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.sprint-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--s400)}
+.sprint-title{font-size:15px;font-weight:700;color:var(--s900);letter-spacing:-.02em}
+.sprint-right{display:flex;align-items:center;gap:16px}
+.sprint-stat{text-align:right}
+.sprint-stat-val{font-size:20px;font-weight:800;color:var(--s900);letter-spacing:-.04em;line-height:1}
+.sprint-stat-lbl{font-size:10.5px;color:var(--s400);margin-top:1px}
+.sprint-pct{font-size:32px;font-weight:800;color:var(--s900);letter-spacing:-.06em;line-height:1}
+.sprint-pct sup{font-size:14px;font-weight:600;color:var(--s500);letter-spacing:0}
+/* Stacked progress bar */
+.sbar{display:flex;height:10px;border-radius:6px;overflow:hidden;gap:2px;margin-bottom:14px}
+.sb-seg{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(.16,1,.3,1)}
+/* Legend row */
+.sbar-legend{display:flex;flex-wrap:wrap;gap:14px}
+.sbl{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--s600)}
+.sbl-dot{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+.sbl strong{font-weight:700;color:var(--s900);margin-left:2px}
 
-  /* ── CARD ── */
-  .card {
-    background: white;
-    border: 1px solid var(--slate-200);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
-  }
-  .card-pad { padding: 20px; }
+/* Product readiness cards */
+.prod-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:22px}
+.prod-card{
+  background:#fff;border:1px solid var(--s200);border-radius:16px;
+  padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.04);
+  cursor:pointer;transition:box-shadow .2s,transform .2s,border-color .2s;
+  position:relative;overflow:hidden;
+}
+.prod-card:hover{box-shadow:0 8px 28px rgba(0,0,0,.09);transform:translateY(-2px);border-color:var(--s300)}
+.prod-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px}
+.prod-icon{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
+.prod-icon svg{width:17px;height:17px}
+.prod-blocked-chip{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px}
+/* Ring + number */
+.prod-ring-wrap{display:flex;align-items:center;gap:18px;margin-bottom:18px}
+.prod-ring{position:relative;flex-shrink:0}
+.prod-ring svg{display:block}
+.prod-ring-pct{position:absolute;inset:0;display:grid;place-items:center;font-size:20px;font-weight:800;letter-spacing:-.04em;color:var(--s900);line-height:1}
+.prod-stats{flex:1}
+.prod-name{font-size:14px;font-weight:700;color:var(--s900);letter-spacing:-.02em;margin-bottom:6px}
+.prod-code{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--s400);margin-bottom:10px}
+.prod-meta-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--s500);margin-bottom:3px}
+.prod-meta-row svg{width:11px;height:11px;flex-shrink:0}
+.prod-meta-row strong{color:var(--s800);font-weight:600}
+/* Country chips */
+.ctry-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+.ctry{display:inline-flex;align-items:center;justify-content:center;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.03em}
+.c-MY{background:#dbeafe;color:#1e40af}
+.c-SG{background:#cffafe;color:#155e75}
+.c-TH{background:#fce7f3;color:#9d174d}
+.c-VN{background:#fef9c3;color:#713f12}
+.c-TW{background:#d1fae5;color:#065f46}
+.c-HK{background:#fee2e2;color:#991b1b}
 
-  /* ── STAT CARDS ── */
-  .stat-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 14px; margin-bottom: 20px;
-  }
-  .stat-card {
-    background: white;
-    border: 1px solid var(--slate-200);
-    border-radius: var(--radius);
-    padding: 18px 20px;
-    position: relative; overflow: hidden;
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow .2s, transform .2s;
-    cursor: default;
-  }
-  .stat-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
-  .stat-card-label {
-    font-size: 11px; font-weight: 600;
-    letter-spacing: .05em; text-transform: uppercase;
-    color: var(--slate-400); margin-bottom: 10px;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .stat-card-label svg { width: 13px; height: 13px; }
-  .stat-card-value {
-    font-size: 30px; font-weight: 800;
-    color: var(--slate-900); letter-spacing: -.04em;
-    line-height: 1;
-  }
-  .stat-card-meta {
-    font-size: 12px; color: var(--slate-400);
-    margin-top: 6px;
-  }
-  .stat-card-meta strong { color: var(--slate-600); }
-  .stat-accent {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    height: 3px;
-  }
-  .stat-spark {
-    position: absolute; right: 16px; bottom: 16px;
-    opacity: .1;
-  }
-  .stat-spark svg { width: 40px; height: 40px; }
-  .stat-trend {
-    display: inline-flex; align-items: center; gap: 3px;
-    font-size: 11px; font-weight: 600;
-    padding: 2px 7px; border-radius: 20px;
-    margin-top: 6px;
-  }
-  .trend-up { color: #059669; background: #d1fae5; }
-  .trend-down { color: #dc2626; background: #fee2e2; }
-  .trend-neutral { color: var(--slate-500); background: var(--slate-100); }
+/* ══════════════════════════════════════
+   BOTTOM: tasks + activity 2-col
+══════════════════════════════════════ */
+.dash-bottom{display:grid;grid-template-columns:1fr 320px;gap:18px}
 
-  /* ── TWO-COL LAYOUT ── */
-  .two-col { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
-  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+/* Section header */
+.sec-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sec-h-l{display:flex;align-items:center;gap:8px}
+.sec-title{font-size:13.5px;font-weight:700;color:var(--s900);letter-spacing:-.02em}
+.sec-count{font-size:11px;font-weight:600;color:var(--s400);background:var(--s100);padding:2px 8px;border-radius:20px}
+.sec-link{font-size:12px;font-weight:500;color:var(--s400);cursor:pointer;transition:color .15s}
+.sec-link:hover{color:var(--s700)}
 
-  /* ── SECTION HEADER ── */
-  .sec-head {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 14px;
-  }
-  .sec-head-left { display: flex; align-items: center; gap: 8px; }
-  .sec-title {
-    font-size: 14px; font-weight: 700;
-    color: var(--slate-900); letter-spacing: -.02em;
-  }
-  .sec-count {
-    font-size: 11px; font-weight: 600;
-    color: var(--slate-400);
-    background: var(--slate-100);
-    padding: 2px 8px; border-radius: 20px;
-  }
-  .sec-link {
-    font-size: 12px; font-weight: 500;
-    color: var(--slate-400); cursor: pointer;
-    text-decoration: none;
-    transition: color .15s;
-  }
-  .sec-link:hover { color: var(--slate-700); }
+/* Filters */
+.fbar{display:flex;gap:7px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.fsel{border:1px solid var(--s200);border-radius:8px;padding:7px 10px;font-size:12px;font-family:inherit;color:var(--s600);background:#fff;cursor:pointer;outline:none}
+.fsel:focus{border-color:var(--s400)}
 
-  /* ── STATUS BADGES ── */
-  .badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-size: 11px; font-weight: 600;
-    padding: 3px 9px; border-radius: 20px;
-    white-space: nowrap;
-  }
-  .badge-dot {
-    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
-  }
-  .badge-passed   { background: #d1fae5; color: #065f46; }
-  .badge-passed .badge-dot { background: var(--emerald); }
-  .badge-failed   { background: #fee2e2; color: #991b1b; }
-  .badge-failed .badge-dot { background: var(--rose); }
-  .badge-blocked  { background: #fef3c7; color: #92400e; }
-  .badge-blocked .badge-dot { background: var(--amber); }
-  .badge-inprog   { background: #dbeafe; color: #1e40af; }
-  .badge-inprog .badge-dot { background: var(--blue); }
-  .badge-ready    { background: var(--slate-100); color: var(--slate-600); }
-  .badge-ready .badge-dot { background: var(--slate-400); }
-  .badge-deployed { background: #e0e7ff; color: #3730a3; }
-  .badge-deployed .badge-dot { background: var(--indigo); }
-  .badge-draft    { background: var(--slate-100); color: var(--slate-500); }
+/* Task cards (faithful to production style, elevated) */
+.tc{
+  background:#fff;border:1px solid var(--s200);border-radius:12px;
+  padding:16px;margin-bottom:10px;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+  cursor:pointer;position:relative;overflow:hidden;
+  transition:box-shadow .2s,border-color .2s,transform .15s;
+}
+.tc:hover{box-shadow:0 6px 20px rgba(0,0,0,.08);border-color:var(--s300);transform:translateY(-1px)}
+.tc-bar{position:absolute;top:0;left:0;right:0;height:3px}
+.tc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
+.tc-title{font-size:13.5px;font-weight:600;color:var(--s900);line-height:1.35;flex:1}
+.tc-desc{font-size:12px;color:var(--s500);margin-bottom:8px;line-height:1.4}
+.tc-badges{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.tc-foot{border-top:1px solid var(--s100);padding-top:9px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tc-assignee{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--s600)}
+.tc-av{width:20px;height:20px;border-radius:50%;background:var(--s700);display:grid;place-items:center;font-size:8.5px;font-weight:700;color:#fff;flex-shrink:0}
+.tc-due{font-size:11.5px;display:flex;align-items:center;gap:4px}
+.tc-due svg{width:12px;height:12px}
+.overdue-tag{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:#dc2626;background:#fee2e2;padding:2px 6px;border-radius:20px;margin-left:4px}
+.jira-tag{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#1d4ed8;background:#dbeafe;padding:2px 6px;border-radius:4px}
 
-  .priority-high   { background: #fee2e2; color: #991b1b; font-size: 10px; padding: 2px 7px; }
-  .priority-medium { background: #fef3c7; color: #92400e; font-size: 10px; padding: 2px 7px; }
-  .priority-low    { background: var(--slate-100); color: var(--slate-500); font-size: 10px; padding: 2px 7px; }
+/* Status badges */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap}
+.badge-dot{width:5px;height:5px;border-radius:50%}
+.bs-PASSED{background:#d1fae5;color:#065f46}.bs-PASSED .badge-dot{background:var(--em)}
+.bs-FAILED{background:#fee2e2;color:#991b1b}.bs-FAILED .badge-dot{background:var(--ro)}
+.bs-BLOCKED{background:#fef3c7;color:#92400e}.bs-BLOCKED .badge-dot{background:var(--am)}
+.bs-IN_PROGRESS{background:#dbeafe;color:#1e40af}.bs-IN_PROGRESS .badge-dot{background:var(--bl)}
+.bs-READY{background:var(--s100);color:var(--s600)}.bs-READY .badge-dot{background:var(--s400)}
+.bs-DEPLOYED{background:#e0e7ff;color:#3730a3}.bs-DEPLOYED .badge-dot{background:var(--in)}
+.bs-DRAFT{background:var(--s100);color:var(--s500)}
+.bp-HIGH{background:#fee2e2;color:#991b1b}
+.bp-MEDIUM{background:#fef3c7;color:#92400e}
+.bp-LOW{background:var(--s100);color:var(--s500)}
+.bm{background:#eef2ff;color:#3730a3;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600}
+.bprod{background:#ecfdf5;color:#065f46;font-size:10px;padding:2px 7px;border-radius:4px;font-weight:600}
 
-  /* COUNTRY BADGES */
-  .ctry {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 24px; height: 24px;
-    border-radius: 6px;
-    font-size: 9px; font-weight: 800;
-    letter-spacing: .02em;
-    flex-shrink: 0;
-  }
-  .ctry-MY { background: #dbeafe; color: #1e40af; }
-  .ctry-SG { background: #cffafe; color: #155e75; }
-  .ctry-TH { background: #fce7f3; color: #9d174d; }
-  .ctry-VN { background: #fef9c3; color: #713f12; }
-  .ctry-TW { background: #d1fae5; color: #065f46; }
-  .ctry-HK { background: #fee2e2; color: #991b1b; }
+/* View all */
+.view-all-btn{width:100%;padding:10px;border:1.5px dashed var(--s200);border-radius:10px;background:transparent;font-size:12.5px;font-weight:500;color:var(--s400);cursor:pointer;transition:all .15s;font-family:inherit}
+.view-all-btn:hover{background:var(--s50);color:var(--s700);border-color:var(--s300)}
 
-  /* ── TASK ROW ── */
-  .task-table { width: 100%; border-collapse: collapse; }
-  .task-table thead th {
-    text-align: left;
-    font-size: 11px; font-weight: 600;
-    letter-spacing: .05em; text-transform: uppercase;
-    color: var(--slate-400);
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--slate-100);
-    white-space: nowrap;
-  }
-  .task-table tbody tr {
-    border-bottom: 1px solid var(--slate-50);
-    transition: background .1s;
-    cursor: pointer;
-  }
-  .task-table tbody tr:last-child { border-bottom: none; }
-  .task-table tbody tr:hover { background: var(--slate-50); }
-  .task-table tbody td { padding: 11px 14px; vertical-align: middle; }
-  .task-id {
-    font-size: 11px; font-weight: 600;
-    color: var(--slate-400); font-variant-numeric: tabular-nums;
-  }
-  .task-name {
-    font-size: 13px; font-weight: 500;
-    color: var(--slate-800);
-  }
-  .task-name-sub {
-    font-size: 11px; color: var(--slate-400);
-    margin-top: 1px;
-  }
-  .assignee-stack { display: flex; }
-  .assignee-chip {
-    width: 24px; height: 24px; border-radius: 50%;
-    background: linear-gradient(135deg, var(--slate-600) 0%, var(--slate-800) 100%);
-    border: 2px solid white;
-    display: grid; place-items: center;
-    font-size: 9px; font-weight: 700; color: white;
-    margin-left: -6px;
-  }
-  .assignee-chip:first-child { margin-left: 0; }
+/* Activity feed */
+.act-card{background:#fff;border:1px solid var(--s200);border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.act-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--s50);align-items:flex-start}
+.act-item:last-child{border-bottom:none;padding-bottom:0}
+.act-ico{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;flex-shrink:0}
+.act-ico svg{width:13px;height:13px}
+.ai-signed{background:#d1fae5}.ai-signed svg{stroke:var(--em)}
+.ai-blocked{background:#fef3c7}.ai-blocked svg{stroke:var(--am)}
+.ai-comment{background:#dbeafe}.ai-comment svg{stroke:var(--bl)}
+.ai-failed{background:#fee2e2}.ai-failed svg{stroke:var(--ro)}
+.ai-status{background:#e0e7ff}.ai-status svg{stroke:var(--in)}
+.act-body{flex:1;min-width:0}
+.act-txt{font-size:12px;color:var(--s600);line-height:1.45}
+.act-txt strong{color:var(--s900);font-weight:600}
+.act-time{font-size:10.5px;color:var(--s400);margin-top:2px}
 
-  /* ── PROGRESS RING ── */
-  .ring-wrap { position: relative; display: inline-flex; }
-  .ring-label {
-    position: absolute; inset: 0;
-    display: grid; place-items: center;
-    font-size: 12px; font-weight: 800;
-    color: var(--slate-800);
-  }
+/* Critical issues side widget */
+.ci-card{background:#fff;border:1px solid var(--s200);border-radius:14px;padding:18px;margin-top:14px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.ci-item{display:flex;gap:9px;padding:9px 10px;background:#fff8f8;border:1px solid #fee2e2;border-radius:9px;margin-bottom:7px;cursor:pointer;transition:background .15s}
+.ci-item:last-child{margin-bottom:0}
+.ci-item:hover{background:#fee2e2}
+.ci-item svg{width:14px;height:14px;stroke:var(--ro);flex-shrink:0;margin-top:1px}
+.ci-title{font-size:12px;font-weight:600;color:#991b1b;line-height:1.3}
+.ci-meta{font-size:10.5px;color:#dc2626;margin-top:2px}
 
-  /* ── ACTIVITY FEED ── */
-  .activity-item {
-    display: flex; gap: 10px;
-    padding: 11px 0;
-    border-bottom: 1px solid var(--slate-50);
-    align-items: flex-start;
-  }
-  .activity-item:last-child { border-bottom: none; }
-  .activity-icon {
-    width: 30px; height: 30px; border-radius: 8px;
-    display: grid; place-items: center; flex-shrink: 0;
-  }
-  .activity-icon svg { width: 14px; height: 14px; }
-  .activity-icon.signed  { background: #d1fae5; }
-  .activity-icon.signed svg { stroke: #059669; }
-  .activity-icon.comment { background: #dbeafe; }
-  .activity-icon.comment svg { stroke: #2563eb; }
-  .activity-icon.blocked { background: #fef3c7; }
-  .activity-icon.blocked svg { stroke: #d97706; }
-  .activity-icon.status  { background: #e0e7ff; }
-  .activity-icon.status svg { stroke: #6366f1; }
-  .activity-icon.failed  { background: #fee2e2; }
-  .activity-icon.failed svg { stroke: #dc2626; }
-  .activity-text { flex: 1; min-width: 0; }
-  .activity-main { font-size: 12.5px; color: var(--slate-700); line-height: 1.4; }
-  .activity-main strong { color: var(--slate-900); font-weight: 600; }
-  .activity-time { font-size: 11px; color: var(--slate-400); margin-top: 2px; }
-  .activity-unread::before {
-    content: '';
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--brand);
-    flex-shrink: 0;
-    margin-top: 4px;
-  }
-
-  /* ── DONUT CHART ── */
-  .donut-chart { position: relative; width: 120px; height: 120px; }
-  .donut-center {
-    position: absolute; inset: 0;
-    display: grid; place-items: center;
-    flex-direction: column;
-    text-align: center;
-  }
-  .donut-num { font-size: 22px; font-weight: 800; color: var(--slate-900); letter-spacing: -.04em; line-height: 1; }
-  .donut-sub { font-size: 10px; color: var(--slate-400); font-weight: 500; }
-  .legend-item {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 12px; color: var(--slate-600);
-    padding: 3px 0;
-  }
-  .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
-
-  /* ── ALERT BANNER ── */
-  .alert-bar {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 14px;
-    background: #fff7ed;
-    border: 1px solid #fed7aa;
-    border-radius: 10px;
-    margin-bottom: 16px;
-  }
-  .alert-bar svg { width: 16px; height: 16px; stroke: #ea580c; flex-shrink: 0; }
-  .alert-bar-text { font-size: 13px; color: #9a3412; }
-  .alert-bar-text strong { font-weight: 600; }
-  .alert-bar-action {
-    margin-left: auto;
-    font-size: 12px; font-weight: 600;
-    color: #ea580c; cursor: pointer;
-    white-space: nowrap;
-  }
-
-  /* ── OVERDUE TAG ── */
-  .overdue-chip {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 10px; font-weight: 600;
-    color: #dc2626; background: #fee2e2;
-    padding: 2px 7px; border-radius: 20px;
-  }
-
-  /* ── MINI SPARKLINE ── */
-  .sparkline-wrap { padding: 8px 0 0; }
-
-  /* ── COUNTRY BREAKDOWN ── */
-  .country-bar-row {
-    display: flex; align-items: center; gap: 10px;
-    margin-bottom: 10px;
-  }
-  .country-bar-label {
-    width: 30px; font-size: 11px; font-weight: 700;
-    color: var(--slate-500); text-align: right;
-  }
-  .country-bar-track {
-    flex: 1; height: 8px;
-    background: var(--slate-100);
-    border-radius: 4px; overflow: hidden;
-  }
-  .country-bar-fill {
-    height: 100%; border-radius: 4px;
-    transition: width .8s cubic-bezier(.16,1,.3,1);
-  }
-  .country-bar-pct {
-    width: 32px; font-size: 11px; font-weight: 600;
-    color: var(--slate-500);
-  }
-
-  /* ── DEPLOY CARD ── */
-  .deploy-card {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 14px;
-    border: 1px solid var(--slate-100);
-    border-radius: 10px;
-    margin-bottom: 8px;
-    transition: border-color .15s;
-    cursor: pointer;
-  }
-  .deploy-card:hover { border-color: var(--slate-200); }
-  .deploy-icon {
-    width: 34px; height: 34px; border-radius: 8px;
-    display: grid; place-items: center; flex-shrink: 0;
-  }
-  .deploy-icon svg { width: 16px; height: 16px; }
-  .deploy-icon.eo { background: #dbeafe; }
-  .deploy-icon.eo svg { stroke: #2563eb; }
-  .deploy-icon.sh { background: #f3e8ff; }
-  .deploy-icon.sh svg { stroke: #9333ea; }
-  .deploy-icon.sp { background: #fce7f3; }
-  .deploy-icon.sp svg { stroke: #db2777; }
-  .deploy-info { flex: 1; min-width: 0; }
-  .deploy-name { font-size: 13px; font-weight: 600; color: var(--slate-900); }
-  .deploy-meta { font-size: 11px; color: var(--slate-400); margin-top: 1px; }
-  .deploy-progress { text-align: right; }
-  .deploy-pct { font-size: 15px; font-weight: 800; color: var(--slate-900); letter-spacing: -.02em; }
-  .deploy-pct-sub { font-size: 10px; color: var(--slate-400); }
-  .mini-progress {
-    width: 72px; height: 5px;
-    background: var(--slate-100); border-radius: 3px;
-    overflow: hidden; margin-top: 4px; margin-left: auto;
-  }
-  .mini-progress-fill {
-    height: 100%; border-radius: 3px;
-  }
-
-  /* ── JIRA TICKET BADGE ── */
-  .jira-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 10px; font-weight: 700;
-    color: #1d4ed8; background: #dbeafe;
-    padding: 2px 7px; border-radius: 4px;
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* ── SEPARATOR ── */
-  .divider { height: 1px; background: var(--slate-100); margin: 16px 0; }
-
-  /* ── SCROLL FADE ── */
-  .scroll-fade {
-    position: relative;
-  }
-  .scroll-fade::after {
-    content: '';
-    position: absolute; bottom: 0; left: 0; right: 0;
-    height: 40px;
-    background: linear-gradient(to bottom, transparent, white);
-    border-radius: 0 0 var(--radius) var(--radius);
-    pointer-events: none;
-  }
-
-  /* ── FILTER BAR ── */
-  .filter-bar {
-    display: flex; gap: 8px; align-items: center;
-    margin-bottom: 16px; flex-wrap: wrap;
-  }
-  .filter-input {
-    flex: 1; min-width: 180px;
-    border: 1px solid var(--slate-200);
-    border-radius: 8px;
-    padding: 8px 12px 8px 34px;
-    font-size: 13px; font-family: inherit;
-    color: var(--slate-800); outline: none;
-    background: white;
-    transition: border-color .15s;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%2394a3b8' stroke-width='2' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: 10px center;
-  }
-  .filter-input:focus { border-color: var(--slate-400); }
-  .filter-select {
-    border: 1px solid var(--slate-200);
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 13px; font-family: inherit;
-    color: var(--slate-700); outline: none;
-    background: white; cursor: pointer;
-    transition: border-color .15s;
-  }
-  .filter-select:focus { border-color: var(--slate-400); }
-  .filter-tag {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 6px 12px;
-    background: white;
-    border: 1px solid var(--slate-200);
-    border-radius: 8px;
-    font-size: 12px; font-weight: 500;
-    color: var(--slate-600); cursor: pointer;
-    transition: all .15s;
-  }
-  .filter-tag:hover { border-color: var(--slate-300); color: var(--slate-900); }
-  .filter-tag.active {
-    background: var(--slate-900); border-color: var(--slate-900);
-    color: white;
-  }
-
-  /* ── EMPTY STATE ── */
-  .empty-state {
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    padding: 48px 24px; text-align: center;
-    color: var(--slate-400);
-  }
-  .empty-state svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: .3; }
-  .empty-state h3 { font-size: 14px; font-weight: 600; color: var(--slate-600); margin-bottom: 4px; }
-  .empty-state p { font-size: 13px; }
-
-  /* ─ RESPONSIVE ─ */
-  @media (max-width: 1100px) {
-    .stat-grid { grid-template-columns: repeat(2, 1fr); }
-    .two-col { grid-template-columns: 1fr; }
-  }
-
-  /* ─ UTILITIES ─ */
-  .flex { display: flex; }
-  .items-center { align-items: center; }
-  .justify-between { justify-content: space-between; }
-  .gap-2 { gap: 8px; }
-  .gap-3 { gap: 12px; }
-  .mt-1 { margin-top: 4px; }
-  .mt-2 { margin-top: 8px; }
-  .mt-3 { margin-top: 12px; }
-  .mb-1 { margin-bottom: 4px; }
-  .mb-2 { margin-bottom: 8px; }
-  .mb-3 { margin-bottom: 12px; }
-  .mb-4 { margin-bottom: 16px; }
-  .mb-5 { margin-bottom: 20px; }
-  .text-sm { font-size: 12px; }
-  .text-xs { font-size: 11px; }
-  .text-muted { color: var(--slate-400); }
-  .font-semibold { font-weight: 600; }
-  .font-bold { font-weight: 700; }
-  .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .w-full { width: 100%; }
-  .relative { position: relative; }
 </style>
 </head>
 <body>
 
-<!-- ════════════════════════════════════════
-     PAGE 1 — LOGIN
-════════════════════════════════════════ -->
-<div id="page-login" class="page active">
-  <canvas id="threejs-canvas"></canvas>
-  <div class="login-noise"></div>
-  <div class="login-glow"></div>
-
-  <div class="login-card" id="login-card">
-    <div class="login-brand">
-      <div class="login-brand-icon">
-        <!-- CTT logo mark: stacked lines like a checklist -->
-        <svg viewBox="0 0 20 20"><rect x="2" y="3" width="10" height="2" rx="1"/><rect x="2" y="8" width="14" height="2" rx="1"/><rect x="2" y="13" width="8" height="2" rx="1"/><polyline points="13,10 15.5,13 19,8" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<!-- ═══════════════════════════
+     LOGIN
+═══════════════════════════ -->
+<div id="pg-login" class="page active">
+  <canvas id="c3"></canvas>
+  <div class="l-noise"></div>
+  <div class="l-glow"></div>
+  <div class="lcard" id="lcard">
+    <div class="l-brand">
+      <div class="l-icon">
+        <svg viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="9" height="2" rx="1" fill="white"/><rect x="2" y="8" width="13" height="2" rx="1" fill="white"/><rect x="2" y="13" width="7" height="2" rx="1" fill="white"/><polyline points="12,10 14.5,13 18.5,8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
-      <div class="login-brand-text">
-        <span class="login-brand-name">CTT</span>
-        <span class="login-brand-sub">DKSH Change Tracking</span>
-      </div>
+      <div><div class="l-name">CTT</div><div class="l-sub">DKSH Change Tracking</div></div>
     </div>
-
-    <h1 class="login-heading">Welcome back</h1>
-    <p class="login-sub">Sign in to track UAT &amp; SIT across markets</p>
-
-    <div class="field-group">
-      <label class="field-label">Email address</label>
-      <input class="field-input" type="email" placeholder="you@dksh.com" value="putra.mahirudin@dksh.com">
+    <h1 class="l-h">Welcome back</h1>
+    <p class="l-p">Sign in to track UAT &amp; SIT across markets</p>
+    <div class="fg"><label class="lbl">Email address</label><input class="inp" type="email" value="putra.mahirudin@dksh.com"></div>
+    <div class="fg"><label class="lbl">Password</label><input class="inp" type="password" value="••••••••••"></div>
+    <button class="lbtn" onclick="enterApp()">Sign in to CTT</button>
+    <div class="dpills">
+      <div class="dp" onclick="enterApp('admin')">Putra M.<span class="dr">Admin</span></div>
+      <div class="dp" onclick="enterApp('stakeholder')">UAT MY<span class="dr">Stakeholder</span></div>
+      <div class="dp" onclick="enterApp('qa')">QA EO<span class="dr">QA</span></div>
     </div>
-    <div class="field-group">
-      <label class="field-label">Password</label>
-      <input class="field-input" type="password" placeholder="••••••••" value="••••••••••">
-    </div>
-
-    <button class="btn-login" onclick="showApp('admin')">Sign in</button>
-
-    <div class="demo-pills">
-      <div class="demo-pill" onclick="showApp('admin')">
-        Putra M.
-        <span class="pill-role">Admin</span>
-      </div>
-      <div class="demo-pill" onclick="showApp('stakeholder')">
-        UAT MY
-        <span class="pill-role">Stakeholder</span>
-      </div>
-      <div class="demo-pill" onclick="showApp('qa')">
-        QA EO
-        <span class="pill-role">QA</span>
-      </div>
-    </div>
-
-    <p class="login-hint">v1.4.2 · Staging — <span>Not for production use</span></p>
+    <p class="l-hint">v1.4.2 · <span>Staging environment</span></p>
   </div>
 </div>
 
-<!-- ════════════════════════════════════════
-     PAGE 2 — APP SHELL
-════════════════════════════════════════ -->
-<div id="page-app" class="page">
-
-  <!-- SIDEBAR -->
-  <nav class="sidebar">
-    <div class="sidebar-top">
-      <div class="sidebar-logo">
-        <div class="sidebar-logo-icon">
-          <svg viewBox="0 0 20 20"><rect x="2" y="3" width="10" height="2" rx="1"/><rect x="2" y="8" width="14" height="2" rx="1"/><rect x="2" y="13" width="8" height="2" rx="1"/><polyline points="13,10 15.5,13 19,8" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <div>
-          <div class="sidebar-logo-text">CTT</div>
-          <div class="sidebar-logo-version">v1.4.2</div>
-        </div>
+<!-- ═══════════════════════════
+     APP
+═══════════════════════════ -->
+<div id="pg-app" class="page">
+  <!-- TOP NAV -->
+  <nav class="topnav">
+    <div class="tn-logo" onclick="navTo('admin-dashboard')">
+      <div class="tn-logo-box">
+        <svg viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="9" height="2" rx="1" fill="white"/><rect x="2" y="8" width="13" height="2" rx="1" fill="white"/><rect x="2" y="13" width="7" height="2" rx="1" fill="white"/><polyline points="12,10 14.5,13 18.5,8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
-      <div class="sidebar-env-badge">Staging</div>
+      <span class="tn-logo-text">CTT</span>
     </div>
-
-    <div class="sidebar-role-switcher">
-      <select class="role-select" id="role-select" onchange="switchRole(this.value)">
-        <option value="admin">Admin — Putra M.</option>
-        <option value="stakeholder">Stakeholder — UAT MY</option>
-        <option value="qa">QA — QA EO</option>
-      </select>
+    <div class="tn-nav" id="tn-nav">
+      <!-- injected by JS -->
     </div>
-
-    <div class="sidebar-nav" id="sidebar-nav">
-      <!-- Injected by JS per role -->
-    </div>
-
-    <div class="sidebar-bottom">
-      <div class="sidebar-user">
-        <div class="user-avatar" id="user-avatar">PM</div>
-        <div class="user-info">
-          <div class="user-name" id="user-name">Putra Mahirudin</div>
-          <div class="user-role-label" id="user-role-label">Administrator</div>
-        </div>
-        <!-- gear icon -->
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    <div class="tn-right">
+      <div class="env-chip">Staging</div>
+      <div class="tn-bell">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div class="tn-bell-dot"></div>
+      </div>
+      <div class="tn-div"></div>
+      <div class="tn-user" onclick="cycleRole()">
+        <div class="tn-avatar" id="ua">PM</div>
+        <div><div class="tn-uname" id="un">Putra Mahirudin</div><div class="tn-urole" id="ur">Administrator</div></div>
       </div>
     </div>
   </nav>
 
-  <!-- MAIN -->
-  <div class="main">
-    <!-- TOP BAR -->
-    <div class="topbar">
-      <div style="flex:1">
-        <div class="topbar-title" id="topbar-title">Admin Dashboard</div>
-        <div class="topbar-subtitle" id="topbar-subtitle">Overview · Wed 11 Jun 2026</div>
-      </div>
-      <div class="topbar-actions" id="topbar-actions">
-        <!-- injected by page -->
-      </div>
-    </div>
-
-    <!-- CONTENT -->
-    <div class="content" id="main-content">
-      <!-- pages injected here -->
-    </div>
+  <!-- BODY -->
+  <div class="app-body" id="app-body">
+    <!-- content injected -->
   </div>
 </div>
 
-<!-- ════════════════════════════════════════
-     PAGE TEMPLATES (hidden)
-════════════════════════════════════════ -->
+<!-- ═══════════════════════════
+     TEMPLATES
+═══════════════════════════ -->
 
-<!-- ADMIN DASHBOARD TEMPLATE -->
-<template id="tpl-admin-dashboard">
+<template id="t-admin-dashboard">
 <div>
-  <!-- Alert bar -->
-  <div class="alert-bar">
-    <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-    <span class="alert-bar-text"><strong>5 tasks are overdue</strong> — EasyOrder MY has 2 blocked items requiring immediate attention</span>
-    <span class="alert-bar-action">Review now →</span>
+  <!-- Page header -->
+  <div class="pg-head">
+    <div class="pg-head-left">
+      <h1>Admin Dashboard</h1>
+      <p>Monitor overall progress and address blockers — June 2026 release sprint</p>
+    </div>
+    <button class="btn-new">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Task
+    </button>
   </div>
 
-  <!-- Stat grid -->
-  <div class="stat-grid">
-    <div class="stat-card" onclick="navTo('tasks')">
-      <div class="stat-card-label">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-        Total Tasks
+  <!-- Sprint progress -->
+  <div class="sprint-card">
+    <div class="sprint-top">
+      <div>
+        <div class="sprint-label">Current Sprint</div>
+        <div class="sprint-title">June 2026 Release · Deploy target Jun 20</div>
       </div>
-      <div class="stat-card-value" data-count="127">0</div>
-      <div class="stat-trend trend-up">↑ 12 this sprint</div>
-      <div class="stat-accent" style="background:linear-gradient(90deg,var(--slate-200),var(--slate-100))"></div>
+      <div class="sprint-right">
+        <div class="sprint-stat"><div class="sprint-stat-val">9</div><div class="sprint-stat-lbl">days left</div></div>
+        <div style="width:1px;height:36px;background:var(--s200)"></div>
+        <div class="sprint-stat"><div class="sprint-stat-val" style="color:var(--am)">9</div><div class="sprint-stat-lbl">blockers</div></div>
+        <div style="width:1px;height:36px;background:var(--s200)"></div>
+        <div><div class="sprint-pct"><span data-count="74">0</span><sup>%</sup></div><div style="font-size:10.5px;color:var(--s400)">complete</div></div>
+      </div>
     </div>
-    <div class="stat-card">
-      <div class="stat-card-label">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-        Signed Off
-      </div>
-      <div class="stat-card-value" data-count="84">0</div>
-      <div class="stat-trend trend-up">↑ 66% completion</div>
-      <div class="stat-accent" style="background:linear-gradient(90deg,var(--emerald),#6ee7b7)"></div>
+    <div class="sbar">
+      <div class="sb-seg" style="background:var(--em);width:0%" data-w="72.4"></div>
+      <div class="sb-seg" style="background:var(--bl);width:0%" data-w="15.7"></div>
+      <div class="sb-seg" style="background:var(--am);width:0%" data-w="7.1"></div>
+      <div class="sb-seg" style="background:var(--ro);width:0%" data-w="4.7"></div>
     </div>
-    <div class="stat-card">
-      <div class="stat-card-label">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-        Blocked
-      </div>
-      <div class="stat-card-value" data-count="9" style="color:var(--amber)">0</div>
-      <div class="stat-trend trend-down">↑ 3 since yesterday</div>
-      <div class="stat-accent" style="background:linear-gradient(90deg,var(--amber),#fde68a)"></div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-label">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        Deployed
-      </div>
-      <div class="stat-card-value" data-count="31" style="color:var(--indigo)">0</div>
-      <div class="stat-trend trend-neutral">→ 4 pending release</div>
-      <div class="stat-accent" style="background:linear-gradient(90deg,var(--indigo),#a5b4fc)"></div>
+    <div class="sbar-legend">
+      <div class="sbl"><div class="sbl-dot" style="background:var(--em)"></div>Passed / Deployed<strong>92</strong></div>
+      <div class="sbl"><div class="sbl-dot" style="background:var(--bl)"></div>In Progress<strong>20</strong></div>
+      <div class="sbl"><div class="sbl-dot" style="background:var(--am)"></div>Blocked<strong>9</strong></div>
+      <div class="sbl"><div class="sbl-dot" style="background:var(--ro)"></div>Failed<strong>6</strong></div>
+      <div class="sbl"><div class="sbl-dot" style="background:var(--s300)"></div>Ready<strong>0</strong></div>
     </div>
   </div>
 
-  <!-- Main two-col -->
-  <div class="two-col">
+  <!-- Product readiness -->
+  <div class="prod-grid">
 
-    <!-- LEFT: Task table -->
+    <!-- EasyOrder -->
+    <div class="prod-card" onclick="navTo('tasks')">
+      <div class="prod-card-top">
+        <div class="prod-icon" style="background:#dbeafe"><svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+        <div class="prod-blocked-chip" style="background:#fee2e2;color:#991b1b">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+          3 blocked
+        </div>
+      </div>
+      <div class="prod-ring-wrap">
+        <div class="prod-ring">
+          <svg width="86" height="86" viewBox="0 0 86 86">
+            <circle cx="43" cy="43" r="34" fill="none" stroke="#f1f5f9" stroke-width="8"/>
+            <circle id="ring-eo" cx="43" cy="43" r="34" fill="none" stroke="#3b82f6" stroke-width="8"
+              stroke-linecap="round" stroke-dasharray="0 213.6" transform="rotate(-90 43 43)"/>
+          </svg>
+          <div class="prod-ring-pct" id="pct-eo">0%</div>
+        </div>
+        <div class="prod-stats">
+          <div class="prod-code">EO</div>
+          <div class="prod-name">EasyOrder</div>
+          <div class="prod-meta-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <strong>38</strong>&thinsp;signed off of 51
+          </div>
+          <div class="prod-meta-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <strong style="color:var(--am)">3</strong>&thinsp;blocked
+          </div>
+        </div>
+      </div>
+      <div class="ctry-row"><span class="ctry c-MY">MY</span><span class="ctry c-SG">SG</span><span class="ctry c-TH">TH</span><span class="ctry c-VN">VN</span><span class="ctry c-TW">TW</span><span class="ctry c-HK">HK</span></div>
+    </div>
+
+    <!-- SalesHub -->
+    <div class="prod-card" onclick="navTo('tasks')">
+      <div class="prod-card-top">
+        <div class="prod-icon" style="background:#f3e8ff"><svg viewBox="0 0 24 24" fill="none" stroke="#9333ea" stroke-width="2"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
+        <div class="prod-blocked-chip" style="background:#fef3c7;color:#92400e">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+          4 blocked
+        </div>
+      </div>
+      <div class="prod-ring-wrap">
+        <div class="prod-ring">
+          <svg width="86" height="86" viewBox="0 0 86 86">
+            <circle cx="43" cy="43" r="34" fill="none" stroke="#f1f5f9" stroke-width="8"/>
+            <circle id="ring-sh" cx="43" cy="43" r="34" fill="none" stroke="#9333ea" stroke-width="8"
+              stroke-linecap="round" stroke-dasharray="0 213.6" transform="rotate(-90 43 43)"/>
+          </svg>
+          <div class="prod-ring-pct" id="pct-sh">0%</div>
+        </div>
+        <div class="prod-stats">
+          <div class="prod-code">SH</div>
+          <div class="prod-name">SalesHub</div>
+          <div class="prod-meta-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <strong>26</strong>&thinsp;signed off of 42
+          </div>
+          <div class="prod-meta-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <strong style="color:var(--am)">4</strong>&thinsp;blocked
+          </div>
+        </div>
+      </div>
+      <div class="ctry-row"><span class="ctry c-MY">MY</span><span class="ctry c-VN">VN</span></div>
+    </div>
+
+    <!-- ServicePro -->
+    <div class="prod-card" onclick="navTo('tasks')">
+      <div class="prod-card-top">
+        <div class="prod-icon" style="background:#d1fae5"><svg viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+        <div class="prod-blocked-chip" style="background:#d1fae5;color:#065f46">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Deploy ready
+        </div>
+      </div>
+      <div class="prod-ring-wrap">
+        <div class="prod-ring">
+          <svg width="86" height="86" viewBox="0 0 86 86">
+            <circle cx="43" cy="43" r="34" fill="none" stroke="#f1f5f9" stroke-width="8"/>
+            <circle id="ring-sp" cx="43" cy="43" r="34" fill="none" stroke="#10b981" stroke-width="8"
+              stroke-linecap="round" stroke-dasharray="0 213.6" transform="rotate(-90 43 43)"/>
+          </svg>
+          <div class="prod-ring-pct" id="pct-sp">0%</div>
+        </div>
+        <div class="prod-stats">
+          <div class="prod-code">SP</div>
+          <div class="prod-name">ServicePro</div>
+          <div class="prod-meta-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <strong>30</strong>&thinsp;signed off of 34
+          </div>
+          <div class="prod-meta-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <strong>2</strong>&thinsp;blocked
+          </div>
+        </div>
+      </div>
+      <div class="ctry-row"><span class="ctry c-TH">TH</span></div>
+    </div>
+
+  </div><!-- /prod-grid -->
+
+  <!-- Bottom 2-col -->
+  <div class="dash-bottom">
+
+    <!-- LEFT: priority tasks -->
     <div>
-      <div class="card">
-        <div class="card-pad" style="padding-bottom:0">
-          <div class="sec-head">
-            <div class="sec-head-left">
-              <span class="sec-title">Active Tasks</span>
-              <span class="sec-count">43 in progress</span>
-            </div>
-            <span class="sec-link" onclick="navTo('tasks')">View all →</span>
-          </div>
-          <div class="filter-bar" style="margin-bottom:12px">
-            <input class="filter-input" placeholder="Search tasks…" style="flex:1;min-width:120px">
-            <select class="filter-select" style="font-size:12px">
-              <option>All products</option>
-              <option>EasyOrder</option>
-              <option>SalesHub</option>
-              <option>ServicePro</option>
-            </select>
-            <select class="filter-select" style="font-size:12px">
-              <option>All countries</option>
-              <option>MY</option>
-              <option>SG</option>
-              <option>TH</option>
-            </select>
-          </div>
+      <div class="sec-h">
+        <div class="sec-h-l">
+          <span class="sec-title">Priority Tasks</span>
+          <span class="sec-count">Open &amp; issues</span>
         </div>
-        <div style="overflow-x:auto">
-          <table class="task-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Task</th>
-                <th>Countries</th>
-                <th>Status</th>
-                <th>Priority</th>
-                <th>Assignees</th>
-                <th>Due</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr onclick="navTo('task-detail')">
-                <td><span class="task-id">#124</span></td>
-                <td>
-                  <div class="task-name">EO – Checkout flow rework</div>
-                  <div class="task-name-sub flex gap-2"><span class="jira-badge">EO-4821</span> EasyOrder · Order Mgmt</div>
-                </td>
-                <td><div class="flex gap-2"><span class="ctry ctry-MY">MY</span><span class="ctry ctry-SG">SG</span><span class="ctry ctry-TH">TH</span></div></td>
-                <td><span class="badge badge-blocked"><span class="badge-dot"></span>Blocked</span></td>
-                <td><span class="badge priority-high">High</span></td>
-                <td><div class="assignee-stack"><div class="assignee-chip">AK</div><div class="assignee-chip">RN</div></div></td>
-                <td><div class="text-sm text-muted">Jun 12</div><div class="overdue-chip" style="font-size:9px;padding:1px 5px;margin-top:2px">Overdue</div></td>
-              </tr>
-              <tr onclick="navTo('task-detail')">
-                <td><span class="task-id">#123</span></td>
-                <td>
-                  <div class="task-name">SH – Price list bulk upload</div>
-                  <div class="task-name-sub flex gap-2"><span class="jira-badge">SH-2041</span> SalesHub · Catalogue</div>
-                </td>
-                <td><div class="flex gap-2"><span class="ctry ctry-MY">MY</span><span class="ctry ctry-VN">VN</span></div></td>
-                <td><span class="badge badge-inprog"><span class="badge-dot"></span>In Progress</span></td>
-                <td><span class="badge priority-medium">Med</span></td>
-                <td><div class="assignee-stack"><div class="assignee-chip">LT</div></div></td>
-                <td><div class="text-sm text-muted">Jun 14</div></td>
-              </tr>
-              <tr>
-                <td><span class="task-id">#122</span></td>
-                <td>
-                  <div class="task-name">EO – SSO integration with Azure AD</div>
-                  <div class="task-name-sub flex gap-2"><span class="jira-badge">EO-4796</span> EasyOrder · Auth</div>
-                </td>
-                <td><div class="flex gap-2"><span class="ctry ctry-SG">SG</span><span class="ctry ctry-HK">HK</span><span class="ctry ctry-TW">TW</span></div></td>
-                <td><span class="badge badge-inprog"><span class="badge-dot"></span>In Progress</span></td>
-                <td><span class="badge priority-high">High</span></td>
-                <td><div class="assignee-stack"><div class="assignee-chip">WY</div><div class="assignee-chip">BT</div><div class="assignee-chip">+2</div></div></td>
-                <td><div class="text-sm text-muted">Jun 15</div></td>
-              </tr>
-              <tr>
-                <td><span class="task-id">#121</span></td>
-                <td>
-                  <div class="task-name">SP – Service ticket auto-routing</div>
-                  <div class="task-name-sub flex gap-2"><span class="jira-badge">SP-0988</span> ServicePro · Routing</div>
-                </td>
-                <td><div class="flex gap-2"><span class="ctry ctry-TH">TH</span></div></td>
-                <td><span class="badge badge-passed"><span class="badge-dot"></span>Passed</span></td>
-                <td><span class="badge priority-low">Low</span></td>
-                <td><div class="assignee-stack"><div class="assignee-chip">NP</div></div></td>
-                <td><div class="text-sm text-muted">Jun 10</div></td>
-              </tr>
-              <tr>
-                <td><span class="task-id">#120</span></td>
-                <td>
-                  <div class="task-name">EO – Mobile app push notifications</div>
-                  <div class="task-name-sub flex gap-2"><span class="jira-badge">EO-4788</span> EasyOrder · Notifications</div>
-                </td>
-                <td><div class="flex gap-2"><span class="ctry ctry-MY">MY</span><span class="ctry ctry-SG">SG</span></div></td>
-                <td><span class="badge badge-ready"><span class="badge-dot"></span>Ready</span></td>
-                <td><span class="badge priority-medium">Med</span></td>
-                <td><div class="assignee-stack"><div class="assignee-chip">FH</div></div></td>
-                <td><div class="text-sm text-muted">Jun 18</div></td>
-              </tr>
-              <tr>
-                <td><span class="task-id">#119</span></td>
-                <td>
-                  <div class="task-name">SH – Dashboard export to Excel</div>
-                  <div class="task-name-sub flex gap-2"><span class="jira-badge">SH-2039</span> SalesHub · Reporting</div>
-                </td>
-                <td><div class="flex gap-2"><span class="ctry ctry-MY">MY</span></div></td>
-                <td><span class="badge badge-deployed"><span class="badge-dot"></span>Deployed</span></td>
-                <td><span class="badge priority-low">Low</span></td>
-                <td><div class="assignee-stack"><div class="assignee-chip">RM</div></div></td>
-                <td><div class="text-sm text-muted">Jun 8</div></td>
-              </tr>
-              <tr>
-                <td><span class="task-id">#118</span></td>
-                <td>
-                  <div class="task-name">EO – Batch order import v2</div>
-                  <div class="task-name-sub flex gap-2"><span class="jira-badge">EO-4771</span> EasyOrder · Import</div>
-                </td>
-                <td><div class="flex gap-2"><span class="ctry ctry-MY">MY</span><span class="ctry ctry-SG">SG</span><span class="ctry ctry-VN">VN</span></div></td>
-                <td><span class="badge badge-failed"><span class="badge-dot"></span>Failed</span></td>
-                <td><span class="badge priority-high">High</span></td>
-                <td><div class="assignee-stack"><div class="assignee-chip">AK</div><div class="assignee-chip">LT</div></div></td>
-                <td><div class="text-sm text-muted overdue-chip" style="border-radius:4px">Jun 9</div></td>
-              </tr>
-            </tbody>
-          </table>
+        <span class="sec-link" onclick="navTo('tasks')">View all →</span>
+      </div>
+      <div class="fbar">
+        <select class="fsel"><option>All statuses</option><option>In Progress</option><option>Blocked</option><option>Failed</option></select>
+        <select class="fsel"><option>All products</option><option>EasyOrder</option><option>SalesHub</option><option>ServicePro</option></select>
+        <select class="fsel"><option>Sort: Due date</option><option>Sort: Priority</option><option>Sort: Status</option></select>
+      </div>
+
+      <!-- Task cards — faithful to production style -->
+      <div class="tc" onclick="navTo('task-detail')" style="border-color:#fecaca">
+        <div class="tc-bar" style="background:var(--ro)"></div>
+        <div class="tc-top">
+          <div class="tc-title">EO – Checkout flow rework</div>
+          <span class="badge bs-BLOCKED"><span class="badge-dot"></span>Blocked</span>
         </div>
-        <div style="padding:12px 14px; border-top:1px solid var(--slate-50); display:flex; align-items:center; justify-content:space-between">
-          <span class="text-xs text-muted">Showing 7 of 127 tasks</span>
-          <div class="flex gap-2">
-            <button class="btn-secondary" style="height:28px;font-size:11px;padding:0 10px">← Prev</button>
-            <button class="btn-secondary" style="height:28px;font-size:11px;padding:0 10px;background:var(--slate-900);color:white;border-color:var(--slate-900)">1</button>
-            <button class="btn-secondary" style="height:28px;font-size:11px;padding:0 10px">2</button>
-            <button class="btn-secondary" style="height:28px;font-size:11px;padding:0 10px">Next →</button>
+        <div class="tc-desc">API timeout on bulk import at step 3 — awaiting backend hotfix from Dev team</div>
+        <div class="tc-badges">
+          <span class="ctry c-MY">MY</span><span class="ctry c-SG">SG</span><span class="ctry c-TH">TH</span>
+          <span class="bprod">EasyOrder</span><span class="bm">Order Mgmt</span>
+          <span class="jira-tag">EO-4821</span>
+          <span class="badge bp-HIGH">High</span>
+        </div>
+        <div class="tc-foot">
+          <div class="tc-assignee"><div class="tc-av">AK</div>Ahmad K.</div>
+          <div class="tc-due" style="color:var(--ro)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Jun 12<span class="overdue-tag">Overdue</span>
           </div>
         </div>
       </div>
+
+      <div class="tc" onclick="navTo('task-detail')">
+        <div class="tc-bar" style="background:var(--bl)"></div>
+        <div class="tc-top">
+          <div class="tc-title">SH – Price list bulk upload</div>
+          <span class="badge bs-IN_PROGRESS"><span class="badge-dot"></span>In Progress</span>
+        </div>
+        <div class="tc-desc">Step 4 validation failing for duplicate SKU codes — stakeholder investigating</div>
+        <div class="tc-badges">
+          <span class="ctry c-MY">MY</span><span class="ctry c-VN">VN</span>
+          <span class="bprod">SalesHub</span><span class="bm">Catalogue</span>
+          <span class="jira-tag">SH-2041</span>
+          <span class="badge bp-MEDIUM">Medium</span>
+        </div>
+        <div class="tc-foot">
+          <div class="tc-assignee"><div class="tc-av" style="background:#7c3aed">LT</div>Linh T.</div>
+          <div class="tc-due" style="color:var(--s500)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Jun 14
+          </div>
+        </div>
+      </div>
+
+      <div class="tc" onclick="navTo('task-detail')">
+        <div class="tc-bar" style="background:var(--bl)"></div>
+        <div class="tc-top">
+          <div class="tc-title">EO – SSO integration with Azure AD</div>
+          <span class="badge bs-IN_PROGRESS"><span class="badge-dot"></span>In Progress</span>
+        </div>
+        <div class="tc-desc">Token refresh flow needs re-testing after backend patch deployed Tue</div>
+        <div class="tc-badges">
+          <span class="ctry c-SG">SG</span><span class="ctry c-HK">HK</span><span class="ctry c-TW">TW</span>
+          <span class="bprod">EasyOrder</span><span class="bm">Auth</span>
+          <span class="jira-tag">EO-4796</span>
+          <span class="badge bp-HIGH">High</span>
+        </div>
+        <div class="tc-foot">
+          <div class="tc-assignee">
+            <div class="tc-av" style="background:#0284c7">WY</div>
+            <div class="tc-av" style="background:#7c3aed;margin-left:-6px;border:2px solid #fff">BT</div>
+            <span style="margin-left:4px">+2 assignees</span>
+          </div>
+          <div class="tc-due" style="color:var(--s500)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Jun 15
+          </div>
+        </div>
+      </div>
+
+      <div class="tc">
+        <div class="tc-bar" style="background:var(--ro)"></div>
+        <div class="tc-top">
+          <div class="tc-title">EO – Batch order import v2</div>
+          <span class="badge bs-FAILED"><span class="badge-dot"></span>Failed</span>
+        </div>
+        <div class="tc-desc">Row 847 causes parser crash — JIRA defect EO-4899 filed, dev ETA Jun 13</div>
+        <div class="tc-badges">
+          <span class="ctry c-MY">MY</span><span class="ctry c-SG">SG</span><span class="ctry c-VN">VN</span>
+          <span class="bprod">EasyOrder</span><span class="bm">Import</span>
+          <span class="jira-tag">EO-4771</span>
+          <span class="badge bp-HIGH">High</span>
+        </div>
+        <div class="tc-foot">
+          <div class="tc-assignee"><div class="tc-av">AK</div>Ahmad K.</div>
+          <div class="tc-due" style="color:var(--ro)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Jun 9<span class="overdue-tag">Overdue</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tc">
+        <div class="tc-bar" style="background:var(--em)"></div>
+        <div class="tc-top">
+          <div class="tc-title">SP – Service ticket auto-routing</div>
+          <span class="badge bs-PASSED"><span class="badge-dot"></span>Passed</span>
+        </div>
+        <div class="tc-desc">All 5 steps passed — awaiting admin sign-off before deployment</div>
+        <div class="tc-badges">
+          <span class="ctry c-TH">TH</span>
+          <span class="bprod">ServicePro</span><span class="bm">Routing</span>
+          <span class="jira-tag">SP-0988</span>
+          <span class="badge bp-LOW">Low</span>
+        </div>
+        <div class="tc-foot">
+          <div class="tc-assignee"><div class="tc-av" style="background:#059669">NP</div>Napat P.</div>
+          <div class="tc-due" style="color:var(--em)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Signed off Jun 10
+          </div>
+        </div>
+      </div>
+
+      <button class="view-all-btn" onclick="navTo('tasks')">View all 127 tasks →</button>
     </div>
 
-    <!-- RIGHT: Summary panels -->
-    <div style="display:flex;flex-direction:column;gap:14px">
-
-      <!-- Status donut -->
-      <div class="card card-pad">
-        <div class="sec-head" style="margin-bottom:16px">
-          <span class="sec-title">Status Breakdown</span>
-          <span class="text-xs text-muted">This sprint</span>
-        </div>
-        <div class="flex items-center gap-3" style="justify-content:center;margin-bottom:16px">
-          <!-- SVG Donut -->
-          <div class="donut-chart">
-            <svg width="120" height="120" viewBox="0 0 120 120">
-              <!-- track -->
-              <circle cx="60" cy="60" r="46" fill="none" stroke="#f1f5f9" stroke-width="12"/>
-              <!-- passed: 66% = 289deg -->
-              <circle cx="60" cy="60" r="46" fill="none" stroke="#10b981" stroke-width="12"
-                stroke-dasharray="289 290" stroke-dashoffset="72" stroke-linecap="round" transform="rotate(-90 60 60)"/>
-              <!-- in-progress: 16% = 70deg -->
-              <circle cx="60" cy="60" r="46" fill="none" stroke="#3b82f6" stroke-width="12"
-                stroke-dasharray="70 290" stroke-dashoffset="-217" stroke-linecap="round" transform="rotate(-90 60 60)"/>
-              <!-- blocked: 7% = 30deg -->
-              <circle cx="60" cy="60" r="46" fill="none" stroke="#f59e0b" stroke-width="12"
-                stroke-dasharray="30 290" stroke-dashoffset="-287" stroke-linecap="round" transform="rotate(-90 60 60)"/>
-              <!-- failed: 5% = 22deg -->
-              <circle cx="60" cy="60" r="46" fill="none" stroke="#f43f5e" stroke-width="12"
-                stroke-dasharray="22 290" stroke-dashoffset="-317" stroke-linecap="round" transform="rotate(-90 60 60)"/>
-            </svg>
-            <div class="donut-center"><div class="donut-num">127</div><div class="donut-sub">tasks</div></div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <div class="legend-item"><div class="legend-dot" style="background:var(--emerald)"></div>Passed <strong style="margin-left:auto;padding-left:8px;font-weight:700;color:var(--slate-800)">84</strong></div>
-            <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>In Progress <strong style="margin-left:auto;padding-left:8px;font-weight:700;color:var(--slate-800)">20</strong></div>
-            <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>Blocked <strong style="margin-left:auto;padding-left:8px;font-weight:700;color:var(--slate-800)">9</strong></div>
-            <div class="legend-item"><div class="legend-dot" style="background:var(--rose)"></div>Failed <strong style="margin-left:auto;padding-left:8px;font-weight:700;color:var(--slate-800)">6</strong></div>
-            <div class="legend-item"><div class="legend-dot" style="background:var(--indigo)"></div>Deployed <strong style="margin-left:auto;padding-left:8px;font-weight:700;color:var(--slate-800)">8</strong></div>
-          </div>
-        </div>
-
-        <!-- Country bars -->
-        <div class="divider"></div>
-        <div class="sec-title" style="margin-bottom:12px">By Country</div>
-        <div class="country-bar-row">
-          <span class="country-bar-label">MY</span>
-          <div class="country-bar-track"><div class="country-bar-fill" style="width:82%;background:#3b82f6"></div></div>
-          <span class="country-bar-pct">82%</span>
-        </div>
-        <div class="country-bar-row">
-          <span class="country-bar-label">SG</span>
-          <div class="country-bar-track"><div class="country-bar-fill" style="width:71%;background:#06b6d4"></div></div>
-          <span class="country-bar-pct">71%</span>
-        </div>
-        <div class="country-bar-row">
-          <span class="country-bar-label">TH</span>
-          <div class="country-bar-track"><div class="country-bar-fill" style="width:55%;background:#ec4899"></div></div>
-          <span class="country-bar-pct">55%</span>
-        </div>
-        <div class="country-bar-row">
-          <span class="country-bar-label">VN</span>
-          <div class="country-bar-track"><div class="country-bar-fill" style="width:44%;background:#eab308"></div></div>
-          <span class="country-bar-pct">44%</span>
-        </div>
-        <div class="country-bar-row" style="margin-bottom:0">
-          <span class="country-bar-label">TW</span>
-          <div class="country-bar-track"><div class="country-bar-fill" style="width:38%;background:#10b981"></div></div>
-          <span class="country-bar-pct">38%</span>
-        </div>
-      </div>
-
-      <!-- Product readiness -->
-      <div class="card card-pad">
-        <div class="sec-head" style="margin-bottom:14px">
-          <span class="sec-title">Deploy Readiness</span>
-          <span class="sec-link">Details →</span>
-        </div>
-        <div class="deploy-card">
-          <div class="deploy-icon eo">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-          </div>
-          <div class="deploy-info">
-            <div class="deploy-name">EasyOrder</div>
-            <div class="deploy-meta">51 tasks · 3 blocked</div>
-          </div>
-          <div class="deploy-progress">
-            <div class="deploy-pct">74%</div>
-            <div class="mini-progress"><div class="mini-progress-fill" style="width:74%;background:var(--blue)"></div></div>
-          </div>
-        </div>
-        <div class="deploy-card">
-          <div class="deploy-icon sh">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-          </div>
-          <div class="deploy-info">
-            <div class="deploy-name">SalesHub</div>
-            <div class="deploy-meta">42 tasks · 4 blocked</div>
-          </div>
-          <div class="deploy-progress">
-            <div class="deploy-pct">61%</div>
-            <div class="mini-progress"><div class="mini-progress-fill" style="width:61%;background:#9333ea"></div></div>
-          </div>
-        </div>
-        <div class="deploy-card" style="margin-bottom:0">
-          <div class="deploy-icon sp">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-          </div>
-          <div class="deploy-info">
-            <div class="deploy-name">ServicePro</div>
-            <div class="deploy-meta">34 tasks · 2 blocked</div>
-          </div>
-          <div class="deploy-progress">
-            <div class="deploy-pct">88%</div>
-            <div class="mini-progress"><div class="mini-progress-fill" style="width:88%;background:var(--emerald)"></div></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Activity feed -->
-      <div class="card card-pad scroll-fade" style="max-height:300px;overflow:hidden">
-        <div class="sec-head" style="margin-bottom:12px">
+    <!-- RIGHT: activity + critical issues -->
+    <div>
+      <div class="act-card">
+        <div class="sec-h" style="margin-bottom:12px">
           <span class="sec-title">Recent Activity</span>
           <span class="sec-link">See all →</span>
         </div>
-        <div class="activity-item">
-          <div class="activity-icon signed"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
-          <div class="activity-text">
-            <div class="activity-main"><strong>Ahmad K.</strong> signed off EO–Checkout flow in <strong>MY</strong></div>
-            <div class="activity-time">2 min ago</div>
+        <div class="act-item">
+          <div class="act-ico ai-signed"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="act-body"><div class="act-txt"><strong>Ahmad K.</strong> signed off EO–Checkout in MY</div><div class="act-time">2 min ago</div></div>
+        </div>
+        <div class="act-item">
+          <div class="act-ico ai-blocked"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div>
+          <div class="act-body"><div class="act-txt"><strong>Task #124</strong> marked Blocked — "API timeout on bulk import"</div><div class="act-time">14 min ago</div></div>
+        </div>
+        <div class="act-item">
+          <div class="act-ico ai-comment"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+          <div class="act-body"><div class="act-txt"><strong>Linh T.</strong> commented: "@Ahmad can you recheck step 4?"</div><div class="act-time">31 min ago</div></div>
+        </div>
+        <div class="act-item">
+          <div class="act-ico ai-status"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <div class="act-body"><div class="act-txt"><strong>SP–Ticket routing</strong> moved to Passed (TH)</div><div class="act-time">1 hr ago</div></div>
+        </div>
+        <div class="act-item">
+          <div class="act-ico ai-failed"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+          <div class="act-body"><div class="act-txt"><strong>EO–Batch import</strong> Failed in MY, SG, VN</div><div class="act-time">2 hr ago</div></div>
+        </div>
+      </div>
+
+      <div class="ci-card">
+        <div class="sec-h" style="margin-bottom:12px">
+          <div class="sec-h-l">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span class="sec-title">Critical Issues</span>
           </div>
         </div>
-        <div class="activity-item">
-          <div class="activity-icon blocked"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div>
-          <div class="activity-text">
-            <div class="activity-main"><strong>Task #124</strong> marked Blocked — "API timeout on bulk import"</div>
-            <div class="activity-time">14 min ago</div>
-          </div>
+        <div class="ci-item" onclick="navTo('task-detail')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          <div><div class="ci-title">EO–Checkout flow rework</div><div class="ci-meta">EasyOrder · MY, SG, TH · Blocked</div></div>
         </div>
-        <div class="activity-item">
-          <div class="activity-icon comment"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-          <div class="activity-text">
-            <div class="activity-main"><strong>Linh T.</strong> commented on SH–Price list: "@Ahmad can you recheck step 4?"</div>
-            <div class="activity-time">31 min ago</div>
-          </div>
+        <div class="ci-item" onclick="navTo('task-detail')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          <div><div class="ci-title">EO–Batch order import v2</div><div class="ci-meta">EasyOrder · MY, SG, VN · Failed</div></div>
         </div>
-        <div class="activity-item">
-          <div class="activity-icon status"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-          <div class="activity-text">
-            <div class="activity-main"><strong>SP–Ticket routing</strong> moved to <strong>Passed</strong> (TH)</div>
-            <div class="activity-time">1 hr ago</div>
-          </div>
-        </div>
-        <div class="activity-item">
-          <div class="activity-icon failed"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
-          <div class="activity-text">
-            <div class="activity-main"><strong>EO–Batch import</strong> marked Failed in <strong>MY, SG, VN</strong> — defect logged</div>
-            <div class="activity-time">2 hr ago</div>
-          </div>
+        <div class="ci-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          <div><div class="ci-title">SH–Price list bulk upload</div><div class="ci-meta">SalesHub · MY, VN · Blocked</div></div>
         </div>
       </div>
     </div>
-  </div>
+
+  </div><!-- /dash-bottom -->
 </div>
 </template>
 
-<!-- STAKEHOLDER DASHBOARD TEMPLATE -->
-<template id="tpl-stakeholder-dashboard">
-<div>
-  <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
-    <div class="stat-card">
-      <div class="stat-card-label">My Tasks</div>
-      <div class="stat-card-value" data-count="18">0</div>
-      <div class="stat-trend trend-neutral">→ Malaysia scope</div>
-      <div class="stat-accent" style="background:linear-gradient(90deg,var(--blue),#93c5fd)"></div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-label">Signed Off</div>
-      <div class="stat-card-value" data-count="11">0</div>
-      <div class="stat-trend trend-up">↑ 61% of my tasks</div>
-      <div class="stat-accent" style="background:linear-gradient(90deg,var(--emerald),#6ee7b7)"></div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-label">Unread Comments</div>
-      <div class="stat-card-value" data-count="5" style="color:var(--brand)">0</div>
-      <div class="stat-trend trend-down">Need response</div>
-      <div class="stat-accent" style="background:linear-gradient(90deg,var(--brand),#fca5a5)"></div>
-    </div>
-  </div>
-
-  <div class="two-col">
-    <div class="card">
-      <div class="card-pad" style="padding-bottom:0">
-        <div class="sec-head">
-          <span class="sec-title">My Assigned Tasks</span>
-          <div class="flex gap-2">
-            <span class="filter-tag active">All</span>
-            <span class="filter-tag">In Progress</span>
-            <span class="filter-tag">Blocked</span>
-          </div>
-        </div>
-      </div>
-      <table class="task-table">
-        <thead>
-          <tr>
-            <th>Task</th>
-            <th>Status</th>
-            <th>Steps</th>
-            <th>Due</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr onclick="navTo('task-detail')">
-            <td>
-              <div class="task-name">EO – Checkout flow rework</div>
-              <div class="task-name-sub flex gap-2"><span class="jira-badge">EO-4821</span> EasyOrder</div>
-            </td>
-            <td><span class="badge badge-blocked"><span class="badge-dot"></span>Blocked</span></td>
-            <td>
-              <div style="display:flex;align-items:center;gap:6px">
-                <div style="flex:1;height:4px;background:var(--slate-100);border-radius:2px;overflow:hidden">
-                  <div style="width:40%;height:100%;background:var(--amber);border-radius:2px"></div>
-                </div>
-                <span class="text-xs text-muted">2/5</span>
-              </div>
-            </td>
-            <td><div class="text-sm" style="color:var(--rose)">Jun 12</div></td>
-          </tr>
-          <tr onclick="navTo('task-detail')">
-            <td>
-              <div class="task-name">EO – Mobile push notifications</div>
-              <div class="task-name-sub flex gap-2"><span class="jira-badge">EO-4788</span> EasyOrder</div>
-            </td>
-            <td><span class="badge badge-inprog"><span class="badge-dot"></span>In Progress</span></td>
-            <td>
-              <div style="display:flex;align-items:center;gap:6px">
-                <div style="flex:1;height:4px;background:var(--slate-100);border-radius:2px;overflow:hidden">
-                  <div style="width:60%;height:100%;background:var(--blue);border-radius:2px"></div>
-                </div>
-                <span class="text-xs text-muted">3/5</span>
-              </div>
-            </td>
-            <td><div class="text-sm text-muted">Jun 18</div></td>
-          </tr>
-          <tr>
-            <td>
-              <div class="task-name">SH – Dashboard export</div>
-              <div class="task-name-sub flex gap-2"><span class="jira-badge">SH-2039</span> SalesHub</div>
-            </td>
-            <td><span class="badge badge-passed"><span class="badge-dot"></span>Passed</span></td>
-            <td>
-              <div style="display:flex;align-items:center;gap:6px">
-                <div style="flex:1;height:4px;background:var(--slate-100);border-radius:2px;overflow:hidden">
-                  <div style="width:100%;height:100%;background:var(--emerald);border-radius:2px"></div>
-                </div>
-                <span class="text-xs text-muted">5/5</span>
-              </div>
-            </td>
-            <td><div class="text-sm text-muted">Jun 8</div></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:14px">
-      <div class="card card-pad">
-        <div class="sec-title" style="margin-bottom:12px">Recent Activity</div>
-        <div class="activity-item">
-          <div class="activity-icon comment"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-          <div class="activity-text">
-            <div class="activity-main"><strong>Putra M.</strong> replied on Checkout flow</div>
-            <div class="activity-time">15 min ago</div>
-          </div>
-        </div>
-        <div class="activity-item">
-          <div class="activity-icon blocked"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div>
-          <div class="activity-text">
-            <div class="activity-main"><strong>Task #124</strong> was assigned to you</div>
-            <div class="activity-time">2 hr ago</div>
-          </div>
-        </div>
-      </div>
+<!-- Stub for other pages -->
+<template id="t-stub">
+<div style="display:grid;place-items:center;min-height:60vh;text-align:center">
+  <div>
+    <div style="font-size:40px;margin-bottom:16px">🚧</div>
+    <div style="font-size:16px;font-weight:700;color:var(--s700);margin-bottom:6px" id="stub-title">Page</div>
+    <div style="font-size:13px;color:var(--s400);max-width:340px;margin:0 auto">
+      This page is part of the next batch of mockups.<br>
+      Currently included: <strong>Login</strong> and <strong>Admin Dashboard</strong>.
     </div>
   </div>
 </div>
 </template>
 
 <script>
-// ─── THREE.JS PARTICLE NETWORK ───────────────────────────────────────────────
-(function() {
-  const canvas = document.getElementById('threejs-canvas');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
-  camera.position.z = 30;
-
-  const COUNT = 80;
-  const positions = [];
-  const velocities = [];
-  const particleGeo = new THREE.BufferGeometry();
-  const pPositions = new Float32Array(COUNT * 3);
-
-  for (let i = 0; i < COUNT; i++) {
-    positions.push({ x: (Math.random() - 0.5) * 60, y: (Math.random() - 0.5) * 40, z: (Math.random() - 0.5) * 10 });
-    velocities.push({ x: (Math.random() - 0.5) * 0.04, y: (Math.random() - 0.5) * 0.04 });
+// ─── THREE.JS LOGIN BACKGROUND ───────────────────────────────────────────────
+(function(){
+  const canvas=document.getElementById('c3');
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(60,1,0.1,100);
+  camera.position.z=28;
+  const N=75,pos=[],vel=[];
+  const pArr=new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    pos.push({x:(Math.random()-.5)*56,y:(Math.random()-.5)*38,z:(Math.random()-.5)*8});
+    vel.push({x:(Math.random()-.5)*.038,y:(Math.random()-.5)*.038});
   }
-
-  const ptMat = new THREE.PointsMaterial({ color: 0xc4161c, size: 0.25, transparent: true, opacity: 0.7 });
-  const pts = new THREE.Points(particleGeo, ptMat);
+  const pGeo=new THREE.BufferGeometry();
+  const pMat=new THREE.PointsMaterial({color:0xc4161c,size:.22,transparent:true,opacity:.75});
+  const pts=new THREE.Points(pGeo,pMat);
   scene.add(pts);
-
-  const lineMat = new THREE.LineBasicMaterial({ color: 0xc4161c, transparent: true, opacity: 0.12 });
-  const lineGeo = new THREE.BufferGeometry();
-  const linePositions = new Float32Array(COUNT * COUNT * 6);
-  lineGeo.setAttribute('position', new THREE.BufferAttribute(linePositions, 3));
-  const lines = new THREE.LineSegments(lineGeo, lineMat);
+  const lMat=new THREE.LineBasicMaterial({color:0xc4161c,transparent:true,opacity:.11});
+  const lGeo=new THREE.BufferGeometry();
+  const lArr=new Float32Array(N*N*6);
+  lGeo.setAttribute('position',new THREE.BufferAttribute(lArr,3));
+  const lines=new THREE.LineSegments(lGeo,lMat);
   scene.add(lines);
-
-  let mouse = { x: 0, y: 0 };
-  window.addEventListener('mousemove', e => {
-    mouse.x = (e.clientX / window.innerWidth - 0.5) * 0.5;
-    mouse.y = (e.clientY / window.innerHeight - 0.5) * 0.5;
-  });
-
-  function resize() {
-    const w = window.innerWidth, h = window.innerHeight;
-    renderer.setSize(w, h);
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-  }
-  window.addEventListener('resize', resize);
-  resize();
-
-  let lineCount = 0;
-  const DIST = 14;
-
-  function animate() {
-    if (!document.getElementById('page-login').classList.contains('active')) return;
-    requestAnimationFrame(animate);
-
-    camera.position.x += (mouse.x * 4 - camera.position.x) * 0.02;
-    camera.position.y += (-mouse.y * 3 - camera.position.y) * 0.02;
-
-    for (let i = 0; i < COUNT; i++) {
-      positions[i].x += velocities[i].x;
-      positions[i].y += velocities[i].y;
-      if (Math.abs(positions[i].x) > 32) velocities[i].x *= -1;
-      if (Math.abs(positions[i].y) > 22) velocities[i].y *= -1;
-      pPositions[i * 3]     = positions[i].x;
-      pPositions[i * 3 + 1] = positions[i].y;
-      pPositions[i * 3 + 2] = positions[i].z;
+  let mouse={x:0,y:0};
+  window.addEventListener('mousemove',e=>{mouse.x=(e.clientX/innerWidth-.5)*.4;mouse.y=(e.clientY/innerHeight-.5)*.4;});
+  function resize(){renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+  window.addEventListener('resize',resize);resize();
+  let lc=0;const D=13;
+  function tick(){
+    if(!document.getElementById('pg-login').classList.contains('active'))return;
+    requestAnimationFrame(tick);
+    camera.position.x+=(mouse.x*3.5-camera.position.x)*.02;
+    camera.position.y+=(-mouse.y*2.5-camera.position.y)*.02;
+    for(let i=0;i<N;i++){
+      pos[i].x+=vel[i].x;pos[i].y+=vel[i].y;
+      if(Math.abs(pos[i].x)>30)vel[i].x*=-1;
+      if(Math.abs(pos[i].y)>20)vel[i].y*=-1;
+      pArr[i*3]=pos[i].x;pArr[i*3+1]=pos[i].y;pArr[i*3+2]=pos[i].z;
     }
-    particleGeo.setAttribute('position', new THREE.BufferAttribute(pPositions.slice(), 3));
-
-    lineCount = 0;
-    for (let i = 0; i < COUNT; i++) {
-      for (let j = i + 1; j < COUNT; j++) {
-        const dx = positions[i].x - positions[j].x;
-        const dy = positions[i].y - positions[j].y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < DIST) {
-          linePositions[lineCount++] = positions[i].x;
-          linePositions[lineCount++] = positions[i].y;
-          linePositions[lineCount++] = positions[i].z;
-          linePositions[lineCount++] = positions[j].x;
-          linePositions[lineCount++] = positions[j].y;
-          linePositions[lineCount++] = positions[j].z;
-        }
+    pGeo.setAttribute('position',new THREE.BufferAttribute(pArr.slice(),3));
+    lc=0;
+    for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){
+      const dx=pos[i].x-pos[j].x,dy=pos[i].y-pos[j].y;
+      if(dx*dx+dy*dy<D*D){
+        lArr[lc++]=pos[i].x;lArr[lc++]=pos[i].y;lArr[lc++]=pos[i].z;
+        lArr[lc++]=pos[j].x;lArr[lc++]=pos[j].y;lArr[lc++]=pos[j].z;
       }
     }
-    lineGeo.attributes.position.needsUpdate = true;
-    lineGeo.setDrawRange(0, lineCount / 3);
-    renderer.render(scene, camera);
+    lGeo.attributes.position.needsUpdate=true;
+    lGeo.setDrawRange(0,lc/3);
+    renderer.render(scene,camera);
   }
-  animate();
-  window._animateParticles = animate;
+  tick();window._tick=tick;
 })();
 
 // ─── APP STATE ────────────────────────────────────────────────────────────────
-const ROLES = {
-  admin: {
-    name: 'Putra Mahirudin', initials: 'PM', label: 'Administrator',
-    nav: [
-      { id:'admin-dashboard', label:'Dashboard', icon:'grid' },
-      { id:'tasks', label:'Task Management', icon:'checkSquare', badge:'5' },
-      { id:'jira-intake', label:'JIRA Intake', icon:'link', badge:'12' },
-      { id:'draft-tasks', label:'AI Draft Tasks', icon:'cpu', badge:'3', badgeClass:'muted' },
-      { section: 'Configuration' },
-      { id:'database', label:'Database / Config', icon:'settings' },
-      { id:'import', label:'Import Wizard', icon:'upload' },
-    ]
-  },
-  stakeholder: {
-    name: 'Radzwan Noh', initials: 'RN', label: 'Stakeholder · MY',
-    nav: [
-      { id:'stakeholder-dashboard', label:'My Dashboard', icon:'grid' },
-      { id:'inbox', label:'Inbox', icon:'inbox', badge:'5' },
-      { id:'knowledge-base', label:'Knowledge Base', icon:'book' },
-    ]
-  },
-  qa: {
-    name: 'QA Engineer', initials: 'QA', label: 'QA Engineer · EO',
-    nav: [
-      { id:'qa-dashboard', label:'QA Dashboard', icon:'monitor' },
-      { id:'qa-jira', label:'JIRA Queue', icon:'link', badge:'8' },
-      { id:'qa-sit', label:'SIT Tasks', icon:'layers' },
-    ]
-  }
+const ROLES={
+  admin:{name:'Putra Mahirudin',initials:'PM',role:'Administrator',
+    nav:['Dashboard','Tasks','JIRA Queue','AI Drafts','Config'],
+    ids:['admin-dashboard','tasks','jira-intake','draft-tasks','database']},
+  stakeholder:{name:'Radzwan Noh',initials:'RN',role:'Stakeholder · MY',
+    nav:['Dashboard','Inbox','Knowledge Base'],
+    ids:['stakeholder-dashboard','inbox','knowledge-base']},
+  qa:{name:'QA Engineer',initials:'QE',role:'QA · EasyOrder',
+    nav:['QA Dashboard','JIRA Queue','SIT Tasks'],
+    ids:['qa-dashboard','qa-jira','qa-sit']}
 };
+let curRole='admin',roles=['admin','stakeholder','qa'],roleIdx=0;
 
-const ICONS = {
-  grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
-  checkSquare: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
-  link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
-  cpu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="15" x2="4" y2="15"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="15" x2="23" y2="15"/></svg>',
-  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>',
-  upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>',
-  inbox: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
-  book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
-  monitor: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
-  layers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
-};
+function buildNav(role){
+  const cfg=ROLES[role];
+  const nav=document.getElementById('tn-nav');
+  nav.innerHTML=cfg.nav.map((n,i)=>
+    `<div class="tn-item${i===0?' active':''}" data-id="${cfg.ids[i]}" onclick="navTo('${cfg.ids[i]}')">${n}</div>`
+  ).join('');
+}
 
-let currentRole = 'admin';
-let currentPage = 'admin-dashboard';
-
-function showApp(role) {
-  currentRole = role;
-  const loginPage = document.getElementById('page-login');
-  const appPage   = document.getElementById('page-app');
-
-  // stop three.js loop
-  loginPage.classList.remove('active');
-
-  gsap.to(loginPage, { opacity: 0, duration: 0.5, onComplete: () => {
-    loginPage.style.display = 'none';
-    appPage.classList.add('active');
-    gsap.fromTo(appPage, { opacity: 0 }, { opacity: 1, duration: 0.4 });
-    renderRole(role);
-    document.getElementById('role-select').value = role;
-
-    const defaultPage = role === 'admin' ? 'admin-dashboard' :
-                        role === 'stakeholder' ? 'stakeholder-dashboard' : 'qa-dashboard';
-    navTo(defaultPage);
+function enterApp(role='admin'){
+  curRole=role;
+  const lp=document.getElementById('pg-login');
+  const ap=document.getElementById('pg-app');
+  gsap.to(lp,{opacity:0,duration:.45,onComplete:()=>{
+    lp.classList.remove('active');
+    ap.classList.add('active');
+    const cfg=ROLES[role];
+    document.getElementById('ua').textContent=cfg.initials;
+    document.getElementById('un').textContent=cfg.name;
+    document.getElementById('ur').textContent=cfg.role;
+    buildNav(role);
+    navTo(ROLES[role].ids[0]);
+    gsap.fromTo(ap,{opacity:0},{opacity:1,duration:.35});
   }});
 }
 
-function renderRole(role) {
-  const cfg = ROLES[role];
-  document.getElementById('user-avatar').textContent = cfg.initials;
-  document.getElementById('user-name').textContent = cfg.name;
-  document.getElementById('user-role-label').textContent = cfg.label;
+function cycleRole(){
+  roleIdx=(roleIdx+1)%roles.length;
+  const r=roles[roleIdx];
+  curRole=r;
+  const cfg=ROLES[r];
+  document.getElementById('ua').textContent=cfg.initials;
+  document.getElementById('un').textContent=cfg.name;
+  document.getElementById('ur').textContent=cfg.role;
+  buildNav(r);
+  navTo(ROLES[r].ids[0]);
+}
 
-  const nav = document.getElementById('sidebar-nav');
-  nav.innerHTML = '';
-  cfg.nav.forEach(item => {
-    if (item.section) {
-      nav.innerHTML += `<div class="nav-section-label">${item.section}</div>`;
-    } else {
-      const badge = item.badge ? `<span class="nav-badge ${item.badgeClass||''}">${item.badge}</span>` : '';
-      nav.innerHTML += `
-        <a class="nav-item" data-id="${item.id}" onclick="navTo('${item.id}')">
-          ${ICONS[item.icon] || ''}
-          ${item.label}
-          ${badge}
-        </a>`;
+function navTo(id){
+  document.querySelectorAll('.tn-item').forEach(el=>el.classList.toggle('active',el.dataset.id===id));
+  const body=document.getElementById('app-body');
+  const tpl=document.getElementById('t-'+id)||document.getElementById('t-admin-dashboard');
+  const isStub=!document.getElementById('t-'+id);
+  gsap.to(body,{opacity:0,y:6,duration:.12,onComplete:()=>{
+    body.innerHTML=tpl.innerHTML;
+    if(isStub){
+      const st=body.querySelector('#stub-title');
+      if(st)st.textContent=id.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
     }
-  });
-}
-
-function switchRole(role) {
-  currentRole = role;
-  renderRole(role);
-  const defaultPage = role === 'admin' ? 'admin-dashboard' :
-                      role === 'stakeholder' ? 'stakeholder-dashboard' : 'qa-dashboard';
-  navTo(defaultPage);
-}
-
-const PAGE_META = {
-  'admin-dashboard':       { title: 'Admin Dashboard',    subtitle: 'System overview · Wed 11 Jun 2026', actions: 'admin-dash' },
-  'stakeholder-dashboard': { title: 'My Dashboard',       subtitle: 'Malaysia · Wed 11 Jun 2026',        actions: '' },
-  'tasks':                 { title: 'Task Management',    subtitle: '127 tasks across all products',     actions: 'tasks' },
-  'task-detail':           { title: 'EO – Checkout Flow', subtitle: 'Task #124 · EasyOrder · EO-4821',   actions: 'task-detail' },
-  'jira-intake':           { title: 'JIRA Intake',        subtitle: '12 tickets pending review',         actions: 'jira' },
-  'draft-tasks':           { title: 'AI Draft Tasks',     subtitle: '3 tasks awaiting approval',         actions: '' },
-  'database':              { title: 'Database / Config',  subtitle: 'Products, users, settings',         actions: '' },
-  'import':                { title: 'Import Wizard',      subtitle: 'Batch task creation from Excel',    actions: '' },
-  'inbox':                 { title: 'Inbox',              subtitle: '5 unread discussions',              actions: '' },
-  'knowledge-base':        { title: 'Knowledge Base',     subtitle: 'Guides, FAQs, testing workflow',    actions: '' },
-  'qa-dashboard':          { title: 'QA Dashboard',       subtitle: 'SIT progress overview',            actions: '' },
-  'qa-jira':               { title: 'JIRA Queue',         subtitle: '8 tickets pending SIT',             actions: '' },
-  'qa-sit':                { title: 'SIT Tasks',          subtitle: 'System Integration Testing',        actions: '' },
-};
-
-const TOPBAR_ACTIONS = {
-  'admin-dash': `
-    <button class="btn-secondary"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button>
-    <button class="btn-primary" onclick="navTo('tasks')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New Task</button>`,
-  'tasks': `
-    <button class="btn-secondary"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button>
-    <button class="btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New Task</button>`,
-  'task-detail': `
-    <button class="btn-secondary" onclick="navTo('tasks')">← Back to Tasks</button>
-    <button class="btn-primary">Sign Off Task</button>`,
-  'jira': `
-    <button class="btn-secondary">Sync from JIRA</button>
-    <button class="btn-primary">Create Tasks</button>`,
-};
-
-function navTo(id) {
-  currentPage = id;
-  const meta = PAGE_META[id] || { title: id, subtitle: '' };
-  document.getElementById('topbar-title').textContent = meta.title;
-  document.getElementById('topbar-subtitle').textContent = meta.subtitle;
-  document.getElementById('topbar-actions').innerHTML = TOPBAR_ACTIONS[meta.actions] || '';
-
-  // Highlight nav
-  document.querySelectorAll('.nav-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.id === id);
-  });
-
-  const content = document.getElementById('main-content');
-  const tpl = document.getElementById(`tpl-${id}`);
-
-  const html = tpl ? tpl.innerHTML : `
-    <div class="card card-pad" style="text-align:center;padding:64px 24px;color:var(--slate-400)">
-      <div style="font-size:32px;margin-bottom:12px">🚧</div>
-      <div style="font-size:15px;font-weight:600;color:var(--slate-600);margin-bottom:6px">${meta.title}</div>
-      <div style="font-size:13px">This page mockup is not yet included in this preview.<br>
-        Pages included: <strong>Login</strong> and <strong>Admin Dashboard</strong> (with role switcher).</div>
-    </div>`;
-
-  gsap.to(content, { opacity: 0, y: 8, duration: 0.15, onComplete: () => {
-    content.innerHTML = html;
-    animateCounters();
-    gsap.fromTo(content, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' });
+    animateDashboard();
+    gsap.fromTo(body,{opacity:0,y:10},{opacity:1,y:0,duration:.28,ease:'power2.out'});
   }});
 }
 
-function animateCounters() {
-  document.querySelectorAll('[data-count]').forEach(el => {
-    const target = parseInt(el.dataset.count);
-    gsap.fromTo({ v: 0 }, { v: target }, {
-      duration: 0.9, ease: 'power2.out',
-      onUpdate: function() { el.textContent = Math.round(this.targets()[0].v); },
-      onComplete: () => { el.textContent = target; }
+// ─── DASHBOARD ANIMATIONS ────────────────────────────────────────────────────
+function animateDashboard(){
+  // Stacked bar segments
+  document.querySelectorAll('.sb-seg[data-w]').forEach(el=>{
+    gsap.fromTo(el,{width:'0%'},{width:el.dataset.w+'%',duration:1.1,ease:'power3.out',delay:.15});
+  });
+  // Counter
+  document.querySelectorAll('[data-count]').forEach(el=>{
+    const t=parseInt(el.dataset.count);
+    gsap.fromTo({v:0},{v:t},{duration:.9,ease:'power2.out',
+      onUpdate:function(){el.textContent=Math.round(this.targets()[0].v);},
+      onComplete:()=>{el.textContent=t;}});
+  });
+  // Product rings (circumference for r=34 = 213.6)
+  const rings=[
+    {id:'ring-eo',pct:74,pctEl:'pct-eo'},
+    {id:'ring-sh',pct:61,pctEl:'pct-sh'},
+    {id:'ring-sp',pct:88,pctEl:'pct-sp'},
+  ];
+  const C=213.6;
+  rings.forEach((r,i)=>{
+    const el=document.getElementById(r.id);
+    const pEl=document.getElementById(r.pctEl);
+    if(!el||!pEl)return;
+    const filled=C*(r.pct/100);
+    const gap=C-filled;
+    gsap.fromTo({v:0},{v:r.pct},{duration:.9,delay:.1+i*.08,ease:'power2.out',
+      onUpdate:function(){
+        const v=this.targets()[0].v;
+        const f=C*(v/100),g=C-f;
+        el.setAttribute('stroke-dasharray',`${f} ${g}`);
+        pEl.textContent=Math.round(v)+'%';
+      },
+      onComplete:()=>{
+        el.setAttribute('stroke-dasharray',`${filled} ${gap}`);
+        pEl.textContent=r.pct+'%';
+      }
     });
   });
+  // Card stagger
+  gsap.fromTo('.tc',{opacity:0,y:10},{opacity:1,y:0,duration:.3,stagger:.06,ease:'power2.out',delay:.2});
+  gsap.fromTo('.prod-card',{opacity:0,y:12},{opacity:1,y:0,duration:.35,stagger:.07,ease:'power2.out',delay:.05});
 }
 
-// Init on load — show login
-window.addEventListener('load', () => {
-  gsap.fromTo('#login-card',
-    { opacity: 0, y: 24, scale: 0.97 },
-    { opacity: 1, y: 0, scale: 1, duration: 0.7, ease: 'power3.out', delay: 0.2 }
-  );
+// ─── LOGIN ENTRANCE ──────────────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  gsap.fromTo('#lcard',{opacity:0,y:22,scale:.97},{opacity:1,y:0,scale:1,duration:.65,ease:'power3.out',delay:.2});
 });
 </script>
 </body>
