@@ -102,7 +102,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   <>
                     <NavItem active={isAdminTasks} icon={<List size={16} />} label="Tasks" onClick={() => router.push('/admin/tasks')} />
                     <NavItem active={isJiraQueue} icon={<Sparkles size={16} />} label="JIRA Queue" onClick={() => router.push('/admin/jira-intake')} />
-                    <NavItem active={isDraftTasks} icon={<Sparkles size={16} />} label="AI Drafts" onClick={() => router.push('/admin/draft-tasks')} />
+                    {/* AI Drafts nav hidden for showcase — feature complete, enabled post-launch */}
                     <NavItem active={isAdminDb} icon={<Database size={16} />} label="Config" onClick={() => router.push('/admin/database')} />
                   </>
                 )}
