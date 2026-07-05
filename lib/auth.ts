@@ -68,13 +68,24 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
         token.name = user.name;
         token.role = (user as { role?: string }).role;
         token.countryCode = (user as { countryCode?: string | null }).countryCode ?? null;
         token.mustChangePassword = (user as { mustChangePassword?: boolean }).mustChangePassword ?? false;
+      }
+      // On session update (e.g. after password change), re-read mustChangePassword
+      // from DB so the JWT claim reflects the new value without requiring a re-login.
+      if (trigger === 'update' && token.id) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { mustChangePassword: true }
+          });
+          if (dbUser) token.mustChangePassword = dbUser.mustChangePassword;
+        } catch {}
       }
       return token;
     },

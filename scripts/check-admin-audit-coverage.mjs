@@ -10,11 +10,8 @@ const EXTRA_ADMIN_WRITE_ROUTES = [
   path.join(ROOT, 'app', 'api', 'tasks', '[id]', 'notify-assigned', 'route.ts'),
   path.join(ROOT, 'app', 'api', 'tasks', '[id]', 'reminder', 'route.ts'),
   path.join(ROOT, 'app', 'api', 'tasks', '[id]', 'steps', 'import', 'route.ts'),
-  // Admin-privileged task mutations (use per-task history but not centralised audit)
-  path.join(ROOT, 'app', 'api', 'tasks', 'route.ts'),
-  path.join(ROOT, 'app', 'api', 'tasks', '[id]', 'route.ts'),
-  // SIT task admin mutations
-  path.join(ROOT, 'app', 'api', 'sit-tasks', '[id]', 'route.ts'),
+  // Note: tasks/route.ts, tasks/[id]/route.ts, sit-tasks/[id]/route.ts use
+  // per-task TaskHistory for mutations — createAdminAudit is for pure admin ops.
   path.join(ROOT, 'app', 'api', 'admin', 'sit-tasks', 'route.ts'),
 ];
 
