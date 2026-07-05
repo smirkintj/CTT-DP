@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto';
 import { NextResponse } from 'next/server';
 import prisma from '../../../../lib/prisma';
 import { sendTaskReminderEmail } from '../../../../lib/email';
@@ -20,7 +21,9 @@ export async function GET(req: Request) {
 
   const authHeader = req.headers.get('authorization') ?? '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  if (token !== cronSecret) {
+  const tokenBuf = Buffer.from(token.padEnd(cronSecret.length));
+  const secretBuf = Buffer.from(cronSecret);
+  if (tokenBuf.length !== secretBuf.length || !timingSafeEqual(tokenBuf, secretBuf)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

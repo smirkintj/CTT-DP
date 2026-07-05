@@ -68,6 +68,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const body = await req.json().catch(() => ({}));
   const { status, sprintName, environment, module: mod, countryCodes } = body;
 
+  if (status !== undefined && !Object.values(SitTaskStatus).includes(status as SitTaskStatus)) {
+    return NextResponse.json({ error: 'Invalid status value', code: 'INVALID_STATUS' }, { status: 400 });
+  }
+
   const updateData: Record<string, unknown> = { updatedById: session.user.id };
   if (sprintName) updateData.sprintName = sprintName;
   if (environment !== undefined) updateData.environment = environment;

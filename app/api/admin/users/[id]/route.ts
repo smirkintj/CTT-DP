@@ -63,7 +63,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return forbidden('Creating admin users is disabled', 'ADMIN_CREATE_DISABLED');
     }
 
-    const nextRole = requestedRole === UserRole.ADMIN ? UserRole.ADMIN : UserRole.STAKEHOLDER;
+    const nextRole =
+      requestedRole === UserRole.ADMIN ? UserRole.ADMIN :
+      requestedRole === UserRole.QA ? UserRole.QA :
+      UserRole.STAKEHOLDER;
     const updates: { name?: string; countryCode?: string | null; isActive?: boolean; role?: UserRole } = {};
 
     if (name !== undefined) {
@@ -89,7 +92,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (requestedRole !== undefined) updates.role = nextRole;
 
     if (productIds !== undefined) {
-      if (nextRole === UserRole.STAKEHOLDER && productIds.length === 0) {
+      if ((nextRole === UserRole.STAKEHOLDER || nextRole === UserRole.QA) && productIds.length === 0) {
         return badRequest('At least one product is required', 'PRODUCT_ACCESS_REQUIRED');
       }
       if (scope.restricted && productIds.some((productId) => !scope.productIds.includes(productId))) {

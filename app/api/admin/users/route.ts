@@ -18,7 +18,9 @@ type CreateUserBody = {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function normalizeRole(role?: string): UserRole {
-  if (role?.toUpperCase() === 'ADMIN') return UserRole.ADMIN;
+  const upper = role?.toUpperCase();
+  if (upper === 'ADMIN') return UserRole.ADMIN;
+  if (upper === 'QA') return UserRole.QA;
   return UserRole.STAKEHOLDER;
 }
 
@@ -90,6 +92,7 @@ export async function POST(req: Request) {
   if (!name) return badRequest('Name is required', 'NAME_REQUIRED');
   if (!EMAIL_REGEX.test(email)) return badRequest('Valid email is required', 'EMAIL_INVALID');
   if (role === UserRole.STAKEHOLDER && !countryCode) return badRequest('Country is required for stakeholders', 'COUNTRY_REQUIRED');
+  if (role === UserRole.QA && productIds.length === 0) return badRequest('At least one product is required for QA users', 'PRODUCT_ACCESS_REQUIRED');
   if (temporaryPassword.length < 8) return badRequest('Temporary password must be at least 8 characters', 'PASSWORD_TOO_SHORT');
   if (productIds.length === 0) return badRequest('At least one product is required', 'PRODUCT_ACCESS_REQUIRED');
 

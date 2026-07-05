@@ -9,7 +9,11 @@ export async function middleware(req: NextRequest) {
   // Rate limiting for API routes
   if (req.nextUrl.pathname.startsWith('/api/') &&
       !req.nextUrl.pathname.startsWith('/api/auth/')) {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    // Prefer x-real-ip (set by Vercel edge, not overrideable by clients) over
+    // x-forwarded-for which clients can prepend arbitrary values to.
+    const ip = req.headers.get('x-real-ip')?.trim()
+            || req.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim()
+            || 'unknown';
     const isWrite = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
     const limit = isWrite ? 30 : 120;
     const { allowed, remaining, resetInMs } = checkRateLimit(`${ip}:${isWrite ? 'w' : 'r'}`, limit);
@@ -29,6 +33,19 @@ export async function middleware(req: NextRequest) {
   }
 
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+
+  // Server-side mustChangePassword enforcement — block all access except the
+  // password-change endpoint itself so the gate can't be bypassed via API calls.
+  if (token?.mustChangePassword) {
+    const isChangePasswordApi = pathname === '/api/users/change-password';
+    const isAuthApi = pathname.startsWith('/api/auth/');
+    if (pathname.startsWith('/api/') && !isChangePasswordApi && !isAuthApi) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Password change required', code: 'MUST_CHANGE_PASSWORD' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+  }
 
   const isAdminRoute = pathname.startsWith('/admin') || pathname === '/import';
   const isTaskRoute = pathname.startsWith('/tasks');

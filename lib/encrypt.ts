@@ -19,17 +19,20 @@ function getKey(): Buffer {
  */
 export function encryptField(plaintext: string | null | undefined): string | null {
   if (!plaintext) return null;
-  try {
-    const key = getKey();
-    const iv = randomBytes(12);
-    const cipher = createCipheriv(ALGORITHM, key, iv);
-    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-    const authTag = cipher.getAuthTag();
-    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`;
-  } catch {
-    // If encryption key not configured (e.g. dev), store plaintext with a marker
+  if (!KEY_HEX) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('WEBHOOK_ENCRYPTION_KEY is required in production — cannot store sensitive field in plaintext');
+    }
+    // Dev/test: warn and fall through without encryption
+    console.warn('[encrypt] WEBHOOK_ENCRYPTION_KEY not set — storing sensitive field as plaintext (dev only)');
     return plaintext;
   }
+  const key = getKey();
+  const iv = randomBytes(12);
+  const cipher = createCipheriv(ALGORITHM, key, iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`;
 }
 
 /**

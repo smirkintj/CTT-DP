@@ -18,6 +18,7 @@ export async function GET() {
   const authConfigured = Boolean(process.env.NEXTAUTH_SECRET && process.env.NEXTAUTH_URL);
   const emailConfigured = Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
   const databaseConfigured = Boolean(process.env.DATABASE_URL);
+  const encryptionConfigured = Boolean(process.env.WEBHOOK_ENCRYPTION_KEY);
   const checksOk = dbOk && authConfigured && databaseConfigured;
 
   const payload = {
@@ -30,7 +31,8 @@ export async function GET() {
       database: dbOk ? 'ok' : 'fail',
       authConfig: authConfigured ? 'ok' : 'fail',
       emailConfig: emailConfigured ? 'ok' : 'warn',
-      databaseConfig: databaseConfigured ? 'ok' : 'fail'
+      databaseConfig: databaseConfigured ? 'ok' : 'fail',
+      encryptionConfig: encryptionConfigured ? 'ok' : 'warn'
     },
     queryTimeMs: Date.now() - startedAt,
     ...(process.env.NODE_ENV !== 'production' && dbError ? { detail: dbError } : {})

@@ -16,6 +16,7 @@ export type SitTestRow = {
  */
 export async function parseExcel(buffer: Buffer): Promise<SitTestRow[]> {
   const workbook = new ExcelJS.Workbook();
+  // @ts-expect-error: @types/node ≥22 types Buffer<ArrayBufferLike>; exceljs expects non-generic Buffer — runtime is identical
   await workbook.xlsx.load(buffer);
 
   const sheet = workbook.worksheets[0];
@@ -23,8 +24,14 @@ export async function parseExcel(buffer: Buffer): Promise<SitTestRow[]> {
 
   const normalize = (val: ExcelJS.CellValue): string => {
     if (val === null || val === undefined) return '';
-    if (typeof val === 'object' && 'text' in val) return String((val as ExcelJS.CellRichTextValue).text ?? '').trim();
-    if (typeof val === 'object' && 'result' in val) return String((val as ExcelJS.CellFormulaValue).result ?? '').trim();
+    if (typeof val === 'object') {
+      // CellRichTextValue: { richText: RichTextValue[] }
+      if ('richText' in val) return (val as ExcelJS.CellRichTextValue).richText.map((r) => r.text).join('').trim();
+      // CellHyperlinkValue: { text: string; hyperlink: string }
+      if ('text' in val) return String((val as { text: string }).text ?? '').trim();
+      // CellFormulaValue: { result: ... }
+      if ('result' in val) return String((val as ExcelJS.CellFormulaValue).result ?? '').trim();
+    }
     return String(val).trim();
   };
 

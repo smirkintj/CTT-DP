@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/auth';
 import prisma from '../../../../../lib/prisma';
 import { unauthorized, forbidden, badRequest, notFound } from '../../../../../lib/apiError';
+import { createAdminAudit } from '../../../../../lib/adminAudit';
 import type { GeneratedTaskData } from '../../../../../lib/generateDraftTask';
 
 type ApproveBody = {
@@ -54,6 +55,11 @@ export async function PATCH(
         reviewedById: session.user.id,
         reviewedAt: new Date(),
       }
+    });
+    await createAdminAudit({
+      actorId: session.user.id,
+      message: `Admin rejected draft task ${id} (${draft.product.jiraProjectKey ?? ''} / ${draft.jiraTicket}).`,
+      metadata: { action: 'DRAFT_TASK_REJECTED', draftTaskId: id, reason: (body as RejectBody).reason ?? null }
     });
     return NextResponse.json({ ok: true, status: 'REJECTED' });
   }
@@ -135,6 +141,12 @@ export async function PATCH(
         reviewedById: session.user.id,
         reviewedAt: new Date(),
       }
+    });
+
+    await createAdminAudit({
+      actorId: session.user.id,
+      message: `Admin approved draft task ${id} (${draft.jiraTicket}) — created ${createdIds.length} UAT task(s).`,
+      metadata: { action: 'DRAFT_TASK_APPROVED', draftTaskId: id, taskIds: createdIds }
     });
 
     return NextResponse.json({ ok: true, status: 'APPROVED', taskIds: createdIds });

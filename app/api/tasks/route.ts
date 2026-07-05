@@ -128,7 +128,7 @@ export async function POST(req: Request) {
   const title = body?.title?.toString().trim();
   const description = body?.description?.toString() ?? '';
   const productId = body?.productId?.toString().trim();
-  const moduleName = body?.module?.toString().trim() || body?.featureModule?.toString().trim() || 'General';
+  const moduleName = body?.module?.toString().trim() || body?.featureModule?.toString().trim() || null;
   const targetSystemId = body?.targetSystemId?.toString().trim() || null;
   const jiraTicket = body?.jiraTicket?.toString().trim() || null;
   const jiraTicketVerified = typeof body?.jiraTicketVerified === 'boolean' ? body.jiraTicketVerified : false;
@@ -149,6 +149,9 @@ export async function POST(req: Request) {
   }
   if (title.length > 200) {
     return badRequest('Title is too long', 'TASK_TITLE_TOO_LONG');
+  }
+  if (description.length > 10_000) {
+    return badRequest('Description is too long (max 10,000 characters)', 'TASK_DESCRIPTION_TOO_LONG');
   }
   if (countries.length === 0) {
     return badRequest('At least one country is required', 'TASK_COUNTRY_REQUIRED');
@@ -188,15 +191,13 @@ export async function POST(req: Request) {
     return forbidden('Forbidden', 'ADMIN_PRODUCT_FORBIDDEN');
   }
 
-  const moduleRecord = await prisma.module.findFirst({
-    where: {
-      productId,
-      name: moduleName,
-      isActive: true
-    },
-    select: { id: true }
-  });
-  if (!moduleRecord) {
+  const moduleRecord = moduleName
+    ? await prisma.module.findFirst({
+        where: { productId, name: moduleName, isActive: true },
+        select: { id: true }
+      })
+    : null;
+  if (moduleName && !moduleRecord) {
     return badRequest('Module is invalid for the selected product', 'TASK_MODULE_INVALID');
   }
 

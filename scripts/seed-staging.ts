@@ -1118,16 +1118,16 @@ async function main() {
 
   console.log('\n🎉 Staging seed complete!\n');
   console.log('─────────────────────────────────────────');
-  console.log('CREDENTIALS');
+  console.log('CREDENTIALS (passwords from env vars — not printed)');
   console.log('─────────────────────────────────────────');
-  console.log(`Admin:        putra.mahirudin@dksh.com / ${ADMIN_PASSWORD}`);
-  console.log(`Admin:        putra.mahirudin@gmail.com / ${ADMIN_PASSWORD}`);
-  console.log(`Admin:        leong.keen@dksh.com / ${ADMIN_PASSWORD}`);
-  console.log(`Stakeholder:  uat-my@dksh.com (Atiqah) / ${USER_PASSWORD}`);
-  console.log(`Stakeholder:  uat-sg@dksh.com / ${USER_PASSWORD}`);
-  console.log(`Stakeholder:  uat-tw@dksh.com (Lin Hsiao-Ming) / ${USER_PASSWORD}`);
-  console.log(`QA (pilot):   qa-eo@dksh.com (Nurul Ain) / ${USER_PASSWORD}`);
-  console.log(`QA:           qa-sh@dksh.com (Ravi Kumar) / ${USER_PASSWORD}`);
+  console.log('Admin:        putra.mahirudin@dksh.com   (SEED_ADMIN_PASSWORD)');
+  console.log('Admin:        putra.mahirudin@gmail.com  (SEED_ADMIN_PASSWORD)');
+  console.log('Admin:        leong.keen@dksh.com        (SEED_ADMIN_PASSWORD)');
+  console.log('Stakeholder:  uat-my@dksh.com (Atiqah)  (SEED_USER_PASSWORD)');
+  console.log('Stakeholder:  uat-sg@dksh.com            (SEED_USER_PASSWORD)');
+  console.log('Stakeholder:  uat-tw@dksh.com            (SEED_USER_PASSWORD)');
+  console.log('QA (pilot):   qa-eo@dksh.com (Nurul)    (SEED_USER_PASSWORD)');
+  console.log('QA:           qa-sh@dksh.com (Ravi)      (SEED_USER_PASSWORD)');
   console.log('─────────────────────────────────────────');
   console.log('\nSIT TASKS SEEDED:');
   console.log('  EO-3000  Sprint 4  SIGNED_OFF  — full flow demo (CONDITIONAL + acknowledged)');
