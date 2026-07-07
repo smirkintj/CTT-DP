@@ -927,9 +927,10 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = () => {
 
                     <div className="space-y-2">
                       {products.map((product) => (
-                        <button
+                        <div
                           key={product.id}
-                          type="button"
+                          role="button"
+                          tabIndex={0}
                           onClick={() => {
                             setSelectedProductId(product.id);
                             setProductLinksSubTab('modules');
@@ -939,7 +940,18 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = () => {
                             setModules(product.modules.map((module) => module.name));
                             void loadProductHelpfulLinks(product.id);
                           }}
-                          className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
+                          onKeyDown={(event) => {
+                            if (event.key !== 'Enter' && event.key !== ' ') return;
+                            event.preventDefault();
+                            setSelectedProductId(product.id);
+                            setProductLinksSubTab('modules');
+                            setProductHelpfulLinks([]);
+                            setSavedProductHelpfulLinks([]);
+                            setProductHelpfulLinksSaveState('idle');
+                            setModules(product.modules.map((module) => module.name));
+                            void loadProductHelpfulLinks(product.id);
+                          }}
+                          className={`w-full rounded-xl border px-4 py-3 text-left transition-colors cursor-pointer ${
                             selectedProductId === product.id
                               ? 'border-slate-900 bg-slate-900 text-white'
                               : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
@@ -963,7 +975,7 @@ export const AdminDatabase: React.FC<AdminDatabaseProps> = () => {
                               <Trash2 size={16} />
                             </button>
                           </div>
-                        </button>
+                        </div>
                       ))}
                     </div>
                   </div>

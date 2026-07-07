@@ -51,7 +51,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = () => {
     name: string;
     email: string;
     countryCode: string;
-    productAccesses?: Array<{ id: string; name: string; slug: string }>;
+    productAccesses?: Array<{ id: string; productId: string; product?: { id: string; name: string; slug: string } }>;
   }>>([]);
   const [products, setProducts] = useState<AdminProductConfig[]>([]);
   const [assigneeByCountry, setAssigneeByCountry] = useState<Record<string, string>>({});
@@ -273,7 +273,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = () => {
     const loadMetadata = async () => {
       try {
         const [data, config] = await Promise.all([
-          apiFetch<Array<{ id: string; name: string; email: string; countryCode: string; productAccesses?: Array<{ id: string; name: string; slug: string }> }>>(
+          apiFetch<Array<{ id: string; name: string; email: string; countryCode: string; productAccesses?: Array<{ id: string; productId: string; product?: { id: string; name: string; slug: string } }> }>>(
           '/api/admin/stakeholders',
           { cache: 'no-store' }
           ),
@@ -317,7 +317,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = () => {
             (u) =>
               u.countryCode === countryCode &&
               (newTask.productId
-                ? (u.productAccesses ?? []).some((access) => access.id === newTask.productId)
+                ? (u.productAccesses ?? []).some((access) => access.productId === newTask.productId)
                 : true)
           );
           if (match) next[countryCode] = match.id;
@@ -378,7 +378,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = () => {
   const filteredTasks = useMemo(() => {
     const filtered = tasks.filter(t =>
       t.title.toLowerCase().includes(deferredSearchTerm.toLowerCase()) ||
-      t.featureModule.toLowerCase().includes(deferredSearchTerm.toLowerCase())
+      (t.featureModule || '').toLowerCase().includes(deferredSearchTerm.toLowerCase())
     );
 
     const statusFiltered = statusFilter === 'ALL'
@@ -1541,7 +1541,7 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = () => {
                             (u) =>
                               u.countryCode === countryCode &&
                               (newTask.productId
-                                ? (u.productAccesses ?? []).some((access) => access.id === newTask.productId)
+                                ? (u.productAccesses ?? []).some((access) => access.productId === newTask.productId)
                                 : true)
                           );
                           return (

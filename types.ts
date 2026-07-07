@@ -54,7 +54,7 @@ export interface Task {
   productId: string;
   productName: string;
   productSlug?: string;
-  featureModule: string; 
+  featureModule: string | null;
   status: Status;
   priority: Priority;
   countryCode: string;

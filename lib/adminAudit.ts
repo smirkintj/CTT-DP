@@ -15,10 +15,10 @@ export async function createAdminAudit(input: AdminAuditInput) {
         type: ActivityType.STATUS_CHANGED,
         actorId: input.actorId ?? null,
         countryCode: input.countryCode ?? null,
-        message:
-          input.metadata && process.env.NODE_ENV !== 'production'
-            ? `${input.message} ${JSON.stringify(input.metadata)}`
-            : input.message
+        // Never embed `metadata` (internal IDs, action codes) into the stored
+        // message — this Activity feed is also read by non-admin users, so
+        // anything written here is potentially user-facing.
+        message: input.message
       }
     });
   } catch (error) {

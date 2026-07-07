@@ -17,7 +17,12 @@ export async function GET() {
         OR: [
           { actorId: session.user.id },
           { task: { assigneeId: session.user.id } },
-          ...(session.user.countryCode ? [{ countryCode: session.user.countryCode }] : [])
+          // Country-scoped task activity only — excludes admin-only audit entries
+          // (created via createAdminAudit, e.g. user/product management), which are
+          // never attached to a task and shouldn't appear in a stakeholder's feed.
+          ...(session.user.countryCode
+            ? [{ countryCode: session.user.countryCode, taskId: { not: null } }]
+            : [])
         ]
       };
 

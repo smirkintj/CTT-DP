@@ -627,12 +627,16 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
         setSigningOff(false);
         return;
       }
+      // persistStatus() changes the task's updatedAt server-side; re-fetch so the
+      // signoff request below sends a current expectedUpdatedAt instead of the
+      // value captured before the status change (which would always 409).
+      const freshTask = await refreshTask(localTask.id, { silentOnError: true });
       const response = await fetch(`/api/tasks/${localTask.id}/signoff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           signatureData,
-          expectedUpdatedAt: localTask.updatedAt
+          expectedUpdatedAt: freshTask?.updatedAt ?? localTask.updatedAt
         })
       });
       if (!response.ok) {

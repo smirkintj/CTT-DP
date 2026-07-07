@@ -97,7 +97,7 @@ export const StakeholderDashboard: React.FC<StakeholderDashboardProps> = () => {
       return (
         task.title.toLowerCase().includes(query) ||
         (task.productName || '').toLowerCase().includes(query) ||
-        task.featureModule.toLowerCase().includes(query) ||
+        (task.featureModule || '').toLowerCase().includes(query) ||
         (task.description || '').toLowerCase().includes(query)
       );
     });
