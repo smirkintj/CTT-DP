@@ -40,6 +40,7 @@ export async function GET() {
       tasks = await prisma.task.findMany({
         where,
         include: taskRelationIncludeList,
+        relationLoadStrategy: 'join',
         orderBy: { updatedAt: 'desc' },
         take: 500
       });

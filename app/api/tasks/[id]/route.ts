@@ -34,7 +34,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     try {
       task = await prisma.task.findUnique({
         where: { id },
-        include: taskRelationIncludeFull
+        include: taskRelationIncludeFull,
+        relationLoadStrategy: 'join'
       });
     } catch {
       task = await prisma.task.findUnique({
