@@ -16,14 +16,14 @@ export type SitTestRow = {
  */
 export async function parseExcel(buffer: Buffer): Promise<SitTestRow[]> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
+  await workbook.xlsx.load(buffer as any);
 
   const sheet = workbook.worksheets[0];
   if (!sheet) return [];
 
   const normalize = (val: ExcelJS.CellValue): string => {
     if (val === null || val === undefined) return '';
-    if (typeof val === 'object' && 'text' in val) return String((val as ExcelJS.CellRichTextValue).text ?? '').trim();
+    if (typeof val === 'object' && 'text' in val) return String((val as { text?: unknown }).text ?? '').trim();
     if (typeof val === 'object' && 'result' in val) return String((val as ExcelJS.CellFormulaValue).result ?? '').trim();
     return String(val).trim();
   };
