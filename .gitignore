@@ -41,3 +41,7 @@ lerna-debug.log*
 .env*.local
 .superpowers/
 tsx-501/
+
+# Hermes agent UAT drafts — never commit generated content
+drafts/uat/*
+!drafts/uat/.gitkeep

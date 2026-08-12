@@ -542,7 +542,7 @@ Also:
   - `SECURITY_COMPLIANCE_CHECKLIST.md`
   - `AZURE_BITBUCKET_MIGRATION_PLAN.md`
   - `ISO27001_UAT_CHECKLIST.md`
-  - `HERMES_AGENT.md` — external agent integration for drafting UAT test cases (CSV compatible with the Import Wizard)
+  - `AGENTS.md` — external agent integration for drafting UAT test cases (CSV compatible with the Import Wizard)
 
 ## Known Technical Debt / Next Candidates
 - Move Tailwind usage from CDN-style setup into full config-based pipeline if desired.

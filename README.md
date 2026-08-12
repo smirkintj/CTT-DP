@@ -243,7 +243,7 @@ Security notes:
   - security and compliance checklist: `/Users/putra/Desktop/Code/CTT-DKSH-main/SECURITY_COMPLIANCE_CHECKLIST.md`
   - Azure / Bitbucket migration plan: `/Users/putra/Desktop/Code/CTT-DKSH-main/AZURE_BITBUCKET_MIGRATION_PLAN.md`
   - ISO 27001:2013 aligned UAT checklist: `/Users/putra/Desktop/Code/CTT-DKSH-main/ISO27001_UAT_CHECKLIST.md`
-  - Hermes agent UAT-drafting integration: `HERMES_AGENT.md`
+  - Hermes agent UAT-drafting integration: `AGENTS.md`
 - Import wizard:
   - `/import` supports CSV files exported from Excel (header row required).
   - Admin maps columns (description/expected result/actual result/test data), manually fixes missing preview fields inline, and then either:
