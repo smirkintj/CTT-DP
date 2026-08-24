@@ -10,9 +10,10 @@
  *    later sheet, so the sheet is resolved by header signature, never by index.
  *  - One spreadsheet row = one test case = one TaskStep. Rows are grouped into
  *    Tasks by Jira user story, which is how CTT models a unit of UAT work.
- *  - The Status column is the *SIT* outcome. It is deliberately NOT copied into
- *    TaskStep.actualResult: a freshly created UAT task must start unanswered or
- *    the UAT tester inherits SIT's verdict. It is kept as reference context.
+ *  - The uploaded file is normally the QA's *executed* sheet, so it carries
+ *    their run: verdict, evidence links, tester names, SIT environment. That is
+ *    a record of SIT, not input to UAT, and is dropped — see DROPPED_COLUMNS.
+ *    Carrying it over would pre-answer a UAT run nobody has performed yet.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -37,6 +38,31 @@ const HEADER_ALIASES = {
 };
 
 const COUNTRY_CODES = ['MY', 'SG', 'TH', 'VN', 'TW', 'HK', 'CN', 'ID', 'PH', 'KR', 'JP', 'IN', 'AU', 'NZ'];
+
+/**
+ * Columns read only to derive task fields, then discarded. They describe how
+ * SIT was executed and would be stale or misleading on a new UAT task.
+ * Reported by --report so a reviewer can see what was removed.
+ */
+const DROPPED_COLUMNS = {
+  status: 'SIT verdict (Pass/Fail/Not Started) — UAT starts unanswered',
+  actual: 'SIT actual result and evidence links — belongs to the SIT run',
+  tester: 'SIT tester name and execution date',
+  environment: 'SIT environment — UAT targets its own environment',
+  sprint: 'Sprint ID — SIT planning metadata'
+};
+
+/** Evidence/recording links QA paste into cells (jam.dev, Loom, screenshots). */
+const EVIDENCE_URL = /https?:\/\/\S*(jam\.dev|loom\.com|drive\.google|sharepoint|imgur)\S*/gi;
+
+/** Remove evidence links and trailing verdict noise that leaked into a cell. */
+function stripRunResidue(text) {
+  return clean(text)
+    .replace(EVIDENCE_URL, '')
+    .replace(/^\s*(pass|fail|passed|failed|not started|blocked|n\/?a)\s*$/gim, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 
 function resolveSheet(wb) {
   // Score every sheet by how many required headers appear in its first rows.
@@ -190,16 +216,20 @@ function extract(filePath) {
     if (!row || !clean(row[idx.testCaseId])) continue;
     if (!cell(row, 'name') && !cell(row, 'steps')) continue;
 
-    const { preconditions, actions } = parseSteps(cell(row, 'steps'));
+    const { preconditions, actions } = parseSteps(stripRunResidue(cell(row, 'steps')));
+    const rawTestData = cell(row, 'testData');
     cases.push({
       excelRow: r + 1,
       testCaseId: cell(row, 'testCaseId'),
       name: cell(row, 'name'),
-      description: cell(row, 'description'),
+      description: stripRunResidue(cell(row, 'description')),
       preconditions,
       actions,
-      expected: parseExpected(cell(row, 'expected')),
-      testData: cell(row, 'testData'),
+      expected: parseExpected(stripRunResidue(cell(row, 'expected'))),
+      // A cell holding only a country code is a market marker, not test data —
+      // it feeds country detection below and is not carried onto the step.
+      testData: COUNTRY_CODES.includes(rawTestData.toUpperCase()) ? '' : stripRunResidue(rawTestData),
+      // Read for the dropped-column report only; never emitted onto a step.
       sitStatus: cell(row, 'status'),
       sitEvidence: cell(row, 'actual'),
       priority: mapPriority(cell(row, 'priority')),
@@ -230,7 +260,7 @@ function extract(filePath) {
     tasks.push({
       jiraTicket: items[0].jira || null,
       title: stripCountryPrefix(items[0].module) || key,
-      description: `UAT for ${key}: ${items.length} test case(s) carried over from SIT (${items[0].category || 'Functionality'}).`,
+      description: `${stripCountryPrefix(items[0].module) || key} — ${items.length} test case(s) to verify for ${key}.`,
       module: stripCountryPrefix(items[0].module) || null,
       priority,
       status: 'DRAFT',
@@ -256,15 +286,30 @@ function extract(filePath) {
           testData: c.testData || null,
           // Left empty on purpose — this is a fresh UAT run, not SIT's verdict.
           actualResult: null,
-          _sourceRow: c.excelRow,
-          _sitStatus: c.sitStatus,
-          _sitEvidence: c.sitEvidence
+          // Provenance, not SIT run data: lets a reviewer trace a step back to
+          // its spreadsheet row.
+          sourceRow: c.excelRow
         };
       })
     });
   }
 
-  return { sheetName: sheet.name, headerRow: sheet.headerRow + 1, caseCount: cases.length, tasks };
+  const dropped = Object.entries(DROPPED_COLUMNS).map(([key, why]) => ({
+    column: key,
+    why,
+    nonEmptyCells:
+      key === 'status' ? cases.filter((c) => c.sitStatus).length
+      : key === 'actual' ? cases.filter((c) => c.sitEvidence).length
+      : null
+  }));
+
+  return {
+    sheetName: sheet.name,
+    headerRow: sheet.headerRow + 1,
+    caseCount: cases.length,
+    dropped,
+    tasks
+  };
 }
 
 const file = process.argv[2];
@@ -288,6 +333,12 @@ for (const t of result.tasks) {
   console.log(`${t.jiraTicket ?? '—'}  [${t.priority}]  ${country}  ${t.steps.length} steps  ${t.title}`);
   for (const s of t.steps) {
     const head = s.description.split('\n')[0];
-    console.log(`    ${String(s.order).padStart(2)}. ${head.slice(0, 62)}  (${s.expectedResult.split('\n').length} checks, SIT: ${s._sitStatus || 'n/a'})`);
+    console.log(`    ${String(s.order).padStart(2)}. ${head.slice(0, 66)}  (${s.expectedResult.split('\n').length} checks)`);
   }
+}
+
+console.log('\nDropped SIT execution columns:');
+for (const d of result.dropped) {
+  const count = d.nonEmptyCells === null ? '' : ` [${d.nonEmptyCells} cells]`;
+  console.log(`  - ${d.column}${count}: ${d.why}`);
 }
