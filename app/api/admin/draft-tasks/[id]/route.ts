@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../../lib/auth';
 import prisma from '../../../../../lib/prisma';
 import { unauthorized, forbidden, badRequest, notFound } from '../../../../../lib/apiError';
+import { createAdminAudit } from '../../../../../lib/adminAudit';
 import type { GeneratedTaskData } from '../../../../../lib/generateDraftTask';
 
 type ApproveBody = {
@@ -55,6 +56,13 @@ export async function PATCH(
         reviewedAt: new Date(),
       }
     });
+
+    await createAdminAudit({
+      actorId: session.user.id,
+      message: `${session.user.name || session.user.email || 'Admin'} rejected AI draft task for ${draft.jiraTicket}.`,
+      metadata: { draftTaskId: id, jiraTicket: draft.jiraTicket, reason: (body as RejectBody).reason ?? null }
+    });
+
     return NextResponse.json({ ok: true, status: 'REJECTED' });
   }
 
@@ -134,6 +142,17 @@ export async function PATCH(
         resultTaskIds: createdIds,
         reviewedById: session.user.id,
         reviewedAt: new Date(),
+      }
+    });
+
+    await createAdminAudit({
+      actorId: session.user.id,
+      message: `${session.user.name || session.user.email || 'Admin'} approved AI draft task for ${draft.jiraTicket}, creating ${createdIds.length} UAT task(s).`,
+      metadata: {
+        draftTaskId: id,
+        jiraTicket: draft.jiraTicket,
+        countries: taskData.countries,
+        taskIds: createdIds
       }
     });
 

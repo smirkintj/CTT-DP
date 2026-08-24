@@ -6,7 +6,11 @@ import { generateDraftTask } from '../../../../lib/generateDraftTask';
 import { sendDraftTaskReadyEmail } from '../../../../lib/email';
 
 const SIT_COMPLETE_KEYWORD = process.env.SIT_COMPLETE_KEYWORD || 'SIT completed';
-const POLL_WINDOW_HOURS = 2;
+// Must cover the gap between cron runs, plus overlap so nothing is missed at the
+// boundary. Vercel Hobby allows one run per day, so this defaults to 26h.
+// Already-processed tickets are skipped by the DraftTask lookup below, so
+// re-scanning the overlap is harmless.
+const POLL_WINDOW_HOURS = Number(process.env.SIT_POLL_WINDOW_HOURS) || 26;
 
 export async function GET(req: Request) {
   // Auth: require CRON_SECRET — hard fail if the var is missing (prevents open cron trigger)
