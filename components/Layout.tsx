@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Role } from '../types';
-import { LogOut, LayoutGrid, Bell, MessageSquare, AlertCircle, Check, Info, List, Database, BookOpen, Sparkles } from 'lucide-react';
+import { LogOut, LayoutGrid, Bell, MessageSquare, AlertCircle, Check, Info, List, Database, BookOpen, Sparkles, Settings } from 'lucide-react';
 import { AssistantDock } from './AssistantDock';
 import { sessionToUser } from '@/lib/sessionToUser';
 import { useActivities } from './ActivitiesContext';
@@ -72,6 +72,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const isJiraQueue = pathname === '/admin/jira-intake';
   const isAdminDb = pathname === '/admin/database';
   const isDraftTasks = pathname === '/admin/draft-tasks';
+  const isAdminSettings = pathname === '/admin/settings';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
@@ -104,6 +105,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                     <NavItem active={isJiraQueue} icon={<Sparkles size={16} />} label="JIRA Queue" onClick={() => router.push('/admin/jira-intake')} />
                     <NavItem active={isDraftTasks} icon={<Sparkles size={16} />} label="AI Drafts" onClick={() => router.push('/admin/draft-tasks')} />
                     <NavItem active={isAdminDb} icon={<Database size={16} />} label="Config" onClick={() => router.push('/admin/database')} />
+                    <NavItem active={isAdminSettings} icon={<Settings size={16} />} label="Settings" onClick={() => router.push('/admin/settings')} />
                   </>
                 )}
               </nav>
