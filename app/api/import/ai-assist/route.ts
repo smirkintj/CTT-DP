@@ -27,11 +27,13 @@ function buildUserPrompt(input: {
   productName?: string;
   countryCode?: string;
   taskTitle?: string;
+  stories?: string;
 }): string {
   const context = [
     input.productName && `Product: ${input.productName}`,
     input.countryCode && `Market: ${input.countryCode}`,
-    input.taskTitle && `Task: ${input.taskTitle}`
+    input.taskTitle && `Task: ${input.taskTitle}`,
+    input.stories && `Jira stories selected for this import: ${input.stories}`
   ]
     .filter(Boolean)
     .join(' | ');
@@ -48,6 +50,10 @@ ${sampleText}
 
 TASK 1 — Column Mapping:
 Map each CTT field to the best matching column. Use an empty string if not found.
+The upload is usually QA's completed SIT sheet, so ignore columns recording how
+SIT was executed — Status/Result verdicts, Actual Result or evidence links,
+tester name and date, environment, sprint id. Never map those to actualResult:
+a new UAT task must start unanswered.
 Fields:
 - description: the test step action / what the tester should do
 - expectedResult: what should happen if the step passes
@@ -112,7 +118,8 @@ export async function POST(req: Request) {
     totalRows: typeof body.totalRows === 'number' ? body.totalRows : body.sampleRows.length,
     productName: typeof body.productName === 'string' ? body.productName : undefined,
     countryCode: typeof body.countryCode === 'string' ? body.countryCode : undefined,
-    taskTitle: typeof body.taskTitle === 'string' ? body.taskTitle : undefined
+    taskTitle: typeof body.taskTitle === 'string' ? body.taskTitle : undefined,
+    stories: typeof body.stories === 'string' ? body.stories : undefined
   });
 
   const raw = await callAiProvider(SYSTEM_PROMPT, prompt);

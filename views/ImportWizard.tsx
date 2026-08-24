@@ -7,6 +7,7 @@ import { CountryConfig, Priority, Task, TestStep } from '../types';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
 import { notify } from '../lib/notify';
 import { isValidDueDate } from '../lib/taskValidation';
+import { detectCountries, resolveSheet, stripCountryPrefix } from '../lib/sitWorkbook';
 
 type ParsedRow = Record<string, string>;
 type PreviewStep = Pick<TestStep, 'id' | 'order' | 'description' | 'expectedResult' | 'actualResult' | 'testData'>;
@@ -15,6 +16,13 @@ type ImportMode = 'existing' | 'new';
 type AiInsights = {
   summary: string;
   insights: string[];
+};
+
+type StoryOption = {
+  key: string;
+  title: string;
+  caseCount: number;
+  countries: string[];
 };
 
 function parseCsv(text: string): ParsedRow[] {
@@ -80,14 +88,28 @@ function parseCsv(text: string): ParsedRow[] {
   return dataRows;
 }
 
-async function parseExcel(file: File): Promise<ParsedRow[]> {
+async function parseExcel(file: File): Promise<{ rows: ParsedRow[]; sheetName: string }> {
   const XLSX = await import('xlsx');
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: 'array' });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  if (!sheet) return [];
-  const raw = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: '' }) as string[][];
-  if (raw.length < 2) return [];
+
+  // QA workbooks lead with a "Guideline" cover sheet, so the first sheet is the
+  // wrong default — resolve by header signature and fall back to sheet 1 only
+  // for simple single-sheet exports.
+  const sheets = wb.SheetNames.map((name) => ({
+    name,
+    rows: XLSX.utils.sheet_to_json<string[]>(wb.Sheets[name], {
+      header: 1,
+      defval: ''
+    }) as string[][]
+  }));
+
+  const resolved = resolveSheet(sheets);
+  const chosen = resolved ?? (sheets[0] ? { ...sheets[0], headerRow: 0 } : null);
+  if (!chosen) return { rows: [], sheetName: '' };
+
+  const raw = chosen.rows.slice(chosen.headerRow);
+  if (raw.length < 2) return { rows: [], sheetName: chosen.name };
 
   const headers = (raw[0] as string[]).map((h) => String(h ?? '').trim());
   const dataRows: ParsedRow[] = [];
@@ -102,7 +124,51 @@ async function parseExcel(file: File): Promise<ParsedRow[]> {
     });
     if (hasContent) dataRows.push(parsed);
   }
-  return dataRows;
+  return { rows: dataRows, sheetName: chosen.name };
+}
+
+/** Header in the parsed rows that carries the Jira story key, if any. */
+const STORY_HEADER_ALIASES = ['user story id (jira)', 'user story id', 'jira', 'jira id', 'ticket'];
+
+function findStoryHeader(headers: string[]): string | null {
+  const match = headers.find((h) =>
+    STORY_HEADER_ALIASES.includes(h.trim().toLowerCase().replace(/\s+/g, ' '))
+  );
+  return match ?? null;
+}
+
+/**
+ * A sprint sheet normally carries several Jira stories and only some are ready
+ * for UAT, so the admin picks which ones to draft rather than importing whole.
+ */
+function buildStories(rows: ParsedRow[], storyHeader: string | null): StoryOption[] {
+  if (!storyHeader) return [];
+  const order: string[] = [];
+  const byKey = new Map<string, ParsedRow[]>();
+  for (const row of rows) {
+    const key = (row[storyHeader] || '').trim() || 'Ungrouped';
+    if (!byKey.has(key)) {
+      byKey.set(key, []);
+      order.push(key);
+    }
+    byKey.get(key)!.push(row);
+  }
+  return order.map((key) => {
+    const items = byKey.get(key)!;
+    const moduleHeader = Object.keys(items[0]).find(
+      (h) => h.trim().toLowerCase() === 'module'
+    );
+    const countries = detectCountries(
+      ...items.map((i) => (moduleHeader ? i[moduleHeader] : '')),
+      ...items.map((i) => i['Test Data'] ?? '')
+    );
+    return {
+      key,
+      title: stripCountryPrefix(moduleHeader ? items[0][moduleHeader] : '') || key,
+      caseCount: items.length,
+      countries
+    };
+  });
 }
 
 const defaultNewTaskForm = {
@@ -156,12 +222,32 @@ export const ImportWizard: React.FC = () => {
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiInsights, setAiInsights] = useState<AiInsights | null>(null);
+  const [sheetName, setSheetName] = useState('');
+  const [storyHeader, setStoryHeader] = useState<string | null>(null);
+  const [stories, setStories] = useState<StoryOption[]>([]);
+  const [selectedStories, setSelectedStories] = useState<string[]>([]);
+
+  // Everything downstream — mapping, preview, AI, import — runs on the stories
+  // the admin selected, not the whole sheet.
+  const activeRows = useMemo(() => {
+    if (!storyHeader || selectedStories.length === 0) return rows;
+    return rows.filter((row) =>
+      selectedStories.includes((row[storyHeader] || '').trim() || 'Ungrouped')
+    );
+  }, [rows, storyHeader, selectedStories]);
+
+  const toggleStory = (key: string) => {
+    setSelectedStories((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+    setAiInsights(null);
+  };
 
   const selectedTask = useMemo(() => tasks.find((task) => task.id === selectedTaskId) || null, [selectedTaskId, tasks]);
 
   const mappedSteps = useMemo(() => {
     if (!columnMap.description || !columnMap.expectedResult) return [] as PreviewStep[];
-    return rows
+    return activeRows
       .map((row, index) => ({
         id: `preview-${index + 1}`,
         order: index + 1,
@@ -204,8 +290,11 @@ export const ImportWizard: React.FC = () => {
     }
 
     let parsedRows: ParsedRow[];
+    let parsedSheet = '';
     if (isExcel) {
-      parsedRows = await parseExcel(file);
+      const parsed = await parseExcel(file);
+      parsedRows = parsed.rows;
+      parsedSheet = parsed.sheetName;
     } else {
       const text = await file.text();
       parsedRows = parseCsv(text);
@@ -217,20 +306,35 @@ export const ImportWizard: React.FC = () => {
     }
 
     const nextHeaders = Object.keys(parsedRows[0] || {});
+    const nextStoryHeader = findStoryHeader(nextHeaders);
+    const nextStories = buildStories(parsedRows, nextStoryHeader);
+
     setRows(parsedRows);
     setHeaders(nextHeaders);
     setFileName(file.name);
+    setSheetName(parsedSheet);
+    setStoryHeader(nextStoryHeader);
+    setStories(nextStories);
+    // Start with everything selected so a single-story sheet needs no clicks.
+    setSelectedStories(nextStories.map((s) => s.key));
     setAiInsights(null);
+
+    const pick = (...names: string[]) =>
+      nextHeaders.find((h) => names.includes(h.trim().toLowerCase())) || '';
     setColumnMap({
-      description: nextHeaders[0] || '',
-      expectedResult: nextHeaders[1] || '',
+      description: pick('steps', 'test steps', 'description') || nextHeaders[0] || '',
+      expectedResult: pick('expected result', 'expected') || nextHeaders[1] || '',
       actualResult: '',
-      testData: ''
+      testData: pick('test data') || ''
     });
     setStep(2);
   };
 
   const runAiAssist = async () => {
+    if (stories.length > 0 && selectedStories.length === 0) {
+      notify('Select at least one story for the AI to analyse.', 'error');
+      return;
+    }
     setAiLoading(true);
     setAiInsights(null);
     try {
@@ -239,14 +343,17 @@ export const ImportWizard: React.FC = () => {
         context.taskTitle = selectedTask.title;
       }
       if (newTaskForm.countryCode) context.countryCode = newTaskForm.countryCode;
+      if (selectedStories.length) context.stories = selectedStories.join(', ');
 
       const res = await fetch('/api/import/ai-assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           headers,
-          sampleRows: rows.slice(0, 10),
-          totalRows: rows.length,
+          // Only the selected stories are sent — the AI never sees rows the
+          // admin excluded from this import.
+          sampleRows: activeRows.slice(0, 10),
+          totalRows: activeRows.length,
           ...context
         })
       });
@@ -294,6 +401,10 @@ export const ImportWizard: React.FC = () => {
     setLastImportedTaskId(null);
     setShowReplaceConfirm(false);
     setAiInsights(null);
+    setSheetName('');
+    setStoryHeader(null);
+    setStories([]);
+    setSelectedStories([]);
   };
 
   const importToExistingTask = async (skipConfirm = false): Promise<{ ok: boolean; taskId?: string }> => {
@@ -369,6 +480,10 @@ export const ImportWizard: React.FC = () => {
   const handleImport = async () => {
     if (!columnMap.description || !columnMap.expectedResult) {
       notify('Map description and expected result columns.', 'error');
+      return;
+    }
+    if (stories.length > 0 && selectedStories.length === 0) {
+      notify('Select at least one story to import.', 'error');
       return;
     }
     if (previewSteps.length === 0) { notify('No steps to import.', 'error'); return; }
@@ -459,7 +574,12 @@ export const ImportWizard: React.FC = () => {
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 flex items-center gap-2 text-slate-700 text-sm font-medium flex-1">
                 <FileSpreadsheet size={16} />
                 {fileName || 'File loaded'}
-                <span className="ml-auto text-slate-400 font-normal">{rows.length} rows</span>
+                {sheetName && <span className="text-slate-400 font-normal">· sheet &ldquo;{sheetName}&rdquo;</span>}
+                <span className="ml-auto text-slate-400 font-normal">
+                  {activeRows.length === rows.length
+                    ? `${rows.length} rows`
+                    : `${activeRows.length} of ${rows.length} rows`}
+                </span>
               </div>
               {aiEnabled && (
                 <button
@@ -480,6 +600,83 @@ export const ImportWizard: React.FC = () => {
                 </button>
               )}
             </div>
+
+            {/* Story picker — a sprint sheet carries several Jira stories and
+                usually only some are ready for UAT. */}
+            {stories.length > 1 && (
+              <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-800">
+                      Stories ready for UAT
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Pick which stories to analyse and draft. Unselected rows are ignored.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { setSelectedStories(stories.map((s) => s.key)); setAiInsights(null); }}
+                      className="text-xs font-medium text-slate-500 hover:text-slate-800"
+                    >
+                      Select all
+                    </button>
+                    <span className="text-slate-300">·</span>
+                    <button
+                      onClick={() => { setSelectedStories([]); setAiInsights(null); }}
+                      className="text-xs font-medium text-slate-500 hover:text-slate-800"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {stories.map((s) => {
+                    const checked = selectedStories.includes(s.key);
+                    return (
+                      <label
+                        key={s.key}
+                        className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                          checked
+                            ? 'border-slate-900 bg-slate-50'
+                            : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleStory(s.key)}
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-baseline gap-2">
+                            <span className="text-sm font-semibold text-slate-900">{s.key}</span>
+                            <span className="text-xs text-slate-400">
+                              {s.caseCount} case{s.caseCount === 1 ? '' : 's'}
+                            </span>
+                          </span>
+                          <span className="block text-xs text-slate-600 mt-0.5 truncate">{s.title}</span>
+                          {s.countries.length > 0 && (
+                            <span className="block text-[11px] text-slate-400 mt-1">
+                              {s.countries.length > 1
+                                ? `${s.countries.length} markets: ${s.countries.join(', ')} — needs one task each`
+                                : `Market: ${s.countries[0]}`}
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {selectedStories.length === 0 && (
+                  <p className="text-xs text-amber-700 flex items-center gap-1.5">
+                    <AlertCircle size={13} /> Nothing selected — choose at least one story to continue.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* AI Insights panel */}
             {aiInsights && (
