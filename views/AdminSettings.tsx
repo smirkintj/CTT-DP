@@ -16,8 +16,26 @@ type AiSettings = {
 
 const DEFAULT_MODELS: Record<AiProvider, string> = {
   none: '',
-  anthropic: 'claude-haiku-4-5-20251001',
+  anthropic: 'claude-opus-5',
   deepseek: 'deepseek-chat'
+};
+
+const CUSTOM = '__custom__';
+
+// Known models per provider. "Custom…" stays available so a newly released
+// model can be used without waiting for a code change.
+const MODEL_OPTIONS: Record<AiProvider, Array<{ id: string; label: string }>> = {
+  none: [],
+  anthropic: [
+    { id: 'claude-opus-5', label: 'Claude Opus 5 — most capable' },
+    { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 — balanced' },
+    { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 — fastest and cheapest' },
+    { id: 'claude-fable-5', label: 'Claude Fable 5 — deepest reasoning' }
+  ],
+  deepseek: [
+    { id: 'deepseek-chat', label: 'DeepSeek Chat — general purpose' },
+    { id: 'deepseek-reasoner', label: 'DeepSeek Reasoner — step-by-step' }
+  ]
 };
 
 export const AdminSettings: React.FC = () => {
@@ -30,26 +48,51 @@ export const AdminSettings: React.FC = () => {
   const [showKey, setShowKey] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [useCustomModel, setUseCustomModel] = useState(false);
 
   useEffect(() => {
     fetch('/api/admin/ai-settings')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data) setAiSettings(data);
+        if (!data) return;
+        setAiSettings(data);
+        // A saved model that isn't in the known list (an older or newer id)
+        // must still be editable, so open the custom field for it.
+        const known = MODEL_OPTIONS[data.provider as AiProvider] ?? [];
+        if (data.model && !known.some((m) => m.id === data.model)) {
+          setUseCustomModel(true);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   const handleProviderChange = (provider: AiProvider) => {
+    // Model ids are provider-specific, so carrying the old one across would
+    // send an invalid model. Reset to that provider's default instead.
+    setUseCustomModel(false);
     setAiSettings((prev) => ({
       ...prev,
       provider,
-      model: prev.model || DEFAULT_MODELS[provider]
+      model: DEFAULT_MODELS[provider]
     }));
   };
 
+  const handleModelSelect = (value: string) => {
+    if (value === CUSTOM) {
+      setUseCustomModel(true);
+      setAiSettings((prev) => ({ ...prev, model: '' }));
+      return;
+    }
+    setUseCustomModel(false);
+    setAiSettings((prev) => ({ ...prev, model: value }));
+  };
+
   const handleSave = async () => {
+    if (aiSettings.provider !== 'none' && !aiSettings.model.trim()) {
+      notify('Enter a model id before saving.', 'error');
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch('/api/admin/ai-settings', {
@@ -150,17 +193,34 @@ export const AdminSettings: React.FC = () => {
                 <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
                   Model
                 </label>
-                <input
-                  type="text"
-                  value={aiSettings.model}
-                  onChange={(e) => setAiSettings((prev) => ({ ...prev, model: e.target.value }))}
-                  className={fieldBaseClass}
-                  placeholder={DEFAULT_MODELS[aiSettings.provider]}
-                />
+                <select
+                  value={useCustomModel ? CUSTOM : aiSettings.model}
+                  onChange={(e) => handleModelSelect(e.target.value)}
+                  className={selectBaseClass}
+                >
+                  {MODEL_OPTIONS[aiSettings.provider].map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                  <option value={CUSTOM}>Custom…</option>
+                </select>
+
+                {useCustomModel && (
+                  <input
+                    type="text"
+                    value={aiSettings.model}
+                    onChange={(e) => setAiSettings((prev) => ({ ...prev, model: e.target.value }))}
+                    className={`${fieldBaseClass} mt-2`}
+                    placeholder={`Enter a ${aiSettings.provider} model id`}
+                    autoComplete="off"
+                  />
+                )}
+
                 <p className="text-xs text-slate-400 mt-1">
-                  {aiSettings.provider === 'anthropic'
-                    ? 'e.g. claude-haiku-4-5-20251001, claude-sonnet-5'
-                    : 'e.g. deepseek-chat, deepseek-reasoner'}
+                  {useCustomModel
+                    ? 'Exact model id as the provider expects it.'
+                    : 'Used for import analysis. Cheaper models cost less per import.'}
                 </p>
               </div>
             </>

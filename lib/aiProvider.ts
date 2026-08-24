@@ -48,7 +48,7 @@ export async function callAiProvider(systemPrompt: string, userMessage: string):
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: config.model || 'claude-haiku-4-5-20251001',
+        model: config.model || 'claude-opus-5',
         max_tokens: 1024,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }]
