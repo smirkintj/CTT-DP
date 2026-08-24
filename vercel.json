@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/sit-intake",
-      "schedule": "0 * * * *"
+      "schedule": "0 2 * * *"
     }
   ]
 }
