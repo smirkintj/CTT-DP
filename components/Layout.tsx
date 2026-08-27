@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Role } from '../types';
-import { LogOut, LayoutGrid, Bell, MessageSquare, AlertCircle, Check, Info, List, Database, BookOpen, Sparkles, Settings } from 'lucide-react';
+import { LogOut, LayoutGrid, Bell, MessageSquare, AlertCircle, Check, Info, List, Database, BookOpen, Sparkles, Settings, Ticket, ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { AssistantDock } from './AssistantDock';
 import { sessionToUser } from '@/lib/sessionToUser';
 import { useActivities } from './ActivitiesContext';
@@ -16,17 +16,32 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   const { activities, loading: loadingActivities, markRead, markAllRead } = useActivities();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const adminRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
       }
+      if (adminRef.current && !adminRef.current.contains(event.target as Node)) {
+        setShowAdminMenu(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowNotifications(false);
+        setShowAdminMenu(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, []);
 
   useEffect(() => { setAvatarError(false); }, [currentUser?.avatarUrl]);
@@ -93,20 +108,69 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 </div>
               </div>
 
+              {/* Grouped by what the item is for: where you work, what is
+                  waiting on you, then reference and configuration. */}
               <nav className="hidden md:flex gap-1 ml-4 items-center">
                 <NavItem active={isDashboard} icon={<LayoutGrid size={16} />} label="Dashboard" onClick={() => router.push(dashboardHref)} />
                 {!isAdmin && (
                   <NavItem active={isInbox} icon={<MessageSquare size={16} />} label="Inbox" onClick={() => router.push('/inbox')} />
                 )}
-                <NavItem active={isKnowledgeBase} icon={<BookOpen size={16} />} label="Knowledge Base" onClick={() => router.push('/knowledge-base')} />
+
                 {isAdmin && (
                   <>
                     <NavItem active={isAdminTasks} icon={<List size={16} />} label="Tasks" onClick={() => router.push('/admin/tasks')} />
-                    <NavItem active={isJiraQueue} icon={<Sparkles size={16} />} label="JIRA Queue" onClick={() => router.push('/admin/jira-intake')} />
+
+                    <NavDivider />
+
+                    {/* Both are queues of incoming work awaiting review. */}
+                    <NavItem active={isJiraQueue} icon={<Ticket size={16} />} label="JIRA Queue" onClick={() => router.push('/admin/jira-intake')} />
                     <NavItem active={isDraftTasks} icon={<Sparkles size={16} />} label="AI Drafts" onClick={() => router.push('/admin/draft-tasks')} />
-                    <NavItem active={isAdminDb} icon={<Database size={16} />} label="Config" onClick={() => router.push('/admin/database')} />
-                    <NavItem active={isAdminSettings} icon={<Settings size={16} />} label="Settings" onClick={() => router.push('/admin/settings')} />
+
+                    <NavDivider />
                   </>
+                )}
+
+                <NavItem active={isKnowledgeBase} icon={<BookOpen size={16} />} label="Knowledge Base" onClick={() => router.push('/knowledge-base')} />
+
+                {isAdmin && (
+                  <div className="relative" ref={adminRef}>
+                    <button
+                      onClick={() => setShowAdminMenu((v) => !v)}
+                      aria-haspopup="menu"
+                      aria-expanded={showAdminMenu}
+                      className={`relative flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
+                        isAdminDb || isAdminSettings || showAdminMenu
+                          ? 'bg-slate-100 text-brand-600'
+                          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Settings size={16} />
+                      Admin
+                      <ChevronDown size={13} className={`transition-transform ${showAdminMenu ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showAdminMenu && (
+                      <div
+                        role="menu"
+                        className="absolute left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 ring-1 ring-black ring-opacity-5 overflow-hidden animate-in fade-in slide-in-from-top-2 origin-top-left"
+                      >
+                        <AdminMenuItem
+                          active={isAdminDb}
+                          icon={<Database size={15} />}
+                          label="System Database"
+                          hint="Products, countries, modules, users"
+                          onClick={() => { setShowAdminMenu(false); router.push('/admin/database'); }}
+                        />
+                        <AdminMenuItem
+                          active={isAdminSettings}
+                          icon={<SlidersHorizontal size={15} />}
+                          label="Settings"
+                          hint="AI provider and model"
+                          onClick={() => { setShowAdminMenu(false); router.push('/admin/settings'); }}
+                        />
+                      </div>
+                    )}
+                  </div>
                 )}
               </nav>
             </div>
@@ -230,6 +294,35 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   );
 };
 
+/** Separates nav groups so seven flat items read as three clusters. */
+const NavDivider: React.FC = () => (
+  <span aria-hidden="true" className="mx-1.5 h-4 w-px bg-slate-200 flex-shrink-0" />
+);
+
+const AdminMenuItem: React.FC<{
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  hint: string;
+  onClick: () => void;
+}> = ({ active, icon, label, hint, onClick }) => (
+  <button
+    role="menuitem"
+    onClick={onClick}
+    className={`w-full text-left px-4 py-3 flex items-start gap-3 transition-colors border-l-2 ${
+      active
+        ? 'bg-slate-50 border-brand-500 text-brand-600'
+        : 'border-transparent text-slate-700 hover:bg-slate-50'
+    }`}
+  >
+    <span className={`mt-0.5 ${active ? 'text-brand-600' : 'text-slate-400'}`}>{icon}</span>
+    <span className="min-w-0">
+      <span className="block text-sm font-medium leading-tight">{label}</span>
+      <span className="block text-xs text-slate-500 mt-0.5">{hint}</span>
+    </span>
+  </button>
+);
+
 const NavItem: React.FC<{
   active: boolean;
   icon: React.ReactNode;
@@ -239,7 +332,7 @@ const NavItem: React.FC<{
 }> = ({ active, icon, label, onClick, badge }) => (
   <button
     onClick={onClick}
-    className={`relative flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+    className={`relative flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
       active ? 'bg-slate-100 text-brand-600' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
     }`}
   >
