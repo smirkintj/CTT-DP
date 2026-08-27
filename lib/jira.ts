@@ -221,18 +221,42 @@ export async function searchJiraIssues(
  * Search Jira issues that have a comment matching a keyword within a time window.
  * Returns issue keys with their Excel attachment lists.
  */
+export type JiraIssueMatch = {
+  key: string;
+  summary: string;
+  attachments: Array<{ id: string; filename: string; content: string; mimeType: string; size: number }>;
+  /** Every attachment, so a non-spreadsheet file can be reported rather than look like none. */
+  allAttachmentNames: string[];
+};
+
+export type JiraSearchOutcome = {
+  issues: JiraIssueMatch[];
+  /** The exact JQL used, so an admin can run it in Jira and compare. */
+  jql: string;
+  /** Set when the search itself failed — distinct from a genuine zero result. */
+  error?: string;
+};
+
+/**
+ * Find issues whose comments mention the keyword.
+ *
+ * `withinHours` of 0 means no recency bound — the daily cron only needs a
+ * narrow window, but a manual scan should find anything not yet processed.
+ */
 export async function searchJiraIssuesWithKeywordComment(
   projectKey: string,
   keyword: string,
   withinHours: number,
   perProduct?: Partial<JiraCredentials> | null
-): Promise<Array<{ key: string; summary: string; attachments: Array<{ id: string; filename: string; content: string; mimeType: string; size: number }> }>> {
+): Promise<JiraSearchOutcome> {
+  const recency = withinHours > 0 ? ` AND updated >= "-${withinHours}h"` : '';
+  const jql = `project = "${projectKey}" AND comment ~ "${keyword.replace(/"/g, '\\"')}"${recency} ORDER BY updated DESC`;
+
   const creds = resolveJiraCredentials(perProduct);
-  if (!creds) return [];
+  if (!creds) return { issues: [], jql, error: 'No Jira credentials configured for this product' };
   const authHeader = makeAuthHeader(creds);
 
   try {
-    const jql = `project = "${projectKey}" AND comment ~ "${keyword.replace(/"/g, '\\"')}" AND updated >= "-${withinHours}h" ORDER BY updated DESC`;
     const res = await fetch(`${creds.baseUrl}/rest/api/3/search/jql`, {
       method: 'POST',
       headers: { Authorization: authHeader, Accept: 'application/json', 'Content-Type': 'application/json' },
@@ -240,8 +264,11 @@ export async function searchJiraIssuesWithKeywordComment(
       cache: 'no-store'
     });
     if (!res.ok) {
-      console.error(`[jira] searchJiraIssuesWithKeywordComment → HTTP ${res.status}`);
-      return [];
+      const detail = await res.text().catch(() => '');
+      console.error(`[jira] searchJiraIssuesWithKeywordComment → HTTP ${res.status} ${detail.slice(0, 300)}`);
+      // Previously this returned [], so an auth failure or bad JQL looked
+      // exactly like "no issues matched".
+      return { issues: [], jql, error: `Jira returned HTTP ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''}` };
     }
     const payload = (await res.json()) as {
       issues?: Array<{
@@ -253,16 +280,18 @@ export async function searchJiraIssuesWithKeywordComment(
       }>;
     };
 
-    return (payload.issues ?? []).map((issue) => ({
+    const issues = (payload.issues ?? []).map((issue) => ({
       key: issue.key,
       summary: issue.fields?.summary ?? issue.key,
       attachments: (issue.fields?.attachment ?? []).filter((a) =>
         a.mimeType?.includes('spreadsheetml') || /\.(xlsx|xls)$/i.test(a.filename ?? '')
-      )
+      ),
+      allAttachmentNames: (issue.fields?.attachment ?? []).map((a) => a.filename ?? '')
     }));
+    return { issues, jql };
   } catch (err) {
     console.error('[jira] searchJiraIssuesWithKeywordComment threw:', err);
-    return [];
+    return { issues: [], jql, error: err instanceof Error ? err.message : 'Jira request failed' };
   }
 }
 

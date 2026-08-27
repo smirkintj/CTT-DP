@@ -14,8 +14,10 @@ export type DraftedTask = {
   priority: TaskPriorityValue;
   countries: string[];
   steps: Array<{ description: string; expectedResult: string }>;
-  /** 'anthropic:model', 'deepseek:model', or 'structured' when no model ran. */
+  /** 'anthropic:model' / 'deepseek:model', or 'structured' when no model ran. */
   generatedBy: string;
+  /** Why the structured fallback was used, when it was. */
+  fallbackReason?: string;
 };
 
 const SYSTEM_PROMPT = `You are a UAT test analyst for DKSH's Change Tracking Tool (CTT).
@@ -88,7 +90,7 @@ function extractJson(raw: string): Record<string, unknown> | null {
 }
 
 /** Deterministic draft — the floor when no model runs or its reply is unusable. */
-function structuredDraft(group: StoryGroup): DraftedTask {
+function structuredDraft(group: StoryGroup, fallbackReason?: string): DraftedTask {
   const base = toDraftTask(group);
   return {
     storyKey: group.key,
@@ -102,7 +104,8 @@ function structuredDraft(group: StoryGroup): DraftedTask {
       description: s.description,
       expectedResult: s.expectedResult
     })),
-    generatedBy: 'structured'
+    generatedBy: 'structured',
+    fallbackReason
   };
 }
 
@@ -130,13 +133,18 @@ export async function POST(req: Request) {
   // Each story is drafted independently so one bad reply cannot spoil the rest.
   const tasks = await Promise.all(
     groups.map(async (group): Promise<DraftedTask> => {
-      const fallback = structuredDraft(group);
-      if (!aiAvailable) return fallback;
+      if (!aiAvailable) return structuredDraft(group, 'no provider configured');
 
       try {
-        const raw = await callAiProvider(SYSTEM_PROMPT, buildPrompt(group, productName), 4096);
+        const raw = await callAiProvider(SYSTEM_PROMPT, buildPrompt(group, productName), 8192);
         const parsed = extractJson(raw);
-        if (!parsed) return fallback;
+        if (!parsed) {
+          // Usually a truncated reply — the JSON never closed.
+          return structuredDraft(
+            group,
+            `could not parse the model reply (${raw.trim().length} chars returned)`
+          );
+        }
 
         const steps = Array.isArray(parsed.steps)
           ? (parsed.steps as Array<Record<string, unknown>>)
@@ -149,27 +157,44 @@ export async function POST(req: Request) {
 
         // A reply that lost test cases is worse than the structured draft —
         // silently dropping a case is the failure mode that matters here.
-        if (steps.length < group.cases.length) return fallback;
+        if (steps.length < group.cases.length) {
+          return structuredDraft(
+            group,
+            `model returned ${steps.length} steps for ${group.cases.length} test cases`
+          );
+        }
 
         const priority = String(parsed.priority ?? '').toUpperCase() as TaskPriorityValue;
 
         return {
           storyKey: group.key,
           jiraTicket: group.story || null,
-          title: String(parsed.title ?? '').trim().slice(0, 100) || fallback.title,
-          description: String(parsed.description ?? '').trim() || fallback.description,
-          module: String(parsed.module ?? '').trim() || fallback.module,
-          priority: PRIORITIES.includes(priority) ? priority : fallback.priority,
+          title: String(parsed.title ?? '').trim().slice(0, 100) || group.title,
+          description: String(parsed.description ?? '').trim() || group.title,
+          module: String(parsed.module ?? '').trim() || group.module || null,
+          priority: PRIORITIES.includes(priority) ? priority : group.priority,
           countries: group.countries,
           steps,
           generatedBy: label
         };
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         console.error(`[import/draft-tasks] ${group.key} failed:`, error);
-        return fallback;
+        // Surface the provider's own message — a wrong model id or a rejected
+        // key is otherwise indistinguishable from "no AI configured".
+        return structuredDraft(group, message.slice(0, 300));
       }
     })
   );
 
-  return NextResponse.json({ tasks, aiAvailable, provider: aiAvailable ? label : 'none' });
+  const failures = tasks.filter((t) => t.generatedBy === 'structured' && t.fallbackReason);
+
+  return NextResponse.json({
+    tasks,
+    aiAvailable,
+    provider: aiAvailable ? label : 'none',
+    // One representative reason so the UI can say what actually went wrong.
+    fallbackReason: failures[0]?.fallbackReason ?? null,
+    fallbackCount: failures.length
+  });
 }

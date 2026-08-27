@@ -13,6 +13,9 @@ type SitIntakeSummary = {
   issuesSeen: number;
   created: number;
   results: Array<{ jiraTicket: string; status: string; reason?: string }>;
+  scans?: Array<{ product: string; jql: string; matched: number; error?: string }>;
+  keyword?: string;
+  windowHours?: number;
 };
 
 type GeneratedData = {
@@ -207,6 +210,36 @@ export const AdminDraftTasks: React.FC = () => {
           {intakeSummary.productsScanned === 0 && (
             <p className="text-amber-700 mt-2">
               No active product has a Jira project key, so there was nothing to scan. Set one under Admin &rarr; System Database.
+            </p>
+          )}
+
+          {/* The exact query, so a zero result can be checked against Jira
+              directly rather than guessed at. */}
+          {intakeSummary.scans?.map((scan) => (
+            <div key={scan.product} className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs text-slate-500">
+                <span className="font-medium text-slate-700">{scan.product}</span> — {scan.matched} issue
+                {scan.matched === 1 ? '' : 's'} matched
+              </p>
+              {scan.error ? (
+                <p className="text-xs text-rose-600 mt-1">Jira error: {scan.error}</p>
+              ) : (
+                scan.matched === 0 && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    Nothing matched. Run this in Jira to compare — if it returns issues there but not here,
+                    the comment wording or the credentials differ.
+                  </p>
+                )
+              )}
+              <code className="block text-[11px] font-mono text-slate-600 mt-1.5 break-all">{scan.jql}</code>
+            </div>
+          ))}
+
+          {intakeSummary.keyword && (
+            <p className="text-[11px] text-slate-400 mt-2">
+              Matching comments containing &ldquo;{intakeSummary.keyword}&rdquo;
+              {intakeSummary.windowHours ? `, updated in the last ${intakeSummary.windowHours}h` : ', with no date limit'}.
+              An issue also needs an .xlsx or .xls attachment.
             </p>
           )}
 

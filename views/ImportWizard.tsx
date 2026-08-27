@@ -19,6 +19,8 @@ type AiInsights = {
   insights: string[];
 };
 
+type DraftMeta = { aiAvailable: boolean; provider: string; fallbackReason: string | null; fallbackCount: number };
+
 type DraftedTask = {
   storyKey: string;
   jiraTicket: string | null;
@@ -29,6 +31,7 @@ type DraftedTask = {
   countries: string[];
   steps: Array<{ description: string; expectedResult: string }>;
   generatedBy: string;
+  fallbackReason?: string;
 };
 
 function parseCsv(text: string): ParsedRow[] {
@@ -201,6 +204,7 @@ export const ImportWizard: React.FC = () => {
   const [stories, setStories] = useState<StoryGroup[]>([]);
   const [draftedTasks, setDraftedTasks] = useState<DraftedTask[]>([]);
   const [draftLoading, setDraftLoading] = useState(false);
+  const [draftMeta, setDraftMeta] = useState<DraftMeta | null>(null);
   const [selectedStories, setSelectedStories] = useState<string[]>([]);
 
   // Everything downstream — mapping, preview, AI, import — runs on the stories
@@ -248,6 +252,12 @@ export const ImportWizard: React.FC = () => {
         countries: t.countries.filter((c) => availableCountries.some((ac) => ac.code === c))
       }));
       setDraftedTasks(drafted);
+      setDraftMeta({
+        aiAvailable: Boolean(data.aiAvailable),
+        provider: String(data.provider ?? 'none'),
+        fallbackReason: data.fallbackReason ?? null,
+        fallbackCount: Number(data.fallbackCount ?? 0)
+      });
       setImportMode('new');
       notify(
         data.aiAvailable
@@ -552,6 +562,7 @@ export const ImportWizard: React.FC = () => {
     setStories([]);
     setSelectedStories([]);
     setDraftedTasks([]);
+    setDraftMeta(null);
   };
 
   const importToExistingTask = async (skipConfirm = false): Promise<{ ok: boolean; taskId?: string }> => {
@@ -830,18 +841,34 @@ export const ImportWizard: React.FC = () => {
                     {draftedTasks.length} task{draftedTasks.length === 1 ? '' : 's'} drafted
                   </h3>
                   <span className="text-xs text-slate-400">
-                    {draftedTasks[0]?.generatedBy === 'structured'
+                    {draftMeta && !draftMeta.aiAvailable
                       ? 'Drafted without AI — no provider configured'
-                      : `Drafted by ${draftedTasks[0]?.generatedBy}`}
+                      : `Drafted by ${draftMeta?.provider ?? 'AI'}`}
                   </span>
                 </div>
+
+                {/* The AI ran but some stories fell back — say which and why,
+                    rather than leaving them looking like normal output. */}
+                {draftMeta?.aiAvailable && draftMeta.fallbackCount > 0 && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                    <span className="font-medium">
+                      {draftMeta.fallbackCount} of {draftedTasks.length} drafted without AI.
+                    </span>{' '}
+                    {draftMeta.fallbackReason}
+                  </div>
+                )}
 
                 {draftedTasks.map((draft) => (
                   <div key={draft.storyKey} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
                     <div className="p-4 space-y-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-mono text-brand-600">{draft.jiraTicket ?? draft.storyKey}</span>
                         <span className="text-xs text-slate-400">{draft.steps.length} steps</span>
+                        {draft.generatedBy === 'structured' && (
+                          <span className="text-xs text-amber-700" title={draft.fallbackReason}>
+                            · no AI on this one
+                          </span>
+                        )}
                       </div>
 
                       <input

@@ -15,7 +15,9 @@ export async function POST() {
   if (session.user.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   try {
-    const summary = await runSitIntake();
+    // No recency bound on a manual run — the admin is asking about anything
+    // outstanding, not just what changed since the last scheduled scan.
+    const summary = await runSitIntake({ windowHours: 0 });
 
     await createAdminAudit({
       actorId: session.user.id,

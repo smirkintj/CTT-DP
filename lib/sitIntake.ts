@@ -29,9 +29,24 @@ export type SitIntakeSummary = {
   issuesSeen: number;
   created: number;
   results: SitIntakeResult[];
+  /** Per-product diagnostics: the JQL run, how many it matched, any error. */
+  scans: Array<{ product: string; jql: string; matched: number; error?: string }>;
+  keyword: string;
+  windowHours: number;
 };
 
-export async function runSitIntake(): Promise<SitIntakeSummary> {
+export type SitIntakeOptions = {
+  /**
+   * Recency bound in hours. The scheduled run only needs to cover the gap
+   * since the last one; a manual run passes 0 for "no bound", so an admin
+   * checking a ticket QA finished last week actually finds it.
+   */
+  windowHours?: number;
+};
+
+export async function runSitIntake(options: SitIntakeOptions = {}): Promise<SitIntakeSummary> {
+  const windowHours = options.windowHours ?? POLL_WINDOW_HOURS;
+  const scans: SitIntakeSummary['scans'] = [];
   let issuesSeen = 0;
   const results: SitIntakeResult[] = [];
 
@@ -50,12 +65,20 @@ export async function runSitIntake(): Promise<SitIntakeSummary> {
       token: product.jiraToken ?? undefined,
     };
 
-    const issues = await searchJiraIssuesWithKeywordComment(
+    const outcome = await searchJiraIssuesWithKeywordComment(
       product.jiraProjectKey,
       SIT_COMPLETE_KEYWORD,
-      POLL_WINDOW_HOURS,
+      windowHours,
       perProduct
     );
+    const issues = outcome.issues;
+
+    scans.push({
+      product: product.name,
+      jql: outcome.jql,
+      matched: issues.length,
+      error: outcome.error
+    });
 
     issuesSeen += issues.length;
     for (const issue of issues) {
@@ -68,7 +91,13 @@ export async function runSitIntake(): Promise<SitIntakeSummary> {
 
       // Need at least one Excel attachment
       if (issue.attachments.length === 0) {
-        results.push({ jiraTicket: issue.key, status: 'skipped', reason: 'no_excel_attachment' });
+        results.push({
+          jiraTicket: issue.key,
+          status: 'skipped',
+          reason: issue.allAttachmentNames.length
+            ? `no_excel_attachment (has: ${issue.allAttachmentNames.join(', ').slice(0, 120)})`
+            : 'no_attachments_at_all'
+        });
         continue;
       }
 
@@ -146,6 +175,9 @@ export async function runSitIntake(): Promise<SitIntakeSummary> {
     productsScanned: products.length,
     issuesSeen,
     created: results.filter((r) => r.status === 'created').length,
-    results
+    results,
+    scans,
+    keyword: SIT_COMPLETE_KEYWORD,
+    windowHours
   };
 }
