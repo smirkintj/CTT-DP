@@ -1,12 +1,19 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { ChevronDown, ChevronRight, Check, X, Loader2, ExternalLink, Sparkles, FileText, Clock } from 'lucide-react';
+import { ChevronDown, ChevronRight, Check, X, Loader2, ExternalLink, Sparkles, FileText, Clock, RefreshCw } from 'lucide-react';
 import { apiFetch } from '@/lib/http';
 import { notify } from '@/lib/notify';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, textareaBaseClass } from '@/components/ui/formClasses';
 
 type DraftTaskStep = { description: string; expectedResult: string };
+
+type SitIntakeSummary = {
+  productsScanned: number;
+  issuesSeen: number;
+  created: number;
+  results: Array<{ jiraTicket: string; status: string; reason?: string }>;
+};
 
 type GeneratedData = {
   title: string;
@@ -40,6 +47,8 @@ export const AdminDraftTasks: React.FC = () => {
   const [drafts, setDrafts] = useState<DraftTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [intakeRunning, setIntakeRunning] = useState(false);
+  const [intakeSummary, setIntakeSummary] = useState<SitIntakeSummary | null>(null);
   const [editState, setEditState] = useState<Record<string, EditState>>({});
   const [countries, setCountries] = useState<Country[]>([]);
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>([]);
@@ -59,6 +68,30 @@ export const AdminDraftTasks: React.FC = () => {
       if (Array.isArray(s)) setStakeholders(s);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [session?.user?.id]);
+
+  /** Run the Jira scan now rather than waiting for the daily cron. */
+  const runIntake = async () => {
+    setIntakeRunning(true);
+    setIntakeSummary(null);
+    try {
+      const res = await fetch('/api/admin/sit-intake/run', { method: 'POST' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        notify(data?.error || 'Jira check failed', 'error');
+        return;
+      }
+      setIntakeSummary(data as SitIntakeSummary);
+      if (data.created > 0) {
+        const refreshed = await apiFetch<DraftTask[]>('/api/admin/draft-tasks');
+        if (Array.isArray(refreshed)) setDrafts(refreshed);
+        notify(`${data.created} new draft${data.created === 1 ? '' : 's'} created.`, 'success');
+      }
+    } catch {
+      notify('Jira check failed', 'error');
+    } finally {
+      setIntakeRunning(false);
+    }
+  };
 
   const expand = (draft: DraftTask) => {
     if (expandedId === draft.id) { setExpandedId(null); return; }
@@ -143,7 +176,63 @@ export const AdminDraftTasks: React.FC = () => {
           <h1 className="text-xl font-bold text-slate-900">AI Draft Tasks</h1>
           <p className="text-sm text-slate-500">UAT task drafts generated from SIT results — review and approve to create</p>
         </div>
+
+        <button
+          onClick={runIntake}
+          disabled={intakeRunning}
+          className={`ml-auto flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border transition-colors ${
+            intakeRunning
+              ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'
+              : 'border-slate-200 text-slate-700 bg-white hover:bg-slate-50'
+          }`}
+          title="Scan Jira now instead of waiting for the daily run"
+        >
+          <RefreshCw size={15} className={intakeRunning ? 'animate-spin' : ''} />
+          {intakeRunning ? 'Checking Jira…' : 'Check Jira now'}
+        </button>
       </div>
+
+      {intakeSummary && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
+          <p className="text-slate-800 font-medium">
+            {intakeSummary.created > 0
+              ? `${intakeSummary.created} new draft${intakeSummary.created === 1 ? '' : 's'} created.`
+              : 'No new drafts.'}
+            <span className="text-slate-500 font-normal">
+              {' '}Scanned {intakeSummary.productsScanned} product{intakeSummary.productsScanned === 1 ? '' : 's'} with Jira configured,
+              {' '}{intakeSummary.issuesSeen} matching issue{intakeSummary.issuesSeen === 1 ? '' : 's'}.
+            </span>
+          </p>
+
+          {intakeSummary.productsScanned === 0 && (
+            <p className="text-amber-700 mt-2">
+              No active product has a Jira project key, so there was nothing to scan. Set one under Admin &rarr; System Database.
+            </p>
+          )}
+
+          {intakeSummary.results.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {intakeSummary.results.map((r) => (
+                <li key={r.jiraTicket} className="flex items-baseline gap-2 text-xs">
+                  <span className="font-mono text-slate-700">{r.jiraTicket}</span>
+                  <span
+                    className={
+                      r.status === 'created'
+                        ? 'text-emerald-600'
+                        : r.status === 'error'
+                          ? 'text-rose-600'
+                          : 'text-slate-500'
+                    }
+                  >
+                    {r.status}
+                  </span>
+                  {r.reason && <span className="text-slate-400">{r.reason.replace(/_/g, ' ')}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Pending */}
       <section>
