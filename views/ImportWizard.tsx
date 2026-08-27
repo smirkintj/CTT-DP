@@ -7,7 +7,8 @@ import { CountryConfig, Priority, Task, TestStep } from '../types';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
 import { notify } from '../lib/notify';
 import { isValidDueDate } from '../lib/taskValidation';
-import { detectCountries, resolveSheet, stripCountryPrefix } from '../lib/sitWorkbook';
+import { buildHeaderIndex, detectCountries, groupByStory, readCases, resolveSheet, stripCountryPrefix } from '../lib/sitWorkbook';
+import type { StoryGroup } from '../lib/sitWorkbook';
 
 type ParsedRow = Record<string, string>;
 type PreviewStep = Pick<TestStep, 'id' | 'order' | 'description' | 'expectedResult' | 'actualResult' | 'testData'>;
@@ -18,11 +19,16 @@ type AiInsights = {
   insights: string[];
 };
 
-type StoryOption = {
-  key: string;
+type DraftedTask = {
+  storyKey: string;
+  jiraTicket: string | null;
   title: string;
-  caseCount: number;
+  description: string;
+  module: string | null;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
   countries: string[];
+  steps: Array<{ description: string; expectedResult: string }>;
+  generatedBy: string;
 };
 
 function parseCsv(text: string): ParsedRow[] {
@@ -88,7 +94,7 @@ function parseCsv(text: string): ParsedRow[] {
   return dataRows;
 }
 
-async function parseExcel(file: File): Promise<{ rows: ParsedRow[]; sheetName: string }> {
+async function parseExcel(file: File): Promise<{ rows: ParsedRow[]; sheetName: string; grid: string[][] }> {
   const XLSX = await import('xlsx');
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: 'array' });
@@ -106,10 +112,10 @@ async function parseExcel(file: File): Promise<{ rows: ParsedRow[]; sheetName: s
 
   const resolved = resolveSheet(sheets);
   const chosen = resolved ?? (sheets[0] ? { ...sheets[0], headerRow: 0 } : null);
-  if (!chosen) return { rows: [], sheetName: '' };
+  if (!chosen) return { rows: [], sheetName: '', grid: [] };
 
   const raw = chosen.rows.slice(chosen.headerRow);
-  if (raw.length < 2) return { rows: [], sheetName: chosen.name };
+  if (raw.length < 2) return { rows: [], sheetName: chosen.name, grid: [] };
 
   const headers = (raw[0] as string[]).map((h) => String(h ?? '').trim());
   const dataRows: ParsedRow[] = [];
@@ -124,51 +130,19 @@ async function parseExcel(file: File): Promise<{ rows: ParsedRow[]; sheetName: s
     });
     if (hasContent) dataRows.push(parsed);
   }
-  return { rows: dataRows, sheetName: chosen.name };
-}
-
-/** Header in the parsed rows that carries the Jira story key, if any. */
-const STORY_HEADER_ALIASES = ['user story id (jira)', 'user story id', 'jira', 'jira id', 'ticket'];
-
-function findStoryHeader(headers: string[]): string | null {
-  const match = headers.find((h) =>
-    STORY_HEADER_ALIASES.includes(h.trim().toLowerCase().replace(/\s+/g, ' '))
-  );
-  return match ?? null;
+  return { rows: dataRows, sheetName: chosen.name, grid: raw };
 }
 
 /**
- * A sprint sheet normally carries several Jira stories and only some are ready
- * for UAT, so the admin picks which ones to draft rather than importing whole.
+ * Build story groups from the resolved grid using the shared parser, so the
+ * wizard reads a workbook exactly the way the Jira intake cron does.
  */
-function buildStories(rows: ParsedRow[], storyHeader: string | null): StoryOption[] {
-  if (!storyHeader) return [];
-  const order: string[] = [];
-  const byKey = new Map<string, ParsedRow[]>();
-  for (const row of rows) {
-    const key = (row[storyHeader] || '').trim() || 'Ungrouped';
-    if (!byKey.has(key)) {
-      byKey.set(key, []);
-      order.push(key);
-    }
-    byKey.get(key)!.push(row);
-  }
-  return order.map((key) => {
-    const items = byKey.get(key)!;
-    const moduleHeader = Object.keys(items[0]).find(
-      (h) => h.trim().toLowerCase() === 'module'
-    );
-    const countries = detectCountries(
-      ...items.map((i) => (moduleHeader ? i[moduleHeader] : '')),
-      ...items.map((i) => i['Test Data'] ?? '')
-    );
-    return {
-      key,
-      title: stripCountryPrefix(moduleHeader ? items[0][moduleHeader] : '') || key,
-      caseCount: items.length,
-      countries
-    };
-  });
+function buildStoryGroups(grid: string[][]): StoryGroup[] {
+  if (grid.length < 2) return [];
+  const idx = buildHeaderIndex(grid[0]);
+  const cases = readCases({ name: 'sheet', rows: grid, headerRow: 0, score: 0 }, idx);
+  if (cases.length === 0) return [];
+  return groupByStory(cases);
 }
 
 const defaultNewTaskForm = {
@@ -224,7 +198,9 @@ export const ImportWizard: React.FC = () => {
   const [aiInsights, setAiInsights] = useState<AiInsights | null>(null);
   const [sheetName, setSheetName] = useState('');
   const [storyHeader, setStoryHeader] = useState<string | null>(null);
-  const [stories, setStories] = useState<StoryOption[]>([]);
+  const [stories, setStories] = useState<StoryGroup[]>([]);
+  const [draftedTasks, setDraftedTasks] = useState<DraftedTask[]>([]);
+  const [draftLoading, setDraftLoading] = useState(false);
   const [selectedStories, setSelectedStories] = useState<string[]>([]);
 
   // Everything downstream — mapping, preview, AI, import — runs on the stories
@@ -241,6 +217,133 @@ export const ImportWizard: React.FC = () => {
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
     );
     setAiInsights(null);
+  };
+
+  /**
+   * Ask the AI to draft one UAT task per selected story. This is the mapping
+   * and formatting step — the admin reviews the result rather than wiring
+   * columns by hand.
+   */
+  const generateDrafts = async () => {
+    const chosen = stories.filter((st) => selectedStories.includes(st.key));
+    if (chosen.length === 0) {
+      notify('Select at least one story first.', 'error');
+      return;
+    }
+    setDraftLoading(true);
+    try {
+      const res = await fetch('/api/import/draft-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stories: chosen })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        notify(data?.error || 'Could not draft tasks', 'error');
+        return;
+      }
+      const drafted = (data.tasks as DraftedTask[]).map((t) => ({
+        ...t,
+        // Only offer markets this portal actually has configured.
+        countries: t.countries.filter((c) => availableCountries.some((ac) => ac.code === c))
+      }));
+      setDraftedTasks(drafted);
+      setImportMode('new');
+      notify(
+        data.aiAvailable
+          ? `Drafted ${drafted.length} task${drafted.length === 1 ? '' : 's'}.`
+          : `Drafted ${drafted.length} task${drafted.length === 1 ? '' : 's'} without AI — no provider configured.`,
+        data.aiAvailable ? 'success' : 'error'
+      );
+    } catch {
+      notify('Could not draft tasks', 'error');
+    } finally {
+      setDraftLoading(false);
+    }
+  };
+
+  const updateDraft = (storyKey: string, patch: Partial<DraftedTask>) => {
+    setDraftedTasks((prev) =>
+      prev.map((t) => (t.storyKey === storyKey ? { ...t, ...patch } : t))
+    );
+  };
+
+  const toggleDraftMarket = (storyKey: string, code: string) => {
+    setDraftedTasks((prev) =>
+      prev.map((t) =>
+        t.storyKey === storyKey
+          ? {
+              ...t,
+              countries: t.countries.includes(code)
+                ? t.countries.filter((c) => c !== code)
+                : [...t.countries, code]
+            }
+          : t
+      )
+    );
+  };
+
+  /** One POST per drafted task; the API fans each out across its markets. */
+  const createDraftedTasks = async () => {
+    const missing = draftedTasks.filter((t) => t.countries.length === 0);
+    if (missing.length > 0) {
+      notify(`Pick at least one market for ${missing.map((m) => m.storyKey).join(', ')}.`, 'error');
+      return;
+    }
+
+    setImporting(true);
+    let created = 0;
+    let failed = 0;
+    let firstId: string | null = null;
+
+    try {
+      for (const draft of draftedTasks) {
+        const response = await fetch('/api/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: draft.title.trim().slice(0, 200),
+            description: draft.description.trim(),
+            module: draft.module || availableModules[0] || 'General',
+            priority: draft.priority,
+            dueDate: null,
+            countries: draft.countries,
+            jiraTicket: draft.jiraTicket ?? undefined,
+            steps: draft.steps.map((st) => ({
+              description: st.description.trim(),
+              expectedResult: st.expectedResult.trim(),
+              actualResult: '',
+              testData: '',
+              countryFilter: 'ALL'
+            }))
+          })
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          failed += 1;
+          console.error('[import] task creation failed', draft.storyKey, data);
+          continue;
+        }
+        const list = Array.isArray(data) ? data : [];
+        created += list.length;
+        if (!firstId && list[0]?.id) firstId = list[0].id;
+      }
+
+      if (created === 0) {
+        notify('No tasks were created.', 'error');
+        return;
+      }
+      setLastImportedTaskId(firstId);
+      notify(
+        failed === 0
+          ? `Created ${created} task${created === 1 ? '' : 's'}.`
+          : `Created ${created} task${created === 1 ? '' : 's'}; ${failed} story failed.`,
+        failed === 0 ? 'success' : 'error'
+      );
+      setStep(3);
+    } finally {
+      setImporting(false);
+    }
   };
 
   const toggleMarket = (code: string) => {
@@ -322,13 +425,17 @@ export const ImportWizard: React.FC = () => {
 
     let parsedRows: ParsedRow[];
     let parsedSheet = '';
+    let grid: string[][] = [];
     if (isExcel) {
       const parsed = await parseExcel(file);
       parsedRows = parsed.rows;
       parsedSheet = parsed.sheetName;
+      grid = parsed.grid;
     } else {
       const text = await file.text();
       parsedRows = parseCsv(text);
+      const csvHeaders = Object.keys(parsedRows[0] || {});
+      grid = [csvHeaders, ...parsedRows.map((r) => csvHeaders.map((h) => r[h] ?? ''))];
     }
 
     if (parsedRows.length === 0) {
@@ -337,8 +444,15 @@ export const ImportWizard: React.FC = () => {
     }
 
     const nextHeaders = Object.keys(parsedRows[0] || {});
-    const nextStoryHeader = findStoryHeader(nextHeaders);
-    const nextStories = buildStories(parsedRows, nextStoryHeader);
+    const nextStories = buildStoryGroups(grid);
+    const nextStoryHeader =
+      nextStories.length > 0
+        ? nextHeaders.find((h) =>
+            ['user story id (jira)', 'user story id', 'jira', 'ticket'].includes(
+              h.trim().toLowerCase().replace(/\s+/g, ' ')
+            )
+          ) ?? null
+        : null;
 
     setRows(parsedRows);
     setHeaders(nextHeaders);
@@ -349,6 +463,7 @@ export const ImportWizard: React.FC = () => {
     // Start with everything selected so a single-story sheet needs no clicks.
     setSelectedStories(nextStories.map((s) => s.key));
     setAiInsights(null);
+    setDraftedTasks([]);
 
     const pick = (...names: string[]) =>
       nextHeaders.find((h) => names.includes(h.trim().toLowerCase())) || '';
@@ -436,6 +551,7 @@ export const ImportWizard: React.FC = () => {
     setStoryHeader(null);
     setStories([]);
     setSelectedStories([]);
+    setDraftedTasks([]);
   };
 
   const importToExistingTask = async (skipConfirm = false): Promise<{ ok: boolean; taskId?: string }> => {
@@ -614,24 +730,19 @@ export const ImportWizard: React.FC = () => {
                     : `${activeRows.length} of ${rows.length} rows`}
                 </span>
               </div>
-              {aiEnabled && (
-                <button
-                  onClick={runAiAssist}
-                  disabled={aiLoading}
-                  className={`ml-3 flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border transition-colors ${
-                    aiLoading
-                      ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'
-                      : 'border-violet-200 text-violet-700 bg-violet-50 hover:bg-violet-100'
-                  }`}
-                >
-                  {aiLoading ? (
-                    <Loader2 size={15} className="animate-spin" />
-                  ) : (
-                    <Bot size={15} />
-                  )}
-                  {aiLoading ? 'Analysing…' : 'Analyse with AI'}
-                </button>
-              )}
+              <button
+                onClick={generateDrafts}
+                disabled={draftLoading || stories.length === 0}
+                className={`ml-3 flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border transition-colors whitespace-nowrap ${
+                  draftLoading || stories.length === 0
+                    ? 'border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed'
+                    : 'border-violet-200 text-violet-700 bg-violet-50 hover:bg-violet-100'
+                }`}
+                title={aiEnabled ? undefined : 'No AI provider configured — tasks will be drafted without one'}
+              >
+                {draftLoading ? <Loader2 size={15} className="animate-spin" /> : <Bot size={15} />}
+                {draftLoading ? 'Drafting…' : 'Draft UAT tasks'}
+              </button>
             </div>
 
             {/* Story picker — a sprint sheet carries several Jira stories and
@@ -711,6 +822,144 @@ export const ImportWizard: React.FC = () => {
               </div>
             )}
 
+            {/* Drafted tasks — what will be created, editable before commit */}
+            {draftedTasks.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                  <h3 className="text-sm font-semibold text-slate-800">
+                    {draftedTasks.length} task{draftedTasks.length === 1 ? '' : 's'} drafted
+                  </h3>
+                  <span className="text-xs text-slate-400">
+                    {draftedTasks[0]?.generatedBy === 'structured'
+                      ? 'Drafted without AI — no provider configured'
+                      : `Drafted by ${draftedTasks[0]?.generatedBy}`}
+                  </span>
+                </div>
+
+                {draftedTasks.map((draft) => (
+                  <div key={draft.storyKey} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-brand-600">{draft.jiraTicket ?? draft.storyKey}</span>
+                        <span className="text-xs text-slate-400">{draft.steps.length} steps</span>
+                      </div>
+
+                      <input
+                        value={draft.title}
+                        onChange={(e) => updateDraft(draft.storyKey, { title: e.target.value })}
+                        className={`${fieldBaseClass} font-medium`}
+                        placeholder="Task title"
+                      />
+
+                      <textarea
+                        value={draft.description}
+                        onChange={(e) => updateDraft(draft.storyKey, { description: e.target.value })}
+                        className={textareaBaseClass}
+                        rows={2}
+                        placeholder="Description"
+                      />
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Priority</label>
+                          <select
+                            value={draft.priority}
+                            onChange={(e) => updateDraft(draft.storyKey, { priority: e.target.value as DraftedTask['priority'] })}
+                            className={selectBaseClass}
+                          >
+                            <option value="HIGH">High</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="LOW">Low</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Module</label>
+                          <input
+                            value={draft.module ?? ''}
+                            onChange={(e) => updateDraft(draft.storyKey, { module: e.target.value })}
+                            className={fieldBaseClass}
+                            placeholder="Module"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Markets</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {availableCountries.map((country) => {
+                            const on = draft.countries.includes(country.code);
+                            return (
+                              <button
+                                key={country.code}
+                                type="button"
+                                onClick={() => toggleDraftMarket(draft.storyKey, country.code)}
+                                title={country.name}
+                                className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+                                  on
+                                    ? 'border-slate-900 bg-slate-900 text-white'
+                                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                                }`}
+                              >
+                                {country.code}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className={`text-[11px] mt-1 ${draft.countries.length === 0 ? 'text-amber-700' : 'text-slate-400'}`}>
+                          {draft.countries.length === 0
+                            ? 'Pick at least one market'
+                            : `${draft.countries.length} task${draft.countries.length === 1 ? '' : 's'} from this story`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <details className="border-t border-slate-100">
+                      <summary className="cursor-pointer px-4 py-2.5 text-xs font-medium text-slate-500 hover:bg-slate-50">
+                        Review {draft.steps.length} step{draft.steps.length === 1 ? '' : 's'}
+                      </summary>
+                      <div className="px-4 pb-4 space-y-3">
+                        {draft.steps.map((st, i) => (
+                          <div key={i} className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <textarea
+                              value={st.description}
+                              onChange={(e) => {
+                                const steps = [...draft.steps];
+                                steps[i] = { ...steps[i], description: e.target.value };
+                                updateDraft(draft.storyKey, { steps });
+                              }}
+                              className={textareaBaseClass}
+                              rows={4}
+                              placeholder={`Step ${i + 1} description`}
+                            />
+                            <textarea
+                              value={st.expectedResult}
+                              onChange={(e) => {
+                                const steps = [...draft.steps];
+                                steps[i] = { ...steps[i], expectedResult: e.target.value };
+                                updateDraft(draft.storyKey, { steps });
+                              }}
+                              className={textareaBaseClass}
+                              rows={4}
+                              placeholder="Expected result"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+                ))}
+
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                  Creating will make{' '}
+                  <strong>
+                    {draftedTasks.reduce((n, t) => n + t.countries.length, 0)} task
+                    {draftedTasks.reduce((n, t) => n + t.countries.length, 0) === 1 ? '' : 's'}
+                  </strong>{' '}
+                  — one per market for each story.
+                </div>
+              </div>
+            )}
+
             {/* AI Insights panel */}
             {aiInsights && (
               <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 space-y-3">
@@ -732,6 +981,11 @@ export const ImportWizard: React.FC = () => {
               </div>
             )}
 
+            {/* Manual mapping — only when tasks have not been drafted. Drafting
+                replaces this step; it is the fallback for arbitrary CSVs and
+                for replacing steps in an existing task. */}
+            {draftedTasks.length === 0 && (
+              <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Import Mode</label>
@@ -962,6 +1216,8 @@ export const ImportWizard: React.FC = () => {
                 <AlertCircle size={14} /> {invalidRows} row(s) still have missing required fields.
               </div>
             )}
+              </>
+            )}
           </div>
         )}
 
@@ -994,9 +1250,17 @@ export const ImportWizard: React.FC = () => {
             </button>
           )}
           {step === 2 && (
-            <button onClick={handleImport} disabled={importing} className={primaryButtonClass}>
+            <button
+              onClick={draftedTasks.length > 0 ? createDraftedTasks : handleImport}
+              disabled={importing}
+              className={primaryButtonClass}
+            >
               <span className="inline-flex items-center gap-2">
-                {importing ? 'Importing…' : 'Confirm Import'}
+                {importing
+                  ? 'Creating…'
+                  : draftedTasks.length > 0
+                    ? `Create ${draftedTasks.reduce((n, t) => n + t.countries.length, 0)} task${draftedTasks.reduce((n, t) => n + t.countries.length, 0) === 1 ? '' : 's'}`
+                    : 'Confirm Import'}
                 {!importing && <ArrowRight size={14} />}
               </span>
             </button>

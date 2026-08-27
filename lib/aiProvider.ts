@@ -65,7 +65,13 @@ export async function loadAiConfig(): Promise<AiProviderConfig> {
   return config;
 }
 
-export async function callAiProvider(systemPrompt: string, userMessage: string): Promise<string> {
+export async function callAiProvider(
+  systemPrompt: string,
+  userMessage: string,
+  // Drafting a whole task with its steps needs far more room than the 1024
+  // that suited short column-mapping replies.
+  maxTokens = 1024
+): Promise<string> {
   const config = await loadAiConfig();
 
   if (config.provider === 'none' || !config.apiKey) {
@@ -82,7 +88,7 @@ export async function callAiProvider(systemPrompt: string, userMessage: string):
       },
       body: JSON.stringify({
         model: config.model || 'claude-haiku-4-5',
-        max_tokens: 1024,
+        max_tokens: maxTokens,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }]
       }),
@@ -110,6 +116,7 @@ export async function callAiProvider(systemPrompt: string, userMessage: string):
       body: JSON.stringify({
         model: config.model || 'deepseek-v4-pro',
         temperature: 0.2,
+        max_tokens: maxTokens,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }
