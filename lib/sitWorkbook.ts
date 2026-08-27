@@ -345,7 +345,9 @@ export function toDraftTask(group: StoryGroup): DraftTaskShape {
         order: i + 1,
         description,
         expectedResult: c.expected.map((e) => `- ${e}`).join('\n'),
-        testData: c.testData || null,
+        // Test data is a QA run artifact (their SO numbers, market markers),
+        // not input for UAT — the tester works from steps and expected result.
+        testData: null,
         actualResult: null,
         sourceRow: c.sourceRow
       };

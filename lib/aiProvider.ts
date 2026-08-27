@@ -81,7 +81,7 @@ export async function callAiProvider(systemPrompt: string, userMessage: string):
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: config.model || 'claude-opus-5',
+        model: config.model || 'claude-haiku-4-5',
         max_tokens: 1024,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }]
@@ -108,7 +108,7 @@ export async function callAiProvider(systemPrompt: string, userMessage: string):
         Authorization: `Bearer ${config.apiKey}`
       },
       body: JSON.stringify({
-        model: config.model || 'deepseek-chat',
+        model: config.model || 'deepseek-v4-pro',
         temperature: 0.2,
         messages: [
           { role: 'system', content: systemPrompt },

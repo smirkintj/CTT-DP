@@ -174,7 +174,7 @@ function buildStories(rows: ParsedRow[], storyHeader: string | null): StoryOptio
 const defaultNewTaskForm = {
   title: '',
   description: '',
-  countryCode: '',
+  countryCodes: [] as string[],
   module: '',
   priority: Priority.MEDIUM,
   dueDate: ''
@@ -243,6 +243,37 @@ export const ImportWizard: React.FC = () => {
     setAiInsights(null);
   };
 
+  const toggleMarket = (code: string) => {
+    setNewTaskForm((prev) => ({
+      ...prev,
+      countryCodes: prev.countryCodes.includes(code)
+        ? prev.countryCodes.filter((c) => c !== code)
+        : [...prev.countryCodes, code]
+    }));
+  };
+
+  /** Markets the selected stories were tested against, as a starting point. */
+  const suggestedMarkets = useMemo(() => {
+    const known = new Set(availableCountries.map((c) => c.code));
+    return [
+      ...new Set(
+        stories
+          .filter((s) => selectedStories.includes(s.key))
+          .flatMap((s) => s.countries)
+          .filter((c) => known.has(c))
+      )
+    ];
+  }, [stories, selectedStories, availableCountries]);
+
+  // Pre-tick the detected markets so the common case needs no clicks; the admin
+  // can still change them before creating.
+  useEffect(() => {
+    if (suggestedMarkets.length === 0) return;
+    setNewTaskForm((prev) =>
+      prev.countryCodes.length === 0 ? { ...prev, countryCodes: suggestedMarkets } : prev
+    );
+  }, [suggestedMarkets]);
+
   const selectedTask = useMemo(() => tasks.find((task) => task.id === selectedTaskId) || null, [selectedTaskId, tasks]);
 
   const mappedSteps = useMemo(() => {
@@ -266,7 +297,7 @@ export const ImportWizard: React.FC = () => {
   useEffect(() => {
     setNewTaskForm((prev) => ({
       ...prev,
-      countryCode: prev.countryCode || availableCountries[0]?.code || '',
+      countryCodes: prev.countryCodes,
       module: prev.module || availableModules[0] || 'Ordering'
     }));
   }, [availableCountries, availableModules]);
@@ -342,7 +373,7 @@ export const ImportWizard: React.FC = () => {
       if (importMode === 'existing' && selectedTask) {
         context.taskTitle = selectedTask.title;
       }
-      if (newTaskForm.countryCode) context.countryCode = newTaskForm.countryCode;
+      if (newTaskForm.countryCodes.length) context.countryCode = newTaskForm.countryCodes.join(', ');
       if (selectedStories.length) context.stories = selectedStories.join(', ');
 
       const res = await fetch('/api/import/ai-assist', {
@@ -440,7 +471,7 @@ export const ImportWizard: React.FC = () => {
     const title = newTaskForm.title.trim();
     if (!title) { notify('New task title is required.', 'error'); return { ok: false }; }
     if (title.length > 200) { notify('New task title is too long.', 'error'); return { ok: false }; }
-    if (!newTaskForm.countryCode) { notify('Select country for the new task.', 'error'); return { ok: false }; }
+    if (newTaskForm.countryCodes.length === 0) { notify('Select at least one market for the new task.', 'error'); return { ok: false }; }
     if (!newTaskForm.module) { notify('Select module for the new task.', 'error'); return { ok: false }; }
     if (!isValidDueDate(newTaskForm.dueDate || undefined)) { notify('Due date is invalid.', 'error'); return { ok: false }; }
 
@@ -453,7 +484,9 @@ export const ImportWizard: React.FC = () => {
         module: newTaskForm.module,
         priority: newTaskForm.priority.toUpperCase(),
         dueDate: newTaskForm.dueDate || null,
-        countries: [newTaskForm.countryCode],
+        // One task is created per market, sharing a taskGroupId — same
+        // behaviour as ticking several markets in manual task creation.
+        countries: newTaskForm.countryCodes,
         steps: previewSteps.map((item) => ({
           description: item.description.trim(),
           expectedResult: item.expectedResult.trim(),
@@ -730,18 +763,32 @@ export const ImportWizard: React.FC = () => {
               ) : (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Country</label>
-                    <select
-                      value={newTaskForm.countryCode}
-                      onChange={(event) => setNewTaskForm((prev) => ({ ...prev, countryCode: event.target.value }))}
-                      className={selectBaseClass}
-                    >
-                      {availableCountries.map((country) => (
-                        <option key={country.code} value={country.code}>
-                          {country.code} - {country.name}
-                        </option>
-                      ))}
-                    </select>
+                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Markets</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {availableCountries.map((country) => {
+                        const on = newTaskForm.countryCodes.includes(country.code);
+                        return (
+                          <button
+                            key={country.code}
+                            type="button"
+                            onClick={() => toggleMarket(country.code)}
+                            title={country.name}
+                            className={`px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+                              on
+                                ? 'border-slate-900 bg-slate-900 text-white'
+                                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                            }`}
+                          >
+                            {country.code}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      {newTaskForm.countryCodes.length > 1
+                        ? `${newTaskForm.countryCodes.length} tasks will be created, one per market`
+                        : 'One task per selected market'}
+                    </p>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Module</label>

@@ -16,8 +16,8 @@ type AiSettings = {
 
 const DEFAULT_MODELS: Record<AiProvider, string> = {
   none: '',
-  anthropic: 'claude-opus-5',
-  deepseek: 'deepseek-chat'
+  anthropic: 'claude-haiku-4-5',
+  deepseek: 'deepseek-v4-pro'
 };
 
 const CUSTOM = '__custom__';
@@ -27,14 +27,14 @@ const CUSTOM = '__custom__';
 const MODEL_OPTIONS: Record<AiProvider, Array<{ id: string; label: string }>> = {
   none: [],
   anthropic: [
-    { id: 'claude-opus-5', label: 'Claude Opus 5 — most capable' },
-    { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 — balanced' },
     { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 — fastest and cheapest' },
-    { id: 'claude-fable-5', label: 'Claude Fable 5 — deepest reasoning' }
+    { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 — balanced' },
+    { id: 'claude-opus-5', label: 'Claude Opus 5 — most capable' }
   ],
+  // deepseek-chat and deepseek-reasoner were retired on 24 Jul 2026.
   deepseek: [
-    { id: 'deepseek-chat', label: 'DeepSeek Chat — general purpose' },
-    { id: 'deepseek-reasoner', label: 'DeepSeek Reasoner — step-by-step' }
+    { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro — most capable' },
+    { id: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash — faster and cheaper' }
   ]
 };
 
