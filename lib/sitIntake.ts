@@ -6,7 +6,7 @@
  * exactly the same work.
  */
 import prisma from './prisma';
-import { searchJiraIssuesWithKeywordComment, fetchJiraAttachment } from './jira';
+import { searchJiraIssuesWithKeywordComment, fetchJiraAttachmentDetailed } from './jira';
 import { parseExcel } from './parseExcel';
 import { generateDraftTask } from './generateDraftTask';
 import { sendDraftTaskReadyEmail } from './email';
@@ -102,11 +102,16 @@ export async function runSitIntake(options: SitIntakeOptions = {}): Promise<SitI
       }
 
       const attachment = issue.attachments[0];
-      const buffer = await fetchJiraAttachment(attachment.content, perProduct);
-      if (!buffer) {
-        results.push({ jiraTicket: issue.key, status: 'error', reason: 'attachment_download_failed' });
+      const download = await fetchJiraAttachmentDetailed(attachment.content, perProduct);
+      if (!download.buffer) {
+        results.push({
+          jiraTicket: issue.key,
+          status: 'error',
+          reason: `attachment_download_failed (${attachment.filename}: ${download.error ?? 'unknown'})`
+        });
         continue;
       }
+      const buffer = download.buffer;
 
       let sitRows;
       try {

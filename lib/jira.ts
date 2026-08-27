@@ -295,28 +295,77 @@ export async function searchJiraIssuesWithKeywordComment(
   }
 }
 
-/** Download a Jira attachment by its content URL. Returns a Buffer. */
+export type JiraAttachmentResult = {
+  buffer: Buffer | null;
+  /** Populated on failure so the caller can report the real cause. */
+  error?: string;
+};
+
+/**
+ * Download a Jira attachment by its content URL.
+ *
+ * Jira answers the attachment endpoint with a 302 to a presigned S3 URL. The
+ * redirect must be followed WITHOUT the Authorization header: the presigned
+ * query string is already the credential, and S3 rejects a request that also
+ * carries Basic auth. Letting fetch auto-follow forwards the header and fails
+ * every download, which is indistinguishable from a bad attachment.
+ */
+export async function fetchJiraAttachmentDetailed(
+  contentUrl: string,
+  perProduct?: Partial<JiraCredentials> | null
+): Promise<JiraAttachmentResult> {
+  const creds = resolveJiraCredentials(perProduct);
+  if (!creds) return { buffer: null, error: 'No Jira credentials configured' };
+
+  try {
+    let url = contentUrl;
+    let res = await fetch(url, {
+      headers: { Authorization: makeAuthHeader(creds), Accept: 'application/octet-stream' },
+      redirect: 'manual',
+      cache: 'no-store'
+    });
+
+    // Follow up to three hops, dropping auth once we leave the Jira host.
+    for (let hop = 0; hop < 3 && res.status >= 300 && res.status < 400; hop += 1) {
+      const location = res.headers.get('location');
+      if (!location) break;
+      url = new URL(location, url).toString();
+      const sameHost = new URL(url).host === new URL(contentUrl).host;
+      res = await fetch(url, {
+        headers: sameHost
+          ? { Authorization: makeAuthHeader(creds), Accept: 'application/octet-stream' }
+          : { Accept: 'application/octet-stream' },
+        redirect: 'manual',
+        cache: 'no-store'
+      });
+    }
+
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      console.error(`[jira] fetchJiraAttachment → HTTP ${res.status} ${detail.slice(0, 200)}`);
+      return {
+        buffer: null,
+        error: `HTTP ${res.status}${detail ? `: ${detail.replace(/\s+/g, ' ').slice(0, 160)}` : ''}`
+      };
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    if (arrayBuffer.byteLength === 0) {
+      return { buffer: null, error: 'downloaded 0 bytes' };
+    }
+    return { buffer: Buffer.from(arrayBuffer) };
+  } catch (err) {
+    console.error('[jira] fetchJiraAttachment threw:', err);
+    return { buffer: null, error: err instanceof Error ? err.message : 'download failed' };
+  }
+}
+
+/** Back-compat wrapper for callers that only need the buffer. */
 export async function fetchJiraAttachment(
   contentUrl: string,
   perProduct?: Partial<JiraCredentials> | null
 ): Promise<Buffer | null> {
-  const creds = resolveJiraCredentials(perProduct);
-  if (!creds) return null;
-  try {
-    const res = await fetch(contentUrl, {
-      headers: { Authorization: makeAuthHeader(creds), Accept: 'application/octet-stream' },
-      cache: 'no-store'
-    });
-    if (!res.ok) {
-      console.error(`[jira] fetchJiraAttachment → HTTP ${res.status}`);
-      return null;
-    }
-    const arrayBuffer = await res.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-  } catch (err) {
-    console.error('[jira] fetchJiraAttachment threw:', err);
-    return null;
-  }
+  return (await fetchJiraAttachmentDetailed(contentUrl, perProduct)).buffer;
 }
 
 /** Fetch sprint name from a Jira issue's sprint field (Agile).
