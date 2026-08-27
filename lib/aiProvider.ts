@@ -16,20 +16,53 @@ const DEFAULTS: AiProviderConfig = {
   model: ''
 };
 
+/**
+ * Environment fallback so deployments configured before the Settings page
+ * existed keep working. The database setting always wins once an admin saves
+ * one; this only fills in when none is configured.
+ */
+function envConfig(): AiProviderConfig {
+  if (process.env.ANTHROPIC_API_KEY) {
+    return {
+      provider: 'anthropic',
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      model: process.env.ANTHROPIC_MODEL || ''
+    };
+  }
+  if (process.env.DEEPSEEK_API_KEY) {
+    return {
+      provider: 'deepseek',
+      apiKey: process.env.DEEPSEEK_API_KEY,
+      model: process.env.DEEPSEEK_MODEL || ''
+    };
+  }
+  return DEFAULTS;
+}
+
 export async function loadAiConfig(): Promise<AiProviderConfig> {
-  const row = await prisma.portalSetting.findUnique({
-    where: { key: SETTING_KEY },
-    select: { value: true }
-  });
+  let row: { value: unknown } | null = null;
+  try {
+    row = await prisma.portalSetting.findUnique({
+      where: { key: SETTING_KEY },
+      select: { value: true }
+    });
+  } catch {
+    // No database reachable (scripts, local tooling) — fall back to env.
+    return envConfig();
+  }
+
   if (!row?.value || typeof row.value !== 'object' || Array.isArray(row.value)) {
-    return DEFAULTS;
+    return envConfig();
   }
   const v = row.value as Record<string, unknown>;
-  return {
+  const config: AiProviderConfig = {
     provider: v.provider === 'anthropic' || v.provider === 'deepseek' ? v.provider : 'none',
     apiKey: typeof v.apiKey === 'string' ? v.apiKey : '',
     model: typeof v.model === 'string' ? v.model : ''
   };
+  // A row exists but was never completed — env is still better than nothing.
+  if (config.provider === 'none' || !config.apiKey) return envConfig();
+  return config;
 }
 
 export async function callAiProvider(systemPrompt: string, userMessage: string): Promise<string> {

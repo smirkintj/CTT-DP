@@ -1,5 +1,5 @@
-import OpenAI from 'openai';
 import type { SitTestRow } from './parseExcel';
+import { callAiProvider, loadAiConfig } from './aiProvider';
 
 export type GeneratedTaskData = {
   title: string;
@@ -7,27 +7,33 @@ export type GeneratedTaskData = {
   module: string;
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
   steps: Array<{ description: string; expectedResult: string }>;
+  /** Which provider/model produced this, or 'fallback' when none ran. */
+  generatedBy?: string;
 };
 
 /**
- * Use DeepSeek V4 Pro to convert SIT test rows into a structured UAT task.
- * Falls back to a basic structure derived from the raw rows if the AI call fails.
+ * Convert SIT test rows into a structured UAT task using the provider selected
+ * in admin Settings (env vars as fallback). Falls back to a mechanical draft
+ * built from the raw rows when no provider is configured or the call fails —
+ * `generatedBy` records which path ran so a fallback is not mistaken for AI output.
  */
 export async function generateDraftTask(
   jiraTicket: string,
   jiraSummary: string,
   sitRows: SitTestRow[]
 ): Promise<GeneratedTaskData> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
+  // Provider comes from the admin Settings page (falling back to env), so
+  // switching provider there also switches this pipeline.
+  const config = await loadAiConfig();
 
-  if (!apiKey || sitRows.length === 0) {
-    return buildFallback(jiraSummary, sitRows);
+  if (config.provider === 'none' || !config.apiKey || sitRows.length === 0) {
+    // Surfaced rather than silent: a draft built without a model looks the
+    // same as an AI one, so the reason has to appear in the logs.
+    console.warn(
+      `[generateDraftTask] No AI provider configured${sitRows.length === 0 ? ' and no SIT rows' : ''} — using mechanical fallback for ${jiraTicket}.`
+    );
+    return { ...buildFallback(jiraSummary, sitRows), generatedBy: 'fallback' };
   }
-
-  const client = new OpenAI({
-    apiKey,
-    baseURL: 'https://api.deepseek.com',
-  });
 
   const rowsSummary = sitRows
     .slice(0, 30) // cap to avoid token bloat
@@ -61,15 +67,12 @@ Return ONLY valid JSON with this exact structure:
 }`;
 
   try {
-    const response = await client.chat.completions.create({
-      model: 'deepseek-v4-pro',
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
-      temperature: 0.3,
-    });
-
-    const content = response.choices[0]?.message?.content ?? '';
-    const parsed = JSON.parse(content) as Partial<GeneratedTaskData>;
+    const content = await callAiProvider(
+      'You are a UAT task generator for DKSH CTT. Return only valid JSON — no markdown, no commentary.',
+      prompt
+    );
+    const match = content.trim().match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(match ? match[0] : content) as Partial<GeneratedTaskData>;
 
     return {
       title: String(parsed.title || jiraSummary).slice(0, 120),
@@ -84,10 +87,14 @@ Return ONLY valid JSON with this exact structure:
             expectedResult: String(s.expectedResult || ''),
           }))
         : buildFallback(jiraSummary, sitRows).steps,
+      generatedBy: `${config.provider}:${config.model || 'default'}`,
     };
   } catch (err) {
-    console.error('[generateDraftTask] DeepSeek call failed, using fallback:', err);
-    return buildFallback(jiraSummary, sitRows);
+    console.error(
+      `[generateDraftTask] ${config.provider} call failed for ${jiraTicket}, using fallback:`,
+      err
+    );
+    return { ...buildFallback(jiraSummary, sitRows), generatedBy: 'fallback' };
   }
 }
 

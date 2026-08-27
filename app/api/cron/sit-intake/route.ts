@@ -83,7 +83,20 @@ export async function GET(req: Request) {
         continue;
       }
 
-      const generated = await generateDraftTask(issue.key, issue.summary, sitRows);
+      // A sprint workbook usually covers several stories. Draft only the rows
+      // belonging to this ticket, or the whole sheet when it carries no story
+      // column (a single-story export).
+      const ownRows = sitRows.filter(
+        (r) => r.story && r.story.toUpperCase() === issue.key.toUpperCase()
+      );
+      const rowsForTicket = ownRows.length > 0 ? ownRows : sitRows.filter((r) => !r.story);
+
+      if (rowsForTicket.length === 0) {
+        results.push({ jiraTicket: issue.key, status: 'skipped', reason: 'no_rows_for_ticket' });
+        continue;
+      }
+
+      const generated = await generateDraftTask(issue.key, issue.summary, rowsForTicket);
 
       const draft = await prisma.draftTask.create({
         data: {
