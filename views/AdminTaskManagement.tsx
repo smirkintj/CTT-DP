@@ -1537,13 +1537,16 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = () => {
                       <label className="block text-sm font-medium text-slate-700 mb-2">Assign Stakeholder By Country</label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {selectedCountries.map((countryCode) => {
-                          const options = stakeholders.filter(
-                            (u) =>
-                              u.countryCode === countryCode &&
-                              (newTask.productId
-                                ? (u.productAccesses ?? []).some((access) => access.id === newTask.productId)
-                                : true)
-                          );
+                          // Show everyone in the country. Those without access to
+                          // the selected product appear disabled with the reason —
+                          // silently omitting them looks like the user was never
+                          // created.
+                          const countryUsers = stakeholders.filter((u) => u.countryCode === countryCode);
+                          const hasProductAccess = (u: typeof countryUsers[number]) =>
+                            !newTask.productId ||
+                            (u.productAccesses ?? []).some((access) => access.id === newTask.productId);
+                          const options = countryUsers.filter(hasProductAccess);
+                          const blocked = countryUsers.filter((u) => !hasProductAccess(u));
                           return (
                             <div key={countryCode} className="bg-white border border-slate-200 rounded-md p-3">
                               <div className="text-xs text-slate-500 mb-1">{countryCode}</div>
@@ -1558,10 +1561,22 @@ export const AdminTaskManagement: React.FC<AdminTaskManagementProps> = () => {
                                     {user.name || user.email}
                                   </option>
                                 ))}
+                                {blocked.map((user) => (
+                                  <option key={user.id} value={user.id} disabled>
+                                    {user.name || user.email} — no access to this product
+                                  </option>
+                                ))}
                               </select>
                               {options.length === 0 && (
                                 <p className="mt-2 text-[11px] text-amber-600">
-                                  No stakeholder in {countryCode} currently has access to this product.
+                                  {blocked.length > 0
+                                    ? `${blocked.length} stakeholder${blocked.length === 1 ? '' : 's'} in ${countryCode} exist but cannot access this product. Grant access under Admin → System Database → Users.`
+                                    : `No stakeholder is assigned to ${countryCode}. Create one under Admin → System Database → Users.`}
+                                </p>
+                              )}
+                              {options.length > 0 && blocked.length > 0 && (
+                                <p className="mt-2 text-[11px] text-slate-400">
+                                  {blocked.length} more in {countryCode} lack access to this product.
                                 </p>
                               )}
                             </div>

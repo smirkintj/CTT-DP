@@ -221,6 +221,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
   const [availableModules, setAvailableModules] = useState<string[]>([]);
   const [products, setProducts] = useState<AdminProductConfig[]>([]);
   const [stakeholderOptions, setStakeholderOptions] = useState<Array<{ id: string; name: string; email: string; countryCode: string; productAccesses?: Array<{ id: string; name: string; slug: string }> }>>([]);
+  // The task version last confirmed by the server. Read as expectedUpdatedAt
+  // on every step save so rapid ticks are not rejected as stale.
+  const latestUpdatedAtRef = useRef<string>(_initTask.updatedAt);
+  // Serialises step saves; concurrent ones would all carry the same version.
+  const stepSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentElementRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const commentDraftStorageKey = useMemo(
@@ -348,7 +353,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
   const persistStepProgress = async (
     stepId: string,
     updates: Partial<TestStep>,
-    expectedUpdatedAt: string = localTask.updatedAt,
+    expectedUpdatedAt: string = latestUpdatedAtRef.current,
     hasRetried = false
   ) => {
     setStepSaveState((prev) => ({ ...prev, [stepId]: 'saving' }));
@@ -374,6 +379,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
           steps: (latest.steps ?? []).map((s) => s.id === stepId ? { ...s, ...updates } : s),
         };
         setLocalTask(reOptimised);
+        latestUpdatedAtRef.current = latest.updatedAt;
         return persistStepProgress(stepId, updates, latest.updatedAt, true);
       }
       notify('Task changed by another user. Reloaded latest data.', 'error');
@@ -385,11 +391,33 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
       notify('Failed to save step updates', 'error');
       return false;
     }
+    // Track the task's new version so the next step save is not stale. Without
+    // this, ticking a second step re-sent the original timestamp, hit a 409 and
+    // reverted on screen until the retry landed — which is why saving slowly
+    // appeared to work and saving quickly did not.
+    const saved = await response.json().catch(() => null);
+    if (saved?.taskUpdatedAt) {
+      latestUpdatedAtRef.current = saved.taskUpdatedAt;
+      setLocalTask((prev) => ({ ...prev, updatedAt: saved.taskUpdatedAt }));
+    }
+
     setStepSaveState((prev) => ({ ...prev, [stepId]: 'saved' }));
     window.setTimeout(() => {
       setStepSaveState((prev) => ({ ...prev, [stepId]: 'idle' }));
     }, 1200);
     return true;
+  };
+
+  /**
+   * Step saves run one at a time. Concurrent PATCHes carry the same
+   * expectedUpdatedAt, so all but the first are rejected as stale.
+   */
+  const enqueueStepSave = (stepId: string, updates: Partial<TestStep>) => {
+    stepSaveQueueRef.current = stepSaveQueueRef.current
+      .then(() => persistStepProgress(stepId, updates))
+      .catch(() => false)
+      .then(() => undefined);
+    return stepSaveQueueRef.current;
   };
 
   const handleStepUpdate = (stepId: string, updates: Partial<TestStep>) => {
@@ -434,7 +462,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
       void persistStatus(updatedTask.status, failedStepOrder);
     }
     if (!isAdmin) {
-      void persistStepProgress(stepId, updates);
+      void enqueueStepSave(stepId, updates);
     }
 
     // Auto-advance logic
@@ -731,6 +759,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
     try {
       const updated = await apiFetch<Task>(`/api/tasks/${taskId}`, { cache: 'no-store' });
       const safeUpdated = normalizeTask(updated as Task);
+      latestUpdatedAtRef.current = safeUpdated.updatedAt;
       setLocalTask(safeUpdated);
       void fetch(`/api/tasks/${taskId}/comments/read`, { method: 'POST' });
       return safeUpdated;

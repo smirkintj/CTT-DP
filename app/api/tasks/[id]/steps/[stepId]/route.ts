@@ -99,11 +99,12 @@ export async function PATCH(
     data
   });
 
-  await prisma.task.update({
+  const touchedTask = await prisma.task.update({
     where: { id },
     data: {
       updatedById: session.user.id
-    }
+    },
+    select: { updatedAt: true }
   });
 
   await createTaskHistory({
@@ -138,7 +139,10 @@ export async function PATCH(
     stepResult: step.stepResult ?? null
   });
 
-  return NextResponse.json(step);
+  // Include the task's new updatedAt: the client sends it back as
+  // expectedUpdatedAt on the next step save, and without it every save after
+  // the first is stale and 409s.
+  return NextResponse.json({ ...step, taskUpdatedAt: touchedTask.updatedAt });
 }
 
 export async function DELETE(
