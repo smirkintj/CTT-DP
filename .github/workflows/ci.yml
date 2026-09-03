@@ -34,3 +34,71 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    # Exercises the app against a real database and a real browser. The build
+    # job cannot catch a flow that compiles but 400s at runtime.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ctt
+          POSTGRES_PASSWORD: ctt
+          POSTGRES_DB: ctt
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://ctt:ctt@localhost:5432/ctt?schema=public
+      DIRECT_URL: postgresql://ctt:ctt@localhost:5432/ctt?schema=public
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci-e2e-secret
+      SEED_ADMIN_PASSWORD: CiE2E!admin1
+      SEED_USER_PASSWORD: CiE2E!user1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Prisma Generate
+        run: npx prisma generate
+
+      - name: Migrate
+        run: npx prisma migrate deploy
+
+      - name: Seed
+        run: npx tsx prisma/seed.ts
+
+      - name: Clear forced password change on fixtures
+        run: psql "$DATABASE_URL" -c 'UPDATE "User" SET "mustChangePassword" = false;'
+        env:
+          PGPASSWORD: ctt
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npx next build
+
+      - name: Run e2e
+        run: npx playwright test
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

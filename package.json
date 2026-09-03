@@ -20,7 +20,9 @@
     "db:seed-tw-mock": "tsx scripts/seed-tw-mock-data.ts",
     "comments:backfill-step-order": "tsx scripts/backfill-comment-step-order.ts",
     "audit:check-admin": "node scripts/check-admin-audit-coverage.mjs",
-    "perf:sample": "bash ./scripts/perf-baseline.sh"
+    "perf:sample": "bash ./scripts/perf-baseline.sh",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -39,6 +41,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.14.0",
     "@types/react": "^19.0.10",

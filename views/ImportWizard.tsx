@@ -386,6 +386,17 @@ export const ImportWizard: React.FC = () => {
     }
   };
 
+  /** Drafted tasks still missing a market; creating is blocked until none. */
+  const draftsMissingMarkets = useMemo(
+    () => draftedTasks.filter((t) => t.countries.length === 0),
+    [draftedTasks]
+  );
+  const draftsBlocked = draftedTasks.length > 0 && draftsMissingMarkets.length > 0;
+  const plannedTaskCount = useMemo(
+    () => draftedTasks.reduce((n, t) => n + t.countries.length, 0),
+    [draftedTasks]
+  );
+
   /** Modules the API will accept for the selected product. */
   const productModules = useMemo(
     () => (products.find((p) => p.id === productId)?.modules ?? []).filter((m) => m.isActive),
@@ -1058,13 +1069,25 @@ export const ImportWizard: React.FC = () => {
                   </div>
                 ))}
 
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                  Creating will make{' '}
-                  <strong>
-                    {draftedTasks.reduce((n, t) => n + t.countries.length, 0)} task
-                    {draftedTasks.reduce((n, t) => n + t.countries.length, 0) === 1 ? '' : 's'}
-                  </strong>{' '}
-                  — one per market for each story.
+                <div
+                  className={`rounded-lg border p-3 text-xs ${
+                    draftsBlocked
+                      ? 'border-amber-200 bg-amber-50 text-amber-800'
+                      : 'border-slate-200 bg-slate-50 text-slate-600'
+                  }`}
+                >
+                  {draftsBlocked ? (
+                    <>
+                      Pick a market for{' '}
+                      <strong>{draftsMissingMarkets.map((t) => t.storyKey).join(', ')}</strong>{' '}
+                      before creating. Nothing is created until every drafted task has one.
+                    </>
+                  ) : (
+                    <>
+                      Creating will make <strong>{plannedTaskCount} task{plannedTaskCount === 1 ? '' : 's'}</strong>{' '}
+                      — one per market for each story.
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -1361,16 +1384,19 @@ export const ImportWizard: React.FC = () => {
           {step === 2 && (
             <button
               onClick={draftedTasks.length > 0 ? createDraftedTasks : handleImport}
-              disabled={importing}
+              disabled={importing || draftsBlocked}
               className={primaryButtonClass}
+              title={draftsBlocked ? 'Every drafted task needs at least one market' : undefined}
             >
               <span className="inline-flex items-center gap-2">
                 {importing
                   ? 'Creating…'
-                  : draftedTasks.length > 0
-                    ? `Create ${draftedTasks.reduce((n, t) => n + t.countries.length, 0)} task${draftedTasks.reduce((n, t) => n + t.countries.length, 0) === 1 ? '' : 's'}`
-                    : 'Confirm Import'}
-                {!importing && <ArrowRight size={14} />}
+                  : draftedTasks.length === 0
+                    ? 'Confirm Import'
+                    : draftsBlocked
+                      ? `${draftsMissingMarkets.length} task${draftsMissingMarkets.length === 1 ? '' : 's'} need a market`
+                      : `Create ${plannedTaskCount} task${plannedTaskCount === 1 ? '' : 's'}`}
+                {!importing && !draftsBlocked && <ArrowRight size={14} />}
               </span>
             </button>
           )}

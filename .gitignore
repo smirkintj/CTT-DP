@@ -41,3 +41,9 @@ lerna-debug.log*
 .env*.local
 .superpowers/
 tsx-501/
+
+# e2e
+/test-results/
+/playwright-report/
+/.env.local
+e2e/.auth/
