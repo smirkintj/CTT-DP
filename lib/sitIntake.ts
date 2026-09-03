@@ -82,6 +82,7 @@ export async function runSitIntake(options: SitIntakeOptions = {}): Promise<SitI
 
     issuesSeen += issues.length;
     for (const issue of issues) {
+     try {
       // Skip if already processed
       const existing = await prisma.draftTask.findUnique({ where: { jiraTicket: issue.key } });
       if (existing) {
@@ -172,6 +173,16 @@ export async function runSitIntake(options: SitIntakeOptions = {}): Promise<SitI
       );
 
       results.push({ jiraTicket: issue.key, status: 'created' });
+     } catch (error) {
+       // A unique-constraint clash (manual run overlapping the cron) or a
+       // single bad workbook must not abort the whole scan.
+       console.error(`[sit-intake] ${issue.key} failed:`, error);
+       results.push({
+         jiraTicket: issue.key,
+         status: 'error',
+         reason: error instanceof Error ? error.message.slice(0, 160) : 'unexpected failure'
+       });
+     }
     }
   }
 

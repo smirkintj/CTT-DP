@@ -55,7 +55,9 @@ export const AdminSettings: React.FC = () => {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!data) return;
-        setAiSettings(data);
+        // Never load the mask into the editable field: typing after it would
+        // save '••••••••…' as the key. Empty means "unchanged".
+        setAiSettings({ ...data, apiKey: '' });
         // A saved model that isn't in the known list (an older or newer id)
         // must still be editable, so open the custom field for it.
         const known = MODEL_OPTIONS[data.provider as AiProvider] ?? [];

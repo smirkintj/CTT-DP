@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, ArrowRight, Bot, Check, FileSpreadsheet, Lightbulb, Loader2, UploadCloud } from 'lucide-react';
-import { CountryConfig, Priority, Task, TestStep } from '../types';
+import { AdminProductConfig, CountryConfig, Priority, Task, TestStep } from '../types';
 import { fieldBaseClass, primaryButtonClass, selectBaseClass, subtleButtonClass, textareaBaseClass } from '../components/ui/formClasses';
 import { notify } from '../lib/notify';
 import { isValidDueDate } from '../lib/taskValidation';
@@ -162,6 +162,10 @@ export const ImportWizard: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [availableCountries, setAvailableCountries] = useState<CountryConfig[]>([]);
   const [availableModules, setAvailableModules] = useState<string[]>([]);
+  // Tasks are always created under a product, and the module must be one of
+  // that product's configured modules — the API rejects anything else.
+  const [products, setProducts] = useState<AdminProductConfig[]>([]);
+  const [productId, setProductId] = useState('');
   const [aiEnabled, setAiEnabled] = useState(false);
 
   useEffect(() => {
@@ -172,11 +176,17 @@ export const ImportWizard: React.FC = () => {
     Promise.all([
       fetch('/api/admin/countries').then((r) => r.ok ? r.json() : []),
       fetch('/api/admin/modules').then((r) => r.ok ? r.json() : []),
-      fetch('/api/admin/ai-settings').then((r) => r.ok ? r.json() : null)
-    ]).then(([c, m, ai]) => {
+      fetch('/api/admin/ai-settings').then((r) => r.ok ? r.json() : null),
+      fetch('/api/admin/task-config', { cache: 'no-store' }).then((r) => r.ok ? r.json() : [])
+    ]).then(([c, m, ai, cfg]) => {
       if (Array.isArray(c)) setAvailableCountries(c);
       if (Array.isArray(m)) setAvailableModules(m);
       if (ai && ai.provider !== 'none' && ai.apiKeySet) setAiEnabled(true);
+      if (Array.isArray(cfg)) {
+        const active = (cfg as AdminProductConfig[]).filter((p) => p.isActive);
+        setProducts(active);
+        setProductId((prev) => prev || active[0]?.id || '');
+      }
     }).catch(() => {});
   }, []);
 
@@ -211,9 +221,18 @@ export const ImportWizard: React.FC = () => {
   // the admin selected, not the whole sheet.
   const activeRows = useMemo(() => {
     if (!storyHeader || selectedStories.length === 0) return rows;
-    return rows.filter((row) =>
-      selectedStories.includes((row[storyHeader] || '').trim() || 'Ungrouped')
+    // groupByStory falls back to the module name (then 'UNGROUPED') for a blank
+    // story cell, so match that here rather than inventing a different key.
+    const moduleHeader = Object.keys(rows[0] ?? {}).find(
+      (h) => h.trim().toLowerCase() === 'module'
     );
+    return rows.filter((row) => {
+      const key =
+        (row[storyHeader] || '').trim() ||
+        (moduleHeader ? (row[moduleHeader] || '').trim() : '') ||
+        'UNGROUPED';
+      return selectedStories.includes(key);
+    });
   }, [rows, storyHeader, selectedStories]);
 
   const toggleStory = (key: string) => {
@@ -295,6 +314,14 @@ export const ImportWizard: React.FC = () => {
 
   /** One POST per drafted task; the API fans each out across its markets. */
   const createDraftedTasks = async () => {
+    if (!productId) {
+      notify('Select a product before creating tasks.', 'error');
+      return;
+    }
+    if (productModules.length === 0) {
+      notify('This product has no active modules. Add one under Admin → System Database.', 'error');
+      return;
+    }
     const missing = draftedTasks.filter((t) => t.countries.length === 0);
     if (missing.length > 0) {
       notify(`Pick at least one market for ${missing.map((m) => m.storyKey).join(', ')}.`, 'error');
@@ -314,7 +341,8 @@ export const ImportWizard: React.FC = () => {
           body: JSON.stringify({
             title: draft.title.trim().slice(0, 200),
             description: draft.description.trim(),
-            module: draft.module || availableModules[0] || 'General',
+            productId,
+            module: resolveModule(draft.module),
             priority: draft.priority,
             dueDate: null,
             countries: draft.countries,
@@ -331,7 +359,9 @@ export const ImportWizard: React.FC = () => {
         const data = await response.json().catch(() => null);
         if (!response.ok) {
           failed += 1;
+          const detail = data?.error ? `: ${data.error}` : '';
           console.error('[import] task creation failed', draft.storyKey, data);
+          notify(`${draft.storyKey} failed${detail}`, 'error');
           continue;
         }
         const list = Array.isArray(data) ? data : [];
@@ -354,6 +384,21 @@ export const ImportWizard: React.FC = () => {
     } finally {
       setImporting(false);
     }
+  };
+
+  /** Modules the API will accept for the selected product. */
+  const productModules = useMemo(
+    () => (products.find((p) => p.id === productId)?.modules ?? []).filter((m) => m.isActive),
+    [products, productId]
+  );
+
+  /** The API rejects a module that is not configured for the product, so an
+   *  AI-invented name is only used when it actually matches one. */
+  const resolveModule = (suggested?: string | null) => {
+    const match = productModules.find(
+      (m) => m.name.toLowerCase() === (suggested ?? '').trim().toLowerCase()
+    );
+    return match?.name ?? productModules[0]?.name ?? '';
   };
 
   const toggleMarket = (code: string) => {
@@ -401,7 +446,7 @@ export const ImportWizard: React.FC = () => {
         testData: columnMap.testData ? row[columnMap.testData] || '' : ''
       }))
       .filter((item) => item.description.trim() || item.expectedResult.trim());
-  }, [rows, columnMap]);
+  }, [activeRows, columnMap]);
 
   useEffect(() => {
     setPreviewSteps(mappedSteps);
@@ -436,16 +481,24 @@ export const ImportWizard: React.FC = () => {
     let parsedRows: ParsedRow[];
     let parsedSheet = '';
     let grid: string[][] = [];
-    if (isExcel) {
-      const parsed = await parseExcel(file);
-      parsedRows = parsed.rows;
-      parsedSheet = parsed.sheetName;
-      grid = parsed.grid;
-    } else {
-      const text = await file.text();
-      parsedRows = parseCsv(text);
-      const csvHeaders = Object.keys(parsedRows[0] || {});
-      grid = [csvHeaders, ...parsedRows.map((r) => csvHeaders.map((h) => r[h] ?? ''))];
+    try {
+      if (isExcel) {
+        const parsed = await parseExcel(file);
+        parsedRows = parsed.rows;
+        parsedSheet = parsed.sheetName;
+        grid = parsed.grid;
+      } else {
+        const text = await file.text();
+        parsedRows = parseCsv(text);
+        const csvHeaders = Object.keys(parsedRows[0] || {});
+        grid = [csvHeaders, ...parsedRows.map((r) => csvHeaders.map((h) => r[h] ?? ''))];
+      }
+    } catch (error) {
+      // A corrupt or password-protected workbook threw here and the picker
+      // simply did nothing, with no indication why.
+      console.error('[import] could not read file', error);
+      notify('Could not read that file. It may be corrupt or password protected.', 'error');
+      return;
     }
 
     if (parsedRows.length === 0) {
@@ -458,7 +511,7 @@ export const ImportWizard: React.FC = () => {
     const nextStoryHeader =
       nextStories.length > 0
         ? nextHeaders.find((h) =>
-            ['user story id (jira)', 'user story id', 'jira', 'ticket'].includes(
+            ['user story id (jira)', 'user story id', 'jira', 'jira id', 'ticket'].includes(
               h.trim().toLowerCase().replace(/\s+/g, ' ')
             )
           ) ?? null
@@ -598,6 +651,7 @@ export const ImportWizard: React.FC = () => {
     const title = newTaskForm.title.trim();
     if (!title) { notify('New task title is required.', 'error'); return { ok: false }; }
     if (title.length > 200) { notify('New task title is too long.', 'error'); return { ok: false }; }
+    if (!productId) { notify('Select a product for the new task.', 'error'); return { ok: false }; }
     if (newTaskForm.countryCodes.length === 0) { notify('Select at least one market for the new task.', 'error'); return { ok: false }; }
     if (!newTaskForm.module) { notify('Select module for the new task.', 'error'); return { ok: false }; }
     if (!isValidDueDate(newTaskForm.dueDate || undefined)) { notify('Due date is invalid.', 'error'); return { ok: false }; }
@@ -608,7 +662,8 @@ export const ImportWizard: React.FC = () => {
       body: JSON.stringify({
         title,
         description: newTaskForm.description.trim(),
-        module: newTaskForm.module,
+        productId,
+        module: resolveModule(newTaskForm.module),
         priority: newTaskForm.priority.toUpperCase(),
         dueDate: newTaskForm.dueDate || null,
         // One task is created per market, sharing a taskGroupId — same
@@ -754,6 +809,33 @@ export const ImportWizard: React.FC = () => {
                 {draftLoading ? <Loader2 size={15} className="animate-spin" /> : <Bot size={15} />}
                 {draftLoading ? 'Drafting…' : 'Draft UAT tasks'}
               </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Product</label>
+                <select
+                  value={productId}
+                  onChange={(e) => setProductId(e.target.value)}
+                  className={selectBaseClass}
+                >
+                  {products.length === 0 && <option value="">No active products</option>}
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Tasks are created under this product; markets and modules come from it.
+                </p>
+              </div>
+              {productId && productModules.length === 0 && (
+                <div className="flex items-end">
+                  <p className="text-[11px] text-amber-700">
+                    This product has no active modules, so tasks cannot be created for it yet.
+                    Add one under Admin &rarr; System Database.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Story picker — a sprint sheet carries several Jira stories and

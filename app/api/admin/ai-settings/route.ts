@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { createAdminAudit } from '@/lib/adminAudit';
-import { AiProvider, AiProviderConfig } from '@/lib/aiProvider';
+import { AiProvider, AiProviderConfig, loadAiConfig } from '@/lib/aiProvider';
 
 const SETTING_KEY = 'ai.provider';
 
@@ -34,7 +34,9 @@ export async function GET() {
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (session.user.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const settings = await loadSettings();
+  // Report what the runtime will actually use, including the env fallback —
+  // otherwise Settings says "AI disabled" while drafting is really calling a model.
+  const settings = await loadAiConfig();
   // Mask the key — return only whether it is set, not the value
   return NextResponse.json({
     ...settings,

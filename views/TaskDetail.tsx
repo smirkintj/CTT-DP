@@ -452,14 +452,21 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
       updatedTask.status = Status.IN_PROGRESS;
     }
 
-    setLocalTask(updatedTask);
+    // Keep whatever version the save queue has confirmed; updatedTask is built
+    // from a render snapshot and would otherwise reinstate a stale timestamp.
+    setLocalTask({ ...updatedTask, updatedAt: latestUpdatedAtRef.current });
 
     if (updatedTask.status !== previousStatus) {
       const failedStepOrder =
         (updates.stepResult === 'FAILED' || updates.isPassed === false)
           ? (localTask.steps ?? []).find((step) => step.id === stepId)?.order
           : undefined;
-      void persistStatus(updatedTask.status, failedStepOrder);
+      // Queued behind the step save: both carry expectedUpdatedAt, so running
+      // them concurrently guarantees one is stale.
+      stepSaveQueueRef.current = stepSaveQueueRef.current
+        .then(() => persistStatus(updatedTask.status, failedStepOrder))
+        .catch(() => false)
+        .then(() => undefined);
     }
     if (!isAdmin) {
       void enqueueStepSave(stepId, updates);
@@ -789,7 +796,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
   const persistStatus = async (
     status: Status,
     stepOrder?: number,
-    expectedUpdatedAt: string = localTask.updatedAt,
+    expectedUpdatedAt: string = latestUpdatedAtRef.current,
     hasRetried = false
   ) => {
     const response = await fetch(`/api/tasks/${localTask.id}/status`, {
@@ -802,11 +809,19 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
       if (!hasRetried && latest?.updatedAt) {
         // Re-apply optimistic status on top of refreshed server state before retrying.
         const reOptimised = { ...latest, status };
+        latestUpdatedAtRef.current = latest.updatedAt;
         setLocalTask(reOptimised);
         return persistStatus(status, stepOrder, latest.updatedAt, true);
       }
       notify('Task changed by another user. Reloaded latest data.', 'error');
       return false;
+    }
+    if (response.ok) {
+      const body = await response.json().catch(() => null);
+      if (body?.taskUpdatedAt) {
+        latestUpdatedAtRef.current = body.taskUpdatedAt;
+        setLocalTask((prev) => ({ ...prev, updatedAt: body.taskUpdatedAt }));
+      }
     }
     return response.ok;
   };

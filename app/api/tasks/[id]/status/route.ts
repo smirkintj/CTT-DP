@@ -185,5 +185,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     metadata: stepOrder ? { stepOrder } : undefined
   });
 
-  return NextResponse.json({ ok: true });
+  // Return the new version so the client can keep expectedUpdatedAt current;
+  // otherwise the next step or status write is stale and 409s.
+  const touched = await prisma.task.findUnique({
+    where: { id },
+    select: { updatedAt: true }
+  });
+  return NextResponse.json({ ok: true, taskUpdatedAt: touched?.updatedAt ?? null });
 }

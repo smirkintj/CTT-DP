@@ -117,9 +117,21 @@ export async function POST(req: Request) {
   if (session.user.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json().catch(() => null);
-  const groups = Array.isArray(body?.stories) ? (body.stories as StoryGroup[]) : null;
-  if (!groups || groups.length === 0) {
+  const raw = Array.isArray(body?.stories) ? (body.stories as unknown[]) : null;
+  if (!raw || raw.length === 0) {
     return NextResponse.json({ error: 'No stories supplied' }, { status: 400 });
+  }
+  // Validate before use: toDraftTask and buildPrompt both dereference cases,
+  // so a malformed payload would throw a 500 instead of reporting a bad request.
+  const groups = raw.filter(
+    (g): g is StoryGroup =>
+      Boolean(g) &&
+      typeof (g as StoryGroup).key === 'string' &&
+      Array.isArray((g as StoryGroup).cases) &&
+      Array.isArray((g as StoryGroup).countries)
+  );
+  if (groups.length !== raw.length) {
+    return NextResponse.json({ error: 'Malformed story payload' }, { status: 400 });
   }
   if (groups.length > 25) {
     return NextResponse.json({ error: 'Too many stories in one request' }, { status: 400 });
