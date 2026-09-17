@@ -11,12 +11,19 @@ This document summarizes the current architecture, data flow, API surface, and i
 - Styling: Tailwind CSS + `app/globals.css`
 
 ## Current App Architecture
-The project uses **App Router for URLs** and a shared **client shell (`App.tsx`)** for the existing prototype UI state.
+The project uses **App Router for URLs**, with each route page rendering its
+view directly (the former `App.tsx` / `AppRouteShell.tsx` client shell was
+removed in the RSC migration).
 
-- Route pages (`app/**/page.tsx`) set initial view/task state.
-- `AppRouteShell.tsx` maps UI view transitions to URLs.
-- `App.tsx` loads session, fetches tasks, and renders view components.
+- Route pages (`app/**/page.tsx`) resolve the session and render a view from `views/`.
+- Views own their own data fetching; there is no shared client shell.
 - Shared API error helper (`lib/apiError.ts`) is used to standardize server error payloads.
+- SIT workbook parsing is shared between the browser and the server: `lib/sitWorkbook.ts`
+  (dependency-free, used by the import wizard) and `lib/sitWorkbookServer.ts` (exceljs
+  adapter for the Jira intake cron). `lib/draftTask.ts` is the single place a story
+  becomes a UAT task draft, so both entry points produce identical results.
+- The QA-facing SIT portal backend was archived on 2026-09-17 — see
+  `docs/sit-portal-archive.md`. Its database models and migrations are retained.
 - Shared form classes (`components/ui/formClasses.ts`) are used for consistent minimal input/button styling.
 - Shared task query include shapes are centralized in `app/api/tasks/_query.ts`.
   - includes separate list-vs-detail query shapes for task performance tuning.

@@ -98,6 +98,22 @@ npm run db:migrate:deploy
 - `scripts/playwright_admin_flow.sh` (automates admin browser smoke flow with Playwright CLI wrapper)
 - `npm run db:purge-and-seed` (DANGER: deletes all data, recreates base countries/products/modules/target systems/users; requires `CONFIRM_PURGE=YES`)
 
+## End-to-End Tests
+
+The app is covered by a Playwright suite that runs against a real database and
+a real browser — `npm run build` and `npm run lint` both pass on code that
+fails as soon as a user touches it.
+
+```bash
+bash scripts/e2e-setup.sh   # local postgres + migrations + seed + .env.local
+npm run build
+npm run test:e2e
+```
+
+Set `E2E_BASE_URL` to run against an already-deployed environment instead of
+starting a local server. CI runs the suite on every pull request and push to
+main. See `e2e/README.md` for what is covered and the conventions used.
+
 ## Playwright Browser Automation (Admin Flow)
 Technical dependencies:
 - Node.js/npm with `npx` available
