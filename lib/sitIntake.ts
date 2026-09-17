@@ -7,8 +7,8 @@
  */
 import prisma from './prisma';
 import { searchJiraIssuesWithKeywordComment, fetchJiraAttachmentDetailed } from './jira';
-import { parseExcel } from './parseExcel';
-import { generateDraftTask } from './generateDraftTask';
+import { readWorkbookStories } from './sitWorkbookServer';
+import { draftTaskFromStory } from './draftTask';
 import { sendDraftTaskReadyEmail } from './email';
 
 const SIT_COMPLETE_KEYWORD = process.env.SIT_COMPLETE_KEYWORD || 'SIT completed';
@@ -114,40 +114,38 @@ export async function runSitIntake(options: SitIntakeOptions = {}): Promise<SitI
       }
       const buffer = download.buffer;
 
-      let sitRows;
+      let stories;
       try {
-        sitRows = await parseExcel(buffer);
+        stories = await readWorkbookStories(buffer);
       } catch (err) {
-        console.error(`[sit-intake] parseExcel failed for ${issue.key}:`, err);
+        console.error(`[sit-intake] could not read workbook for ${issue.key}:`, err);
         results.push({ jiraTicket: issue.key, status: 'error', reason: 'excel_parse_failed' });
         continue;
       }
 
-      if (sitRows.length === 0) {
+      if (stories.length === 0) {
         results.push({ jiraTicket: issue.key, status: 'skipped', reason: 'empty_excel' });
         continue;
       }
 
-      // A sprint workbook usually covers several stories. Draft only the rows
-      // belonging to this ticket, or the whole sheet when it carries no story
-      // column (a single-story export).
-      const ownRows = sitRows.filter(
-        (r) => r.story && r.story.toUpperCase() === issue.key.toUpperCase()
-      );
-      const rowsForTicket = ownRows.length > 0 ? ownRows : sitRows.filter((r) => !r.story);
+      // A sprint workbook usually covers several stories. Draft only the one
+      // belonging to this ticket, or the sole story when the sheet carries no
+      // story column (a single-story export).
+      const own = stories.find((g) => g.key.toUpperCase() === issue.key.toUpperCase());
+      const story = own ?? (stories.length === 1 && !stories[0].story ? stories[0] : null);
 
-      if (rowsForTicket.length === 0) {
+      if (!story) {
         results.push({ jiraTicket: issue.key, status: 'skipped', reason: 'no_rows_for_ticket' });
         continue;
       }
 
-      const generated = await generateDraftTask(issue.key, issue.summary, rowsForTicket);
+      const generated = await draftTaskFromStory(story, { productName: product.name });
 
       const draft = await prisma.draftTask.create({
         data: {
           jiraTicket: issue.key,
           productId: product.id,
-          rawExcelData: sitRows as object[],
+          rawExcelData: story.cases as unknown as object[],
           generatedData: generated as object,
           status: 'PENDING',
         }

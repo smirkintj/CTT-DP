@@ -4,7 +4,7 @@ import { authOptions } from '../../../../../lib/auth';
 import prisma from '../../../../../lib/prisma';
 import { unauthorized, forbidden, badRequest, notFound } from '../../../../../lib/apiError';
 import { createAdminAudit } from '../../../../../lib/adminAudit';
-import type { GeneratedTaskData } from '../../../../../lib/generateDraftTask';
+import type { DraftedTask } from '../../../../../lib/draftTask';
 
 type ApproveBody = {
   action: 'approve';
@@ -73,7 +73,7 @@ export async function PATCH(
       return badRequest('At least one country is required', 'COUNTRIES_REQUIRED');
     }
 
-    const generatedData = draft.generatedData as GeneratedTaskData;
+    const generatedData = draft.generatedData as DraftedTask;
     const editedData = { ...generatedData, ...taskData };
 
     // Save edited data before task creation

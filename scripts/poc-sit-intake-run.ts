@@ -11,8 +11,8 @@
  * pretending a model ran — `generatedBy` says which path was taken.
  */
 import fs from 'node:fs';
-import { parseExcel } from '../lib/parseExcel';
-import { generateDraftTask } from '../lib/generateDraftTask';
+import { readWorkbookStories } from '../lib/sitWorkbookServer';
+import { draftTaskFromStory } from '../lib/draftTask';
 import { loadAiConfig } from '../lib/aiProvider';
 
 const file = process.argv[2];
@@ -32,29 +32,32 @@ async function main() {
   console.log(`model    : ${config.model || '(provider default)'}`);
   console.log(`api key  : ${config.apiKey ? 'present' : 'MISSING — fallback path will run'}`);
 
-  rule('2. parseExcel — the step that was reading the wrong sheet');
+  rule('2. Reading the workbook');
   const buffer = fs.readFileSync(file);
-  const rows = await parseExcel(buffer);
-  console.log(`parsed ${rows.length} SIT test case rows`);
-  const stories = [...new Set(rows.map((r) => r.story).filter(Boolean))];
-  if (stories.length) console.log(`stories in sheet: ${stories.join(', ')}`);
-  if (rows.length === 0) {
+  const stories = await readWorkbookStories(buffer);
+  const caseCount = stories.reduce((n, g) => n + g.cases.length, 0);
+  console.log(`parsed ${caseCount} SIT test case(s) across ${stories.length} story group(s)`);
+  if (stories.length === 0) {
     console.log('\nNo rows. Before the sheet fix this is what the cron saw, and it');
     console.log('recorded "empty_excel" and skipped the ticket without an error.');
     process.exit(1);
   }
-  for (const r of rows.slice(0, 5)) {
-    console.log(`  [${r.testCaseId}] ${r.result.padEnd(12)} ${r.title.slice(0, 58)}`);
+  for (const g of stories) {
+    console.log(`  ${g.key.padEnd(10)} ${g.cases.length} case(s)  ${g.title.slice(0, 50)}`);
   }
-  if (rows.length > 5) console.log(`  … ${rows.length - 5} more`);
 
-  rule(`3. generateDraftTask — rows scoped to ${jiraKey}`);
-  const own = rows.filter((r) => r.story && r.story.toUpperCase() === jiraKey.toUpperCase());
-  const rowsForTicket = own.length > 0 ? own : rows.filter((r) => !r.story);
-  console.log(`${rowsForTicket.length} of ${rows.length} rows belong to ${jiraKey}`);
+  rule(`3. Drafting ${jiraKey}`);
+  const own = stories.find((g) => g.key.toUpperCase() === jiraKey.toUpperCase());
+  const story = own ?? (stories.length === 1 ? stories[0] : null);
+  if (!story) {
+    console.log(`No story matches ${jiraKey}. Available: ${stories.map((g) => g.key).join(', ')}`);
+    process.exit(1);
+  }
+  console.log(`${story.cases.length} of ${caseCount} case(s) belong to ${story.key}`);
   const started = Date.now();
-  const generated = await generateDraftTask(jiraKey, jiraSummary, rowsForTicket);
-  console.log(`generatedBy : ${generated.generatedBy ?? 'unknown'}`);
+  const generated = await draftTaskFromStory(story);
+  console.log(`generatedBy : ${generated.generatedBy}`);
+  if (generated.fallbackReason) console.log(`fallback    : ${generated.fallbackReason}`);
   console.log(`took        : ${Date.now() - started} ms`);
 
   rule('4. DraftTask that would be stored for admin review');
