@@ -22,7 +22,8 @@
     "audit:check-admin": "node scripts/check-admin-audit-coverage.mjs",
     "perf:sample": "bash ./scripts/perf-baseline.sh",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:prod": "playwright test --grep-invert @writes"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -57,7 +57,7 @@ async function buildWorkbook(): Promise<Buffer> {
   return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
 }
 
-test('imports a workbook and creates a task per market', async ({ page, request }) => {
+test('imports a workbook and creates a task per market @writes', async ({ page, request }) => {
   const errors = failOnServerErrors(page);
   await page.goto('/import');
 

@@ -23,6 +23,28 @@ one:
 E2E_BASE_URL=https://your-preview.vercel.app npm run test:e2e
 ```
 
+## Running against production
+
+Two specs write data — `import.spec.ts` creates tasks and `task-steps.spec.ts`
+marks steps PASS. Against production that means junk tasks and false UAT
+results in the live database, so they are tagged `@writes` and excluded by the
+production script:
+
+```bash
+E2E_BASE_URL=https://ctt-dksh.vercel.app \
+E2E_ADMIN_EMAIL=you@dksh.com E2E_ADMIN_PASSWORD='...' \
+E2E_STAKEHOLDER_EMAIL=uat-my@dksh.com E2E_STAKEHOLDER_PASSWORD='...' \
+npm run test:e2e:prod
+```
+
+That runs the read-only checks only: every page renders with no API error, the
+nav groups resolve, and a nav click is acknowledged before the page arrives.
+Credentials come from the environment — never commit them (CTT vault in
+1Password).
+
+Use a dedicated read-only-ish account if you have one; the checks only read,
+but they do consume that account's API rate-limit budget.
+
 If the environment ships its own Chromium rather than Playwright's pinned
 build, point at it:
 

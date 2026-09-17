@@ -21,7 +21,7 @@ async function dismissOnboarding(page: import('@playwright/test').Page) {
   }
 }
 
-test('rapid pass clicks all persist', async ({ page }) => {
+test('rapid pass clicks all persist @writes', async ({ page }) => {
   const errors = failOnServerErrors(page);
   const request = page.request;
 
