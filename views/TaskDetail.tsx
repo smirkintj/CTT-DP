@@ -224,8 +224,11 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
   // The task version last confirmed by the server. Read as expectedUpdatedAt
   // on every step save so rapid ticks are not rejected as stale.
   const latestUpdatedAtRef = useRef<string>(_initTask.updatedAt);
-  // Serialises step saves; concurrent ones would all carry the same version.
-  const stepSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  // Per-step versions. Step saves are independent writes, so each carries its
+  // own version and they can run in parallel — no queue, no waiting.
+  const stepVersionsRef = useRef<Record<string, string>>({});
+  // Status writes are task-scoped, so those stay serialised.
+  const statusQueueRef = useRef<Promise<void>>(Promise.resolve());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const commentElementRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const commentDraftStorageKey = useMemo(
@@ -366,6 +369,10 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
         isPassed: updates.isPassed,
         actualResult: updates.actualResult,
         attachments: updates.attachments,
+        // Scoped to this step so a sibling save cannot invalidate it.
+        expectedStepUpdatedAt:
+          stepVersionsRef.current[stepId] ??
+          (localTask.steps ?? []).find((st) => st.id === stepId)?.updatedAt,
         expectedUpdatedAt
       })
     });
@@ -396,6 +403,7 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
     // reverted on screen until the retry landed — which is why saving slowly
     // appeared to work and saving quickly did not.
     const saved = await response.json().catch(() => null);
+    if (saved?.updatedAt) stepVersionsRef.current[stepId] = saved.updatedAt;
     if (saved?.taskUpdatedAt) {
       latestUpdatedAtRef.current = saved.taskUpdatedAt;
       setLocalTask((prev) => ({ ...prev, updatedAt: saved.taskUpdatedAt }));
@@ -408,16 +416,13 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
     return true;
   };
 
-  /**
-   * Step saves run one at a time. Concurrent PATCHes carry the same
-   * expectedUpdatedAt, so all but the first are rejected as stale.
-   */
-  const enqueueStepSave = (stepId: string, updates: Partial<TestStep>) => {
-    stepSaveQueueRef.current = stepSaveQueueRef.current
-      .then(() => persistStepProgress(stepId, updates))
+  /** Task-scoped writes still need ordering; step saves no longer do. */
+  const enqueueStatusSave = (status: Status, stepOrder?: number) => {
+    statusQueueRef.current = statusQueueRef.current
+      .then(() => persistStatus(status, stepOrder))
       .catch(() => false)
       .then(() => undefined);
-    return stepSaveQueueRef.current;
+    return statusQueueRef.current;
   };
 
   const handleStepUpdate = (stepId: string, updates: Partial<TestStep>) => {
@@ -461,15 +466,10 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
         (updates.stepResult === 'FAILED' || updates.isPassed === false)
           ? (localTask.steps ?? []).find((step) => step.id === stepId)?.order
           : undefined;
-      // Queued behind the step save: both carry expectedUpdatedAt, so running
-      // them concurrently guarantees one is stale.
-      stepSaveQueueRef.current = stepSaveQueueRef.current
-        .then(() => persistStatus(updatedTask.status, failedStepOrder))
-        .catch(() => false)
-        .then(() => undefined);
+      void enqueueStatusSave(updatedTask.status, failedStepOrder);
     }
     if (!isAdmin) {
-      void enqueueStepSave(stepId, updates);
+      void persistStepProgress(stepId, updates);
     }
 
     // Auto-advance logic
@@ -767,6 +767,9 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
       const updated = await apiFetch<Task>(`/api/tasks/${taskId}`, { cache: 'no-store' });
       const safeUpdated = normalizeTask(updated as Task);
       latestUpdatedAtRef.current = safeUpdated.updatedAt;
+      for (const st of safeUpdated.steps ?? []) {
+        if (st.updatedAt) stepVersionsRef.current[st.id] = st.updatedAt;
+      }
       setLocalTask(safeUpdated);
       void fetch(`/api/tasks/${taskId}/comments/read`, { method: 'POST' });
       return safeUpdated;
@@ -1786,8 +1789,21 @@ export const TaskDetail: React.FC<TaskDetailProps> = ({ task }) => {
                         }
                       }}
                     >
-                        <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-sm font-bold flex-shrink-0 ${statusColor}`}>
-                          {stepOutcome === 'PASSED' ? <CheckCircle size={16}/> : stepOutcome === 'FAILED' ? <XCircle size={16}/> : stepOutcome === 'CONDITIONAL' ? <AlertCircle size={16}/> : idx + 1}
+                        <div
+                          className={`w-8 h-8 rounded-full border flex items-center justify-center text-sm font-bold flex-shrink-0 ${statusColor}`}
+                          title={
+                            stepSaveState[step.id] === 'saving'
+                              ? 'Saving…'
+                              : stepSaveState[step.id] === 'error'
+                                ? 'Save failed'
+                                : undefined
+                          }
+                        >
+                          {stepSaveState[step.id] === 'saving'
+                            ? <Loader2 size={15} className="animate-spin" />
+                            : stepSaveState[step.id] === 'error'
+                              ? <AlertCircle size={16} />
+                              : stepOutcome === 'PASSED' ? <CheckCircle size={16}/> : stepOutcome === 'FAILED' ? <XCircle size={16}/> : stepOutcome === 'CONDITIONAL' ? <AlertCircle size={16}/> : idx + 1}
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">

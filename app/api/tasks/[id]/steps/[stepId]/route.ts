@@ -63,7 +63,14 @@ export async function PATCH(
   if (!isAdmin && requestedStepResult === StepResult.CONDITIONAL && !conditionalReason) {
     return NextResponse.json({ error: 'Conditional pass reason is required' }, { status: 400 });
   }
-  const staleMessage = validateExpectedUpdatedAt(task.updatedAt, body?.expectedUpdatedAt);
+  // A step update writes only its own row, so the meaningful conflict is on
+  // the step, not the task. Checking the task version made marking several
+  // steps in quick succession invalidate each other — every save after the
+  // first was stale through no fault of the user. Prefer the step version and
+  // keep the task check for clients that still send it.
+  const staleMessage = body?.expectedStepUpdatedAt
+    ? validateExpectedUpdatedAt(stepRecord.updatedAt, body.expectedStepUpdatedAt)
+    : validateExpectedUpdatedAt(task.updatedAt, body?.expectedUpdatedAt);
   if (staleMessage) {
     return NextResponse.json({ error: staleMessage }, { status: 409 });
   }
