@@ -6,13 +6,23 @@ import { checkRateLimit } from './lib/apiRateLimit';
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+
   // Rate limiting for API routes
   if (req.nextUrl.pathname.startsWith('/api/') &&
       !req.nextUrl.pathname.startsWith('/api/auth/')) {
+    // Key on the signed-in user where we have one. Keying on IP alone meant a
+    // whole office behind a single NAT egress shared one budget, so colleagues
+    // rate-limited each other; anonymous traffic still falls back to IP.
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const identity = token?.sub ? `user:${token.sub}` : `ip:${ip}`;
     const isWrite = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
-    const limit = isWrite ? 30 : 120;
-    const { allowed, remaining, resetInMs } = checkRateLimit(`${ip}:${isWrite ? 'w' : 'r'}`, limit);
+    // Defaults suit a person clicking around; automated suites need headroom,
+    // so they are overridable rather than hard-coded.
+    const readLimit = Number(process.env.API_RATE_LIMIT_READ) || 120;
+    const writeLimit = Number(process.env.API_RATE_LIMIT_WRITE) || 30;
+    const limit = isWrite ? writeLimit : readLimit;
+    const { allowed, remaining, resetInMs } = checkRateLimit(`${identity}:${isWrite ? 'w' : 'r'}`, limit);
 
     if (!allowed) {
       return new NextResponse(JSON.stringify({ error: 'Too many requests', code: 'RATE_LIMITED' }), {
@@ -27,8 +37,6 @@ export async function middleware(req: NextRequest) {
     }
     void remaining;
   }
-
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
   const isAdminRoute = pathname.startsWith('/admin') || pathname === '/import';
   const isTaskRoute = pathname.startsWith('/tasks');

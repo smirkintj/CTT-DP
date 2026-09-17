@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useTransition } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Role } from '../types';
@@ -15,6 +15,17 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const currentUser = sessionToUser(session);
 
   const { activities, loading: loadingActivities, markRead, markAllRead } = useActivities();
+  // These pages are server-rendered per request, so a plain router.push leaves
+  // the old page on screen for the whole render with nothing acknowledging the
+  // click. Marking the target active immediately is what makes it feel instant.
+  const [isNavigating, startNavigation] = useTransition();
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
+
+  const navigate = (href: string) => {
+    if (href === pathname) return;
+    setPendingPath(href);
+    startNavigation(() => router.push(href));
+  };
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
@@ -45,6 +56,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   }, []);
 
   useEffect(() => { setAvatarError(false); }, [currentUser?.avatarUrl]);
+
+  useEffect(() => { setPendingPath(null); }, [pathname]);
 
   // While session is resolving, show a skeleton header so authenticated pages
   // don't flash bare content before the nav appears.
@@ -91,13 +104,23 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
+      {isNavigating && (
+        <div
+          role="progressbar"
+          aria-label="Loading page"
+          className="fixed top-0 left-0 right-0 z-[60] h-0.5 bg-brand-500/20 print:hidden"
+        >
+          <div className="h-full w-1/3 bg-brand-500 animate-indeterminate" />
+        </div>
+      )}
+
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-8">
               <div
                 className="flex items-center gap-2 cursor-pointer group"
-                onClick={() => router.push(dashboardHref)}
+                onClick={() => navigate(dashboardHref)}
               >
                 <div className="h-8 w-auto px-2 bg-brand-500 rounded flex items-center justify-center shadow-sm group-hover:bg-brand-600 transition-colors">
                   <span className="text-white font-bold text-sm tracking-wider">CTT</span>
@@ -111,26 +134,26 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               {/* Grouped by what the item is for: where you work, what is
                   waiting on you, then reference and configuration. */}
               <nav className="hidden md:flex gap-1 ml-4 items-center">
-                <NavItem active={isDashboard} icon={<LayoutGrid size={16} />} label="Dashboard" onClick={() => router.push(dashboardHref)} />
+                <NavItem pending={pendingPath === dashboardHref} active={isDashboard} icon={<LayoutGrid size={16} />} label="Dashboard" onClick={() => navigate(dashboardHref)} />
                 {!isAdmin && (
-                  <NavItem active={isInbox} icon={<MessageSquare size={16} />} label="Inbox" onClick={() => router.push('/inbox')} />
+                  <NavItem pending={pendingPath === '/inbox'} active={isInbox} icon={<MessageSquare size={16} />} label="Inbox" onClick={() => navigate('/inbox')} />
                 )}
 
                 {isAdmin && (
                   <>
-                    <NavItem active={isAdminTasks} icon={<List size={16} />} label="Tasks" onClick={() => router.push('/admin/tasks')} />
+                    <NavItem pending={pendingPath === '/admin/tasks'} active={isAdminTasks} icon={<List size={16} />} label="Tasks" onClick={() => navigate('/admin/tasks')} />
 
                     <NavDivider />
 
                     {/* Both are queues of incoming work awaiting review. */}
-                    <NavItem active={isJiraQueue} icon={<Ticket size={16} />} label="JIRA Queue" onClick={() => router.push('/admin/jira-intake')} />
-                    <NavItem active={isDraftTasks} icon={<Sparkles size={16} />} label="AI Drafts" onClick={() => router.push('/admin/draft-tasks')} />
+                    <NavItem pending={pendingPath === '/admin/jira-intake'} active={isJiraQueue} icon={<Ticket size={16} />} label="JIRA Queue" onClick={() => navigate('/admin/jira-intake')} />
+                    <NavItem pending={pendingPath === '/admin/draft-tasks'} active={isDraftTasks} icon={<Sparkles size={16} />} label="AI Drafts" onClick={() => navigate('/admin/draft-tasks')} />
 
                     <NavDivider />
                   </>
                 )}
 
-                <NavItem active={isKnowledgeBase} icon={<BookOpen size={16} />} label="Knowledge Base" onClick={() => router.push('/knowledge-base')} />
+                <NavItem pending={pendingPath === '/knowledge-base'} active={isKnowledgeBase} icon={<BookOpen size={16} />} label="Knowledge Base" onClick={() => navigate('/knowledge-base')} />
 
                 {isAdmin && (
                   <div className="relative" ref={adminRef}>
@@ -159,14 +182,14 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                           icon={<Database size={15} />}
                           label="System Database"
                           hint="Products, countries, modules, users"
-                          onClick={() => { setShowAdminMenu(false); router.push('/admin/database'); }}
+                          onClick={() => { setShowAdminMenu(false); navigate('/admin/database'); }}
                         />
                         <AdminMenuItem
                           active={isAdminSettings}
                           icon={<SlidersHorizontal size={15} />}
                           label="Settings"
                           hint="AI provider and model"
-                          onClick={() => { setShowAdminMenu(false); router.push('/admin/settings'); }}
+                          onClick={() => { setShowAdminMenu(false); navigate('/admin/settings'); }}
                         />
                       </div>
                     )}
@@ -325,16 +348,22 @@ const AdminMenuItem: React.FC<{
 
 const NavItem: React.FC<{
   active: boolean;
+  /** Clicked and the page is still rendering — styled as active straight away. */
+  pending?: boolean;
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
   badge?: number;
-}> = ({ active, icon, label, onClick, badge }) => (
+}> = ({ active, pending, icon, label, onClick, badge }) => (
   <button
     onClick={onClick}
+    aria-current={active ? 'page' : undefined}
+    aria-busy={pending || undefined}
     className={`relative flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
-      active ? 'bg-slate-100 text-brand-600' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-    }`}
+      active || pending
+        ? 'bg-slate-100 text-brand-600'
+        : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+    } ${pending ? 'opacity-70' : ''}`}
   >
     {icon}
     {label}

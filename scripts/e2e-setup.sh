@@ -52,6 +52,10 @@ NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="local-e2e-secret-not-for-production"
 SEED_ADMIN_PASSWORD="LocalE2E!admin1"
 SEED_USER_PASSWORD="LocalE2E!user1"
+# The suite drives one account far harder than a person would; the production
+# defaults (120 read / 30 write per minute) would rate-limit it.
+API_RATE_LIMIT_READ="10000"
+API_RATE_LIMIT_WRITE="10000"
 EOF
 
 set -a; . ./.env.local; set +a

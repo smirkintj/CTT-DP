@@ -54,3 +54,35 @@ test('admin nav exposes the grouped destinations', async ({ page }) => {
   await expect(page.getByRole('menuitem', { name: /system database/i })).toBeVisible();
   await expect(page.getByRole('menuitem', { name: /settings/i })).toBeVisible();
 });
+
+/**
+ * Navigation must acknowledge a click immediately.
+ *
+ * These pages are server-rendered per request. Without pending UI the previous
+ * page stayed on screen for the whole render — several hundred milliseconds in
+ * which nothing responded to the click, which read as the app being frozen.
+ */
+test('nav acknowledges a click before the page arrives', async ({ page }) => {
+  await page.goto('/admin/dashboard');
+
+  // Hold the navigation so the pending state is observable. On a warm client
+  // cache the route resolves in tens of milliseconds, which would make this
+  // assertion a race rather than a check.
+  await page.route('**/admin/tasks**', async (route) => {
+    await new Promise((r) => setTimeout(r, 1_000));
+    await route.continue();
+  });
+
+  await page.getByRole('button', { name: /^tasks$/i }).first().click();
+
+  // Either the clicked item marks itself busy or the progress bar appears —
+  // something must respond without waiting for the server.
+  await expect(
+    page.locator('[aria-busy="true"], [role="progressbar"]').first()
+  ).toBeVisible({ timeout: 900 });
+
+  await page.unroute('**/admin/tasks**');
+  await expect(page.getByRole('heading', { name: /task/i }).first()).toBeVisible({
+    timeout: 20_000
+  });
+});

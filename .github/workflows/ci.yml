@@ -58,6 +58,9 @@ jobs:
       NEXTAUTH_SECRET: ci-e2e-secret
       SEED_ADMIN_PASSWORD: CiE2E!admin1
       SEED_USER_PASSWORD: CiE2E!user1
+      # The suite drives one account harder than a person would.
+      API_RATE_LIMIT_READ: '10000'
+      API_RATE_LIMIT_WRITE: '10000'
 
     steps:
       - name: Checkout
