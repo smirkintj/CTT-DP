@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>CTT — brag</title>
+    <!-- vendored locally: the render sandbox cannot reach the CDN over its TLS proxy -->
+    <script src="assets/vendor/gsap.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #0f172a;
+      }
+      /* CTT palette — pulled from tailwind.config.js + app/globals.css */
+      :root {
+        --slate-900: #0f172a;
+        --slate-700: #334155;
+        --slate-500: #64748b;
+        --slate-300: #cbd5e1;
+        --slate-200: #e2e8f0;
+        --slate-100: #f1f5f9;
+        --slate-50: #f8fafc;
+        --brand: #c4161c;
+        --emerald-bg: #d1fae5;
+        --emerald-fg: #047857;
+        --amber-bg: #fef3c7;
+        --amber-fg: #b45309;
+        --white: #ffffff;
+      }
+      #root {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-feature-settings: "tnum" 1;
+      }
+      .scene {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      .dark {
+        background: var(--slate-900);
+      }
+      .light {
+        background: var(--slate-50);
+      }
+      .fill {
+        position: absolute;
+        inset: 0;
+      }
+
+      /* ---------- Scene 1 : hook ---------- */
+      #s1-inner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 46px;
+      }
+      #s1-line {
+        color: #f8fafc;
+        font-size: 104px;
+        font-weight: 700;
+        letter-spacing: -0.035em;
+        text-align: center;
+      }
+      #s1-gloss {
+        color: #c5191f; /* contrast-tuned brand red on slate-900 (>=3:1) */
+        font-size: 30px;
+        font-weight: 600;
+        letter-spacing: 0.46em;
+        text-transform: lowercase;
+      }
+
+      /* ---------- shared app chrome ---------- */
+      .appbar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 96px;
+        background: var(--white);
+        border-bottom: 1px solid var(--slate-200);
+        display: flex;
+        align-items: center;
+        padding: 0 64px;
+        gap: 18px;
+      }
+      .mark {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: var(--brand);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--white);
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .markword {
+        color: var(--slate-900);
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .marksub {
+        color: var(--slate-500);
+        font-size: 19px;
+        font-weight: 500;
+      }
+
+      /* ---------- Scene 2 : the board ---------- */
+      #s2-body {
+        position: absolute;
+        top: 96px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 52px 64px 0;
+      }
+      .searchrow {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 40px;
+      }
+      .search {
+        flex: 1;
+        height: 66px;
+        border: 1px solid var(--slate-200);
+        background: var(--white);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        padding: 0 26px;
+        color: #8896aa; /* contrast-tuned placeholder */
+        font-size: 24px;
+      }
+      .chip {
+        height: 66px;
+        padding: 0 30px;
+        border-radius: 14px;
+        border: 1px solid var(--slate-200);
+        background: var(--white);
+        color: var(--slate-700);
+        font-size: 22px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+      }
+      .chip.on {
+        background: var(--slate-900);
+        border-color: var(--slate-900);
+        color: var(--white);
+      }
+      .cards {
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+      }
+      .card {
+        background: var(--white);
+        border: 1px solid var(--slate-200);
+        border-radius: 18px;
+        padding: 30px 34px;
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+      }
+      .badge {
+        padding: 9px 18px;
+        border-radius: 9px;
+        background: var(--slate-100);
+        color: var(--slate-700);
+        font-size: 20px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .cardmain {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .cardtitle {
+        color: var(--slate-900);
+        font-size: 27px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .cardmeta {
+        color: var(--slate-500);
+        font-size: 21px;
+        font-weight: 500;
+      }
+      .status {
+        padding: 11px 22px;
+        border-radius: 999px;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+      }
+      .st-ready {
+        background: var(--slate-100);
+        color: var(--slate-700);
+      }
+      .st-prog {
+        background: var(--amber-bg);
+        color: var(--amber-fg);
+      }
+      .st-pass {
+        background: var(--emerald-bg);
+        color: var(--emerald-fg);
+      }
+
+      /* ---------- Scene 3 : the three steps ---------- */
+      #s3-body {
+        position: absolute;
+        top: 96px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        padding: 64px;
+        gap: 64px;
+      }
+      #s3-left {
+        width: 720px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 40px;
+      }
+      #s3-kicker {
+        color: var(--slate-500);
+        font-size: 23px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .step {
+        display: flex;
+        align-items: flex-start;
+        gap: 24px;
+      }
+      .stepnum {
+        width: 48px;
+        height: 48px;
+        flex: 0 0 48px;
+        border-radius: 999px;
+        background: var(--brand);
+        color: var(--white);
+        font-size: 23px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .steptext {
+        color: var(--slate-900);
+        font-size: 33px;
+        font-weight: 600;
+        line-height: 1.32;
+        letter-spacing: -0.015em;
+      }
+      #s3-right {
+        flex: 1;
+        display: flex;
+        align-items: center;
+      }
+      .panel {
+        width: 100%;
+        background: var(--white);
+        border: 1px solid var(--slate-200);
+        border-radius: 20px;
+        padding: 40px;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+      }
+      .panelhead {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 26px;
+        border-bottom: 1px solid var(--slate-200);
+        margin-bottom: 30px;
+      }
+      .paneltitle {
+        color: var(--slate-900);
+        font-size: 26px;
+        font-weight: 700;
+      }
+      .cols {
+        display: flex;
+        gap: 28px;
+      }
+      .col {
+        flex: 1;
+      }
+      .collabel {
+        color: var(--slate-500);
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+      }
+      .colbox {
+        background: var(--slate-50);
+        border: 1px solid var(--slate-200);
+        border-radius: 12px;
+        padding: 20px 22px;
+        color: var(--slate-700);
+        font-size: 21px;
+        line-height: 1.45;
+        min-height: 128px;
+      }
+      #s3-passrow {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-top: 30px;
+      }
+      .sigbox {
+        margin-top: 28px;
+        border: 2px dashed var(--slate-300);
+        border-radius: 14px;
+        height: 104px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6c7786; /* contrast-tuned: real text, needs 4.5:1 */
+        font-size: 22px;
+        font-weight: 600;
+      }
+
+      /* ---------- Scene 4 : signed and deployed ---------- */
+      #s4-body {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #s4-card {
+        width: 1080px;
+        background: var(--white);
+        border: 1px solid var(--slate-200);
+        border-radius: 24px;
+        padding: 56px 60px;
+        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.1);
+      }
+      #s4-label {
+        color: var(--slate-500);
+        font-size: 21px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+      }
+      #s4-sig {
+        border: 2px dashed var(--slate-300);
+        border-radius: 16px;
+        height: 300px;
+        background: var(--slate-50);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #s4-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 40px;
+      }
+      #s4-name {
+        color: var(--slate-900);
+        font-size: 27px;
+        font-weight: 600;
+      }
+      #s4-role {
+        color: var(--slate-500);
+        font-size: 21px;
+        font-weight: 500;
+        margin-top: 6px;
+      }
+      #s4-chipwrap {
+        position: relative;
+        width: 260px;
+        height: 62px;
+      }
+      .bigstatus {
+        position: absolute;
+        top: 0;
+        right: 0;
+        padding: 16px 30px;
+        border-radius: 999px;
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+      #s4-toast {
+        position: absolute;
+        right: 72px;
+        bottom: 72px;
+        background: var(--slate-900);
+        color: var(--white);
+        border-radius: 14px;
+        padding: 24px 32px;
+        font-size: 24px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .tdot {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        background: #34d399;
+      }
+
+      /* ---------- Scene 5 : outro ---------- */
+      #s5-inner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 40px;
+      }
+      #sigpath {
+        stroke-dasharray: 2600;
+      }
+      #s5-line {
+        color: #f8fafc;
+        font-size: 96px;
+        font-weight: 700;
+        letter-spacing: -0.035em;
+      }
+      #s5-rule {
+        width: 132px;
+        height: 4px;
+        background: var(--brand);
+        border-radius: 2px;
+      }
+      #s5-stat {
+        color: #94a3b8;
+        font-size: 28px;
+        font-weight: 500;
+        letter-spacing: 0.01em;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="20"
+      data-width="1920"
+      data-height="1080"
+      data-fps="30"
+    >
+      <!-- ============ Scene 1 — hook — 0.0s to 3.0s ============ -->
+      <section id="s1" class="clip scene dark" data-start="0" data-duration="3" data-track-index="0">
+        <div id="s1-inner">
+          <div id="s1-line">Someone has to try it.</div>
+          <div id="s1-gloss">cuba try test</div>
+        </div>
+      </section>
+
+      <!-- ============ Scene 2 — the board — 3.0s to 7.0s ============ -->
+      <section id="s2" class="clip scene light" data-start="3" data-duration="4" data-track-index="1">
+        <div class="fill">
+          <div class="appbar" id="s2-bar">
+            <div class="mark">CT</div>
+            <div class="markword">CTT</div>
+            <div class="marksub">· Cuba Try Test</div>
+          </div>
+          <div id="s2-body">
+            <div class="searchrow" id="s2-search">
+              <div class="search">Search tasks...</div>
+              <div class="chip on">Open Tasks</div>
+              <div class="chip">In Progress</div>
+              <div class="chip">Unread</div>
+            </div>
+            <div class="cards">
+              <div class="card" id="s2-c1">
+                <div class="badge">EasyOrder</div>
+                <div class="cardmain">
+                  <div class="cardtitle">Order submission — quantity validation</div>
+                  <div class="cardmeta">Malaysia · UAT · due 24 Sep</div>
+                </div>
+                <div class="status st-ready">READY</div>
+              </div>
+              <div class="card" id="s2-c2">
+                <div class="badge">EasyOrder</div>
+                <div class="cardmain">
+                  <div class="cardtitle">Checkout — tax rounding on multi-line orders</div>
+                  <div class="cardmeta">Thailand · UAT · due 25 Sep</div>
+                </div>
+                <div class="status st-prog">IN_PROGRESS</div>
+              </div>
+              <div class="card" id="s2-c3">
+                <div class="badge">EasyOrder</div>
+                <div class="cardmain">
+                  <div class="cardtitle">Customer search — partial SKU match</div>
+                  <div class="cardmeta">Singapore · UAT · signed off</div>
+                </div>
+                <div class="status st-pass">PASSED</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ Scene 3 — the three steps — 7.0s to 14.0s ============ -->
+      <section id="s3" class="clip scene light" data-start="7" data-duration="7" data-track-index="2">
+        <div class="fill">
+          <div class="appbar">
+            <div class="mark">CT</div>
+            <div class="markword">CTT</div>
+            <div class="marksub">· Order submission — quantity validation</div>
+          </div>
+          <div id="s3-body">
+            <div id="s3-left">
+              <div id="s3-kicker">Getting Started</div>
+              <div class="step" id="s3-l1">
+                <div class="stepnum">1</div>
+                <div class="steptext">Choose an assigned task and review test steps.</div>
+              </div>
+              <div class="step" id="s3-l2">
+                <div class="stepnum">2</div>
+                <div class="steptext">Mark PASS/FAIL and add comments or evidence.</div>
+              </div>
+              <div class="step" id="s3-l3">
+                <div class="stepnum">3</div>
+                <div class="steptext">After completion, submit signature to close task.</div>
+              </div>
+            </div>
+            <div id="s3-right">
+              <div class="panel" id="s3-panel">
+                <div class="panelhead">
+                  <div class="paneltitle">Step 4 of 7 — Submit order</div>
+                  <div class="badge">Malaysia</div>
+                </div>
+                <div class="cols">
+                  <div class="col">
+                    <div class="collabel">Expected Result</div>
+                    <div class="colbox">Order is created and a confirmation number is returned to the customer.</div>
+                  </div>
+                  <div class="col">
+                    <div class="collabel">Actual Result</div>
+                    <div class="colbox">Order created. Confirmation MY-40182 returned in 1.2s.</div>
+                  </div>
+                </div>
+                <div id="s3-passrow">
+                  <div class="status st-pass" id="s3-pass">PASSED</div>
+                </div>
+                <div class="sigbox" id="s3-sig">Draw Signature</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ Scene 4 — signed and deployed — 14.0s to 18.0s ============ -->
+      <section id="s4" class="clip scene light" data-start="14" data-duration="4" data-track-index="3">
+        <div class="fill">
+          <div id="s4-body">
+            <div id="s4-card">
+              <div id="s4-label">Draw Signature</div>
+              <div id="s4-sig">
+                <svg width="820" height="230" viewBox="0 0 820 230" fill="none" aria-hidden="true">
+                  <path
+                    id="sigpath"
+                    d="M40 168 C 78 96, 108 58, 132 62 C 156 66, 150 132, 138 166 C 128 196, 112 190, 118 162 C 126 124, 176 74, 214 108 C 244 134, 214 182, 236 180 C 262 178, 288 106, 308 78 C 322 58, 332 74, 326 110 C 320 148, 306 176, 330 176 C 358 176, 392 118, 420 94 C 442 76, 452 92, 444 124 C 436 156, 426 178, 452 172 C 486 164, 512 108, 546 96 C 572 86, 580 104, 570 132 C 560 160, 552 178, 578 170 C 612 160, 650 112, 690 106 C 726 100, 744 128, 776 118"
+                    stroke="#0f172a"
+                    stroke-width="7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+              <div id="s4-foot">
+                <div>
+                  <div id="s4-name">Putra Mahirudin</div>
+                  <div id="s4-role">Stakeholder · Malaysia · EasyOrder</div>
+                </div>
+                <!-- the two chips are stacked on purpose: IN_PROGRESS cross-fades to DEPLOYED in place -->
+                <div id="s4-chipwrap" data-layout-allow-overlap data-layout-allow-occlusion>
+                  <div class="bigstatus st-prog" id="s4-before" data-layout-allow-overlap data-layout-allow-occlusion>IN_PROGRESS</div>
+                  <div class="bigstatus st-pass" id="s4-after" data-layout-allow-overlap data-layout-allow-occlusion>DEPLOYED</div>
+                </div>
+              </div>
+            </div>
+            <div id="s4-toast"><span class="tdot"></span>Email Report to Me</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ Scene 5 — outro — 18.0s to 20.0s ============ -->
+      <section id="s5" class="clip scene dark" data-start="18" data-duration="2" data-track-index="4">
+        <div id="s5-inner">
+          <div id="s5-line">Tested. Signed. Deployed.</div>
+          <div id="s5-rule"></div>
+          <div id="s5-stat">34 migrations · 65 routes · 3 roles · 0 &ldquo;I think it works.&rdquo;</div>
+        </div>
+      </section>
+
+      <audio
+        id="bgm"
+        data-start="0"
+        data-duration="20"
+        data-volume="0.55"
+        data-track-index="9"
+        src="assets/music/happy-beats-business-moves-vol-9-by-ende-dot-app.mp3"
+      ></audio>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      const EASE = "power3.out";
+
+      /* ---------------- Scene 1 — hook (0.0–3.0) ---------------- */
+      tl.fromTo("#s1-line", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.55, ease: EASE }, 0.15);
+      tl.fromTo("#s1-gloss", { opacity: 0 }, { opacity: 1, duration: 0.45, ease: "power2.out" }, 1.95);
+      tl.to("#s1-inner", { opacity: 0, duration: 0.25, ease: "power2.in" }, 2.78);
+
+      /* ---------------- Scene 2 — the board (3.0–7.0) ---------------- */
+      tl.fromTo("#s2-bar", { opacity: 0, y: -14 }, { opacity: 1, y: 0, duration: 0.4, ease: EASE }, 3.05);
+      tl.fromTo("#s2-search", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: EASE }, 3.2);
+      // beat-locked: 3.70s strong cue — first task card lands on the downbeat
+      // beat-grid: card 1 at 3.70s, card 2 at 4.23s, card 3 at 4.75s
+      // motion mirrors the app's own ctt-card-enter keyframe (260ms, 8px rise)
+      tl.fromTo("#s2-c1", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.26, ease: EASE }, 3.7);
+      tl.fromTo("#s2-c2", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.26, ease: EASE }, 4.23);
+      tl.fromTo("#s2-c3", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.26, ease: EASE }, 4.75);
+
+      /* ---------------- Scene 3 — the three steps (7.0–14.0) ---------------- */
+      tl.fromTo("#s3-kicker", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 7.2);
+      tl.fromTo("#s3-panel", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: EASE }, 7.25);
+      // the panel's later elements start hidden and arrive with their matching line
+      tl.set(["#s3-pass", "#s3-sig"], { opacity: 0 }, 0);
+      // beat-locked: 7.92s strong cue — the flow begins
+      // beat-grid: line 1 at 7.92s, line 2 at 10.01s, line 3 at 12.12s (every 4th beat,
+      // ~2.1s apart — these are full sentences, so they are NOT on consecutive beats)
+      tl.fromTo("#s3-l1", { opacity: 0, x: -18 }, { opacity: 1, x: 0, duration: 0.42, ease: EASE }, 7.92);
+      tl.fromTo("#s3-l2", { opacity: 0, x: -18 }, { opacity: 1, x: 0, duration: 0.42, ease: EASE }, 10.01);
+      // ctt-status-pop — the app's real 220ms chip animation
+      tl.fromTo("#s3-pass", { opacity: 0, y: 2, scale: 0.98 }, { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: EASE }, 10.45);
+      tl.fromTo("#s3-l3", { opacity: 0, x: -18 }, { opacity: 1, x: 0, duration: 0.42, ease: EASE }, 12.12);
+      tl.fromTo("#s3-sig", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.34, ease: EASE }, 12.5);
+
+      /* ---------------- Scene 4 — signed and deployed (14.0–18.0) ---------------- */
+      tl.set("#s4-after", { opacity: 0 }, 0);
+      tl.fromTo("#s4-card", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.45, ease: EASE }, 14.1);
+      tl.fromTo(
+        "#sigpath",
+        { strokeDashoffset: 2600 },
+        { strokeDashoffset: 0, duration: 1.4, ease: "none" },
+        14.6
+      );
+      // the canvas acknowledges the completed signature in brand red
+      tl.to("#s4-sig", { borderColor: "#c4161c", duration: 0.18, ease: "power2.out" }, 16.05);
+      tl.to("#s4-sig", { borderColor: "#cbd5e1", duration: 0.4, ease: "power2.inOut" }, 16.3);
+      // beat-locked: 16.34s strong cue — the payoff, IN_PROGRESS flips to DEPLOYED
+      tl.to("#s4-before", { opacity: 0, duration: 0.18, ease: "power2.in" }, 16.24);
+      tl.fromTo("#s4-after", { opacity: 0, y: 3, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: EASE }, 16.34);
+      tl.fromTo("#s4-toast", { opacity: 0, x: 26 }, { opacity: 1, x: 0, duration: 0.38, ease: EASE }, 16.85);
+
+      /* ---------------- Scene 5 — outro (18.0–20.0) ---------------- */
+      tl.fromTo("#s5-line", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: EASE }, 18.1);
+      tl.fromTo("#s5-rule", { opacity: 0, scaleX: 0.3 }, { opacity: 1, scaleX: 1, duration: 0.45, ease: EASE }, 18.4);
+      tl.fromTo("#s5-stat", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 18.9);
+
+      /* ---------------- Audio ---------------- */
+      const bgm = document.getElementById("bgm");
+      // low under the still hook, a small lift as real work arrives, fade to silence
+      tl.to(bgm, { volume: 0.7, duration: 0.6, ease: "power1.out" }, 3.6);
+      tl.to(bgm, { volume: 0.0, duration: 1.5, ease: "power2.in" }, 18.4);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

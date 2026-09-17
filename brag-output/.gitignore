@@ -1,0 +1,15 @@
+# Bundled music track from the /brag skill. Deliberately NOT committed: the skill's
+# own asset README says the license terms must be verified before redistribution,
+# and committing it here would redistribute it under this repo. Restore with:
+#   cp <brag-skill>/assets/music/happy-beats-business-moves-vol-9-by-ende-dot-app.mp3 \
+#      brag-output/composition/assets/music/
+composition/assets/music/*.mp3
+
+# Vendored GSAP (MIT). Regenerable, so kept out of the tree. Restore with:
+#   npm install gsap@3.14.2 && cp node_modules/gsap/dist/gsap.min.js \
+#      brag-output/composition/assets/vendor/
+composition/assets/vendor/
+
+# Regenerable render diagnostics
+composition/snapshots/
+composition/node_modules/

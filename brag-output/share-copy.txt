@@ -1,0 +1,1 @@
+Shipped CTT — "Cuba Try Test." Cuba is Malay for try, so the name is sincerely "Try Try Test," and that's the whole product: real UAT steps, market by market, marked PASS or FAIL with evidence, then closed with a signature that emails itself as an audit report. Next.js 15, Prisma, Postgres — and 34 migrations of making people prove it.
