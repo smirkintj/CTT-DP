@@ -1,225 +1,161 @@
-# Brag Plan: CTT (Cuba Try Test)
+# Brag Plan: CTT (Cuba Try Test) — v2
 
-> **Scope lock:** This video covers the **UAT side of CTT only**. SIT is explicitly
-> out of scope — no `SitTask`, test cases, evidence, defects, QA runs, Jira SIT
-> queue, or AI drafting appears in any scene. Do not pull material from
-> `views/AdminDraftTasks.tsx`, `views/AdminJiraIntake.tsx`, `lib/sit*.ts`, or any
-> `app/api/sit-*` route.
+> **Supersedes v1.** The first cut was tonally wrong. It was planned as a `polished`
+> "quiet enterprise product film," which is a tone that forbids excitement, and its
+> centrepiece was the product's onboarding copy — a numbered list of instructions
+> rather than the product doing anything. It had no conflict, so nothing was at stake
+> and nothing was won. v2 rebuilds the story around the problem CTT actually solves.
+
+> **Scope lock:** UAT only. SIT is out of scope — no `SitTask`, test cases, evidence,
+> defects, QA runs, Jira queue, or AI drafting in any scene. Do not read
+> `views/AdminDraftTasks.tsx`, `views/AdminJiraIntake.tsx`, `lib/sit*.ts`, or
+> `app/api/sit-*`.
+
+## Audience
+DKSH internal — stakeholders, QA leads, managers. They already know what UAT is and
+they have personally lived the "before." The video does not explain UAT; it shows the
+pain, then the fix.
 
 ## What is this app?
-CTT is the system DKSH uses to prove a release was actually tested — assigned
-testers walk real test steps market by market, mark PASS/FAIL with evidence, and
-close the task with a drawn signature that becomes an emailed sign-off report.
+CTT is the system that makes a release prove it was tested. Per market, per step,
+PASS or FAIL with evidence, closed by a signature that becomes an emailed sign-off report.
 
 ## The angle
-The name is the whole joke, and it's not a joke. **"Cuba Try Test"** — *cuba* is
-Malay for *try*. The product is named, with total sincerity, "Try Try Test." That
-literalism *is* the brand: this is unglamorous, boring, load-bearing software that
-exists so nobody ever has to say "I think we tested it."
+**The gap between "i think so" and proof.**
 
-The video plays it completely straight. No SaaS voice, no "streamline your
-workflow." The angle is **quiet competence**: show the real screens, the real
-statuses, the real signature, and let the audit trail be the flex.
+Before CTT, "did Malaysia sign off?" was answered in a Teams thread, from memory, by
+whoever replied fastest. That thread is the villain, and everyone watching has been in
+it. The video opens inside it, lets the question go unanswered, then cuts to CTT
+answering the same question with evidence.
 
-## Hook (first 2-3 seconds)
-Full-bleed slate-900. One line, centred, Inter, tight tracking:
+The Teams framing is not invented dressing — the product ships Teams webhook
+notifications (`lib/teams.ts`), so that thread is literally where this conversation
+happens.
 
-> **"Someone has to try it."**
+The name lands last: *cuba* is Malay for *try*, so CTT is sincerely "Try Try Test."
+It plays as the button on the outro, not as the hook.
 
-Hold. Then, small, beneath it, in DKSH red: **`cuba try test`** — lowercase, like a
-translation note. The pun lands without anyone explaining it.
+## Hook (first 3 seconds)
+A Teams thread, large and centred. "EasyOrder goes live Friday." Then, from someone
+else: **"did MY sign off?"** The hook is the question, because the audience already
+knows the answer is going to be bad.
 
-This earns the next 17 seconds because it reframes a boring compliance tool as the
-last human checkpoint before production.
-
-## Key moments (the middle)
-- **The board fills.** Task cards arrive one by one into a stakeholder dashboard —
-  each carrying a real product badge (`EasyOrder`) and a real status chip. The
-  status vocabulary is the product's own: `READY` → `IN_PROGRESS` → `PASSED` → `DEPLOYED`.
-- **The app narrates its own flow.** CTT literally ships onboarding copy that says
-  *"Complete these 3 steps to finish your UAT flow."* Use those three lines verbatim
-  as the spine of the centrepiece — the product describing itself in its own words.
-- **A step gets marked.** `Expected Result` / `Actual Result` side by side. The
-  PASS chip pops in using the app's real `ctt-status-pop` animation (220ms ease-out).
-- **The signature.** A hand-drawn stroke fills the `Draw Signature` canvas in real
-  time. This is the single most video-worthy asset in the codebase — a literal
-  signature closing a literal ticket.
-- **`DEPLOYED`.** Emerald chip. The report emails itself.
+## Key moments
+- **"i think so?"** — tinted rose, the only coloured message in the thread. This is the
+  whole problem in three words.
+- **"TH? SG?"** — the problem multiplying across markets.
+- **The typing indicator that never resolves.** Nobody answers. Hold on it.
+- **"Nobody could prove it."** — hard cut to black, one line, full frame.
+- **The board answers the question directly** — MY / TH / SG, each with status and step
+  count. The scene is built as the literal answer to the message that went unanswered.
+- **A cursor clicks PASS.** Not a static chip — the product being used.
+- **The signature, then `DEPLOYED`, then the report emails itself.**
 
 ## Outro / punchline
-Cut to black. One line:
-
-> **"Tested. Signed. Deployed."**
-
-Then, small: **`34 migrations. 65 routes. 3 roles. 0 'I think it works.'`**
+**"Now you can prove it."** Then the lockup: `CTT · cuba try test`.
 
 ## User flow worth showing
-Taken verbatim from `views/StakeholderDashboard.tsx` — the app's own Getting Started panel:
-
-1. **Entry** — *"Choose an assigned task and review test steps."*
-2. **Key action** — *"Mark PASS/FAIL and add comments or evidence."*
-3. **Result** — *"After completion, submit signature to close task."*
-
-This is the centrepiece. Scenes 3 and 4 are the working app, not marketing.
+Entry → the market board answering "who has signed off?"
+Key action → a step marked PASS with evidence, by cursor
+Result → signature, `DEPLOYED`, sign-off report emailed
 
 ## Tone
-- **Preset:** `polished`
-- **Creative direction:** *Quiet enterprise product film — the unglamorous thing, done well.*
-- **Interpretation:** Fewer scenes, longer holds, confident restraint. Motion is
-  crisp but never frantic; the product is serious infrastructure and the edit
-  should trust it. The only wink is the name itself, delivered deadpan in scene 1
-  and never mentioned again.
+- Preset: `deadpan` → `polished` arc. The mess is played completely straight (that is
+  what makes it funny and uncomfortable); the fix is played clean.
+- Creative direction: *The thread everyone has been in, answered.*
+- Interpretation: Scene 1 gets room to breathe so the silence lands. From the cut
+  onward, pacing tightens and every beat resolves something the thread left open.
 
 ## Format: landscape — 1920x1080
-## Duration: 20s
+## Duration: 22.0s
 
 ## Visual identity (from the project)
-Pulled from `tailwind.config.js`, `app/globals.css`, `app/layout.tsx`.
+- Background: `#f8fafc` light / `#0f172a` slate-900 dark
+- Accent: `#c4161c` (`brand-500`), `#e0454a` on dark for contrast
+- Muted text: `#6c7786` (contrast-tuned to clear WCAG AA)
+- Status colours, real: `PASSED`/`DEPLOYED` emerald, `IN_PROGRESS` amber, `FAILED` rose
+- Type: generic `ui-sans-serif, system-ui` stack — no webfont is shipped, and a named
+  family without an `@font-face` fails lint
+- **Scale rule learned from v1:** author at video scale, not UI scale. Body copy sits at
+  33–42px, headlines at 124–128px, and layouts fill the frame instead of floating in it.
+- Motion vocabulary reused from `app/globals.css`: `ctt-card-enter` (260ms, 8px rise),
+  `ctt-status-pop` (220ms ease-out)
 
-- **Background:** `#f8fafc` (slate-50, set on `body`)
-- **Dark surface:** `#0f172a` (slate-900 — the project's stated primary dark)
-- **Accent / brand:** `#c4161c` (`brand-500`, DKSH red); deep variant `#991116` (`brand-600`)
-- **Text:** `#0f172a` primary, `#64748b` (slate-500) secondary
-- **Status palette (real, from the code):**
-  - `PASSED` / `DEPLOYED` → emerald (`bg-emerald-100 text-emerald-600`)
-  - `FAILED` → `bg-rose-600 text-white`
-  - `CONDITIONAL` → `bg-amber-600 text-white`
-- **Display font:** Inter (600/700 weights)
-- **Body font:** Inter (400/500)
-- **Strongest visual element:** the `Draw Signature` canvas (`components/SignatureCanvas.tsx`)
-- **Bonus — reuse the app's own motion:** `ctt-status-pop` (220ms ease-out),
-  `ctt-card-enter` (260ms, 8px rise), `ctt-shimmer`. Animating the video with the
-  product's actual keyframes is the most "specific to this project" choice available.
-
-## Share copy (draft)
-> Built CTT — "Cuba Try Test." Malay for *try*. It's the thing that stands between
-> a release and production: real test steps, per-market, marked PASS or FAIL with
-> evidence, closed with a signature that emails itself as an audit report. 34
-> migrations of saying "prove it."
+## Share copy
+See `share-copy.txt`.
 
 ## Audio direction
-- **Role:** Warm corporate bed with restrained, motion-matched accents.
-- **Music:** `happy-beats-business-moves-vol-9-by-ende-dot-app.mp3` (114.84 BPM,
-  113.64s). Chosen for steady mid-tempo business warmth that suits `polished`
-  without tipping into upbeat-ad energy.
-- **Music treatment:** Start at 0.00s. Sit low (~-18 LUFS relative to a silent
-  mix) under scene 1, lift slightly at the first card reveal, hold flat through
-  the flow, and fade out over the final 1.5s of the outro.
-- **Music cue guidance:** Preset cue file read (`cues/…vol-9….music-cues.md`).
-  - Strong cues to target: **3.70s** (board reveal), **7.92s** (first flow step),
-    **16.34s** (`DEPLOYED` chip).
-  - Beat-grid window for the 3 sequential flow steps: **7.92 / 10.01 / 12.12** —
-    every 4th beat, ~2.1s apart, comfortably above the readable floor for a
-    full sentence. Do **not** snap these to consecutive beats.
-- **Audio-reactive treatment:** Subtle. Music RMS may breathe the hero card's
-  shadow depth and the red accent's glow. No waveform bars, no pumping.
-- **SFX posture:** Sparse, motion-matched, professional restraint. Roughly five
-  cues total across 20 seconds.
-- **Audio-coupled moments:** card-by-card arrival on the board; the three flow
-  lines appearing in sequence; the PASS chip pop; the signature stroke (a soft
-  continuous pen texture, not a scratch); the `DEPLOYED` chip.
-- **Restraint rule:** No whooshes on text, no riser into the outro, no impact hit
-  on the logo. If a cue would make this feel like an ad, cut it. Silence is
-  allowed in the last 0.5s.
+- Role: low bed under the mess, lift at the turn, resolve on the payoff, fade on the lockup.
+- Music: `happy-beats-business-moves-vol-9-by-ende-dot-app.mp3` (114.84 BPM)
+- Music treatment: 0.5 under scene 1, up to 0.72 at the cut to CTT (8.44s), fade to 0
+  from 20.3s.
+- SFX (implemented, unlike v1 which specified them and shipped none):
+  - message arrivals ×4 — `interface/drop_002.ogg`
+  - market rows ×3 — `ui/rollover2.ogg`
+  - the click on PASS — `ui/mouseclick1.ogg` + `interface/click_002.ogg`
+  - `DEPLOYED` — `interface/bong_001.ogg`
+  - All are low high-frequency-risk per the skill's `sfx-analysis.md`.
+- Audio-reactive: `none`, deliberate. An audit tool should not visibly pulse to music.
+- Restraint rule: no whooshes on text, no riser into the outro, no impact on the lockup.
 
 ## Storyboard
 
-### Scene 1 — "Someone has to try it." — 3.0s
-Full-bleed slate-900 (`#0f172a`). Hook line centred in Inter 700, large, tight
-tracking, fading up over 0.4s and then holding still. At ~2.0s, small lowercase
-`cuba try test` fades in beneath it in brand red `#c4161c`, letter-spaced wide,
-like a dictionary gloss. No motion after that — let it sit.
-Reading check: hook is 5 words → ~1.5s floor; it holds ~2.6s. ✓
-Sequential/interaction: none — deliberate stillness.
-Audio intent: music enters low and unhurried; the room is calm before work starts.
-Audio-coupled idea: none. Restraint.
-Music: warm, low, steady.
-Transition mood: clean → Scene 2
+### Scene 1 — the thread — 0.00 to 6.34 (6.34s)
+A Teams thread, 1560px wide, centred on slate-50. Messages arrive on every other beat
+(1.07 / 2.12 / 3.18 / 4.23) so each is readable at 40px. "i think so?" is the only
+tinted message. At 5.28 a typing indicator appears and pulses — and nobody answers.
+Sequential/interaction: yes — four messages arriving one by one, then an unresolved
+typing indicator.
+Audio: soft message drop per arrival; music low and unhurried.
+Transition mood: hard cut → Scene 2
 
-### Scene 2 — The board — 4.0s
-Hard cut to slate-50 (`#f8fafc`). The stakeholder dashboard. Search field reading
-`Search tasks...`, filter chips `Open Tasks` / `In Progress` / `Unread`. Three task
-cards arrive one by one using the app's real `ctt-card-enter` (260ms, 8px rise),
-first landing on the **3.70s** strong cue. Each card carries the `EasyOrder`
-product badge, a market label, and a status chip — one `READY`, one `IN_PROGRESS`,
-one `PASSED` (emerald).
-Reading check: chips are 1-word labels → 0.8s floor each; all three hold together
-for the final ~1.8s of the scene. ✓
-Sequential/interaction: yes — 3 cards arrive one by one, ~0.5s apart, then the full
-set holds on screen.
-Audio intent: quiet arrival; the sense of a queue of real work.
-Audio-coupled idea: soft card-settle cue per arrival, well under the music.
-Music: lifts slightly as the first card lands.
-Transition mood: soft slide → Scene 3
+### Scene 2 — the turn — 6.34 to 8.44 (2.10s)
+// beat-locked: 6.34s strong cue
+Slate-900, full frame, 128px: **"Nobody could prove it."** Nothing else moves.
+Reading check: 4 words → ~1.2s floor; holds ~1.6s. ✓
+Transition mood: hard cut → Scene 3
 
-### Scene 3 — The three steps (centrepiece) — 7.0s
-The product's own onboarding copy, verbatim, revealed one line at a time on the
-beat grid at **7.92 / 10.01 / 12.12**:
-
-1. *"Choose an assigned task and review test steps."*
-2. *"Mark PASS/FAIL and add comments or evidence."*
-3. *"After completion, submit signature to close task."*
-
-Each line is paired with a live fragment of the real UI rising alongside it:
-line 1 → a test-step row; line 2 → `Expected Result` / `Actual Result` in two
-columns with a `PASSED` chip popping in via `ctt-status-pop`; line 3 → the empty
-`Draw Signature` canvas with its dashed border.
-Reading check: each line is 7-8 words → ~2.1s floor; spacing is exactly 2.1s and
-all three hold together through the scene's final beat. ✓
-Sequential/interaction: yes — three lines + three UI fragments in strict sequence;
-the PASS chip is a simulated marking action, not a static badge.
-Audio intent: forward motion without urgency; each step feels decided, not rushed.
-Audio-coupled idea: a dry tick on each line arrival; a slightly brighter, shorter
-cue on the PASS chip pop.
-Music: steady, flat, supportive — no build.
+### Scene 3 — the board answers — 8.44 to 12.65 (4.21s)
+// beat-locked: 8.44s strong cue
+CTT. "Now you can answer that." Three market rows — MY `PASSED` (7 of 7, signed off,
+evidence attached), TH `IN_PROGRESS` (4 of 7), SG `READY` (0 of 7) — arriving on the
+beat grid at 8.96 / 9.50 / 10.01 with the app's own card-enter motion.
+Sequential/interaction: yes — rows arrive one by one.
+Audio: soft row cue per arrival; music lifts at the cut.
 Transition mood: clean → Scene 4
 
-### Scene 4 — Signed and deployed — 4.0s
-Push in on the signature canvas. A stroke draws itself left to right over ~1.4s in
-slate-900 — real handwriting pace, with the natural pause mid-name. On completion
-the canvas border flashes brand red once, then the task's status chip transitions
-`IN_PROGRESS` → `DEPLOYED` (emerald) on the **16.34s** strong cue. A small toast
-slides in bottom-right: `Email Report to Me`.
-Reading check: `DEPLOYED` is one word → 0.8s floor; holds ~1.6s. ✓
-Sequential/interaction: yes — the signature is a simulated drawing gesture; the
-status change and toast follow as consequences.
-Audio intent: quiet resolution — the moment of accountability landing.
-Audio-coupled idea: continuous soft pen texture under the stroke (not a scratch);
-one clean chime on `DEPLOYED`; a near-silent slide on the toast.
-Music: holds; begins its fade at the end of the scene.
-Transition mood: soft crossfade → Scene 5
+### Scene 4 — the step, marked — 12.65 to 15.81 (3.16s)
+Thailand's step 5 of 7. `Expected Result` / `Actual Result` side by side with a real
+confirmation number and an attached screenshot. A cursor travels in and **clicks PASS**
+at 14.22s; the button commits to filled emerald with a click ripple.
+Sequential/interaction: yes — simulated cursor click, the product being used.
+Audio: mouse click + a dry commit tick, landing together with the visual.
+Transition mood: clean → Scene 5
 
-### Scene 5 — Outro — 2.0s
-Cut to slate-900. Centred:
+### Scene 5 — signed and deployed — 15.81 to 19.48 (3.67s)
+The signature draws itself across the canvas over 1.35s. The border flashes brand red
+on completion, then `IN_PROGRESS` cross-fades to `DEPLOYED`. A toast slides in:
+"Sign-off report emailed."
+// beat-locked: 17.91s strong cue — the payoff
+Audio: one warm announcement cue on `DEPLOYED`. Nothing else.
+Transition mood: soft crossfade → Scene 6
 
-> **Tested. Signed. Deployed.**
+### Scene 6 — outro — 19.48 to 22.00 (2.52s)
+Slate-900. **"Now you can prove it."** at 124px, then the lockup: the CTT mark, `CTT`,
+and `cuba try test` in brand red. Music fades to silence under it.
+Audio: no cue on the lockup. Deliberate.
 
-At ~18.9s, small and slate-500 beneath it:
-`34 migrations. 65 routes. 3 roles. 0 "I think it works."`
-
-Brand-red hairline rule underneath. No logo animation, no impact hit.
-Reading check: outro line is 3 words → 0.8s floor, holds 2.0s; the stat line is a
-deliberate "read it if you catch it" detail. ✓
-Sequential/interaction: none.
-Audio intent: the bed resolves and steps away; the last ~0.5s is silent.
-Audio-coupled idea: none. Deliberate.
-Music: fade to zero over the final 1.5s.
-Transition mood: hold to black — END
-
-**Music mood for this video:** warm, steady, corporate-but-human — never upbeat-ad.
-**Audio summary:** A low warm bed enters under a still hook, lifts once as real work
-arrives, holds flat and unhurried through the three-step flow with dry motion-matched
-ticks, resolves on a single clean chime at `DEPLOYED`, and fades to deliberate silence
-before the last frame.
-
----
+**Audio summary:** A low bed under a thread that never gets answered, a lift the moment
+CTT takes the question, motion-matched cues on every real interaction, one warm
+resolution on `DEPLOYED`, and silence on the name.
 
 ## Scene budget
-| Scene | Name | Duration |
-|---|---|---|
-| 1 | Someone has to try it. | 3.0s |
-| 2 | The board | 4.0s |
-| 3 | The three steps | 7.0s |
-| 4 | Signed and deployed | 4.0s |
-| 5 | Outro | 2.0s |
-| | **Total** | **20.0s** ✓ (15–25s) |
+| Scene | Name | Start | Duration |
+|---|---|---|---|
+| 1 | The thread | 0.00 | 6.34s |
+| 2 | The turn | 6.34 | 2.10s |
+| 3 | The board answers | 8.44 | 4.21s |
+| 4 | The step, marked | 12.65 | 3.16s |
+| 5 | Signed and deployed | 15.81 | 3.67s |
+| 6 | Outro | 19.48 | 2.52s |
+| | **Total** | | **22.00s** ✓ (15–25s) |
